@@ -131,6 +131,10 @@ public partial class EconomyNetwork : Node
                     new BusinessActionRequest(session.CharacterId, requestId)),
                 NpcActionKind.Withdraw => await backend.BusinessActionAsync(_network.ServerKey, "withdraw",
                     new BusinessActionRequest(session.CharacterId, requestId)),
+                NpcActionKind.HireHelper => await backend.BusinessActionAsync(_network.ServerKey, "hire",
+                    new BusinessActionRequest(session.CharacterId, requestId)),
+                NpcActionKind.FireHelper => await backend.BusinessActionAsync(_network.ServerKey, "fire",
+                    new BusinessActionRequest(session.CharacterId, requestId)),
                 _ => await backend.DeliverAsync(_network.ServerKey,
                     new DeliverContractRequest(session.CharacterId, action.ContractId!.Value, requestId)),
             };

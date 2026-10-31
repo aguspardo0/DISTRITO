@@ -22,10 +22,12 @@ public sealed record BusinessView(
     long RevenueCents,
     long RentCents,
     int UnitsSold,
-    int LastCycleUnits)
+    int LastCycleUnits,
+    bool HasHelper = false,
+    long WagesCents = 0)
 {
     public long CostOfGoodsCents => UnitsSold * EconomyCatalog.CoffeeBagPriceCents;
-    public long ProfitCents => RevenueCents - RentCents - CostOfGoodsCents;
+    public long ProfitCents => RevenueCents - RentCents - WagesCents - CostOfGoodsCents;
     public long StockValueCents => Stock * EconomyCatalog.CoffeeBagPriceCents;
     public long EquityCents => CashCents + StockValueCents;
 
@@ -111,6 +113,10 @@ public static class EconomyCatalog
     public const long CoffeeStandRentCents = 100;
     public const string CoffeeStandLocation = "puesto-cafe";
     public const int MaxCatchUpCycles = 288;
+
+    // Ayudante (empleado básico; decisión del equipo): cobra por ciclo abierto y amplía la venta máxima.
+    public const long CoffeeHelperWageCents = 100;
+    public const int CoffeeHelperExtraDemand = 1;
 
     /// <summary>Ubicación de las mercancías que lleva encima un personaje.</summary>
     public const string CarriedLocation = "encima";

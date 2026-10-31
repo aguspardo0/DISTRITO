@@ -69,11 +69,11 @@ public class NpcInteractionRulesTests
         Assert.Null(NpcInteractionRules.Resolve("npc:inventado", $"accept:{Contract.Code}", State()));
     }
 
-    private static EconomySnapshot WithBusiness(int stock = 0, long cash = 0, int carriedBags = 0) => new(
+    private static EconomySnapshot WithBusiness(int stock = 0, long cash = 0, int carriedBags = 0, bool helper = false) => new(
         2000,
         carriedBags > 0 ? [new InventoryItem(EconomyCatalog.CoffeeBagItem, "Bolsa de café", carriedBags)] : [],
         [], 0, null,
-        new BusinessView(Guid.NewGuid(), "Puesto de prueba", stock, cash, 0, 0, 0, 0));
+        new BusinessView(Guid.NewGuid(), "Puesto de prueba", stock, cash, 0, 0, 0, 0, helper));
 
     [Fact]
     public void Valenti_vende_licencia_solo_a_quien_no_tiene_negocio()
@@ -86,7 +86,8 @@ public class NpcInteractionRulesTests
     public void La_esquina_ofrece_reponer_y_retirar_segun_corresponda()
     {
         Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, State()).Options);
-        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, WithBusiness()).Options);
+        Assert.Equal(new[] { "hire:puesto-cafe" },
+            NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, WithBusiness()).Options.Select(o => o.Id));
 
         var both = NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, WithBusiness(cash: 400, carriedBags: 2)).Options;
         Assert.Contains(both, o => o.Id == "restock:puesto-cafe");
@@ -95,6 +96,20 @@ public class NpcInteractionRulesTests
         Assert.Equal(NpcActionKind.Withdraw,
             NpcInteractionRules.Resolve(EconomyCatalog.CoffeeCornerNpc, "withdraw:puesto-cafe", WithBusiness(cash: 400))!.Kind);
         Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.CoffeeCornerNpc, "withdraw:puesto-cafe", WithBusiness(cash: 0)));
+    }
+
+    [Fact]
+    public void La_esquina_permite_contratar_o_despedir_al_ayudante()
+    {
+        Assert.Equal(NpcActionKind.HireHelper,
+            NpcInteractionRules.Resolve(EconomyCatalog.CoffeeCornerNpc, "hire:puesto-cafe", WithBusiness())!.Kind);
+        Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.CoffeeCornerNpc, "fire:puesto-cafe", WithBusiness()));
+
+        var withHelper = WithBusiness(helper: true);
+        Assert.Equal(NpcActionKind.FireHelper,
+            NpcInteractionRules.Resolve(EconomyCatalog.CoffeeCornerNpc, "fire:puesto-cafe", withHelper)!.Kind);
+        Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.CoffeeCornerNpc, "hire:puesto-cafe", withHelper));
+        Assert.Contains("vende hasta 3", NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, withHelper).Text);
     }
 
     [Fact]

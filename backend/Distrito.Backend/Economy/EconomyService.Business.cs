@@ -83,6 +83,26 @@ public sealed partial class EconomyService
             return $"Retiraste {EconomyCatalog.FormatMoney(cash)} de la caja del puesto.";
         });
 
+    public Task<EconomyActionResult> SetCoffeeHelperAsync(BusinessActionRequest r, bool hire, CancellationToken ct) =>
+        RunAsync(r.CharacterId, r.RequestId, ct, async (c, tx) =>
+        {
+            var business = await BusinessOfAsync(c, tx, r.CharacterId, ct)
+                ?? throw new EconomyRejected("no_business", "No tenés un puesto de café.");
+            await using var cmd = new NpgsqlCommand(
+                "UPDATE distrito.businesses SET has_helper = @h WHERE id = @id AND has_helper <> @h", c, tx);
+            cmd.Parameters.AddWithValue("h", hire);
+            cmd.Parameters.AddWithValue("id", business.Id);
+            if (await cmd.ExecuteNonQueryAsync(ct) == 0)
+                throw new EconomyRejected(hire ? "already_hired" : "no_helper", hire ? "Ya tenés un ayudante." : "No tenés ayudante.");
+
+            // La acción queda en el libro (sin movimiento de dinero) para que el reintento sea idempotente.
+            await NewLedgerTransactionAsync(c, tx, r.RequestId, hire ? "business_hire" : "business_fire",
+                hire ? "Contratación de ayudante del puesto" : "Despido del ayudante del puesto", ct);
+            return hire
+                ? $"Contrataste un ayudante: cobra {EconomyCatalog.FormatMoney(EconomyCatalog.CoffeeHelperWageCents)} por ciclo abierto y el puesto puede vender hasta {EconomyCatalog.CoffeeDemandPerCycle + EconomyCatalog.CoffeeHelperExtraDemand} por ciclo."
+                : "Despediste al ayudante.";
+        });
+
     /// <summary>
     /// Procesa los ciclos pendientes de todos los negocios hasta <paramref name="currentCycle"/>.
     /// Cada ciclo de cada negocio es idempotente (clave business-cycle:id:ciclo), así que puede correr
@@ -113,8 +133,9 @@ public sealed partial class EconomyService
 
         Guid account;
         long lastCycle;
+        bool hasHelper;
         await using (var lockBusiness = new NpgsqlCommand(
-            "SELECT account_id, last_cycle FROM distrito.businesses WHERE id = @id FOR UPDATE", c, tx))
+            "SELECT account_id, last_cycle, has_helper FROM distrito.businesses WHERE id = @id FOR UPDATE", c, tx))
         {
             lockBusiness.Parameters.AddWithValue("id", businessId);
             await using var reader = await lockBusiness.ExecuteReaderAsync(ct);
@@ -122,6 +143,7 @@ public sealed partial class EconomyService
                 return 0;
             account = reader.GetGuid(0);
             lastCycle = reader.GetInt64(1);
+            hasHelper = reader.GetBoolean(2);
         }
         if (lastCycle >= currentCycle)
             return 0;
@@ -139,12 +161,18 @@ public sealed partial class EconomyService
             if (stock == 0)
                 break; // sin mercadería no hay ventas ni alquiler; se salta al final
 
-            var units = Math.Min(stock, EconomyCatalog.CoffeeDemandPerCycle);
+            // El ayudante trabaja solo si hay caja para pagarle al empezar el ciclo; si no, ese ciclo no trabaja.
+            var helperWorks = hasHelper && await BalanceAsync(c, tx, account, ct) >= EconomyCatalog.CoffeeHelperWageCents;
+            var demand = EconomyCatalog.CoffeeDemandPerCycle + (helperWorks ? EconomyCatalog.CoffeeHelperExtraDemand : 0);
+            var units = Math.Min(stock, demand);
             var revenue = units * EconomyCatalog.CoffeeSalePriceCents;
             var rent = Math.Min(EconomyCatalog.CoffeeStandRentCents, revenue);
+            var wages = helperWorks ? EconomyCatalog.CoffeeHelperWageCents : 0;
 
             var txId = await NewLedgerTransactionAsync(c, tx, $"business-cycle:{businessId}:{cycle}", "business_cycle",
-                $"Ventas del ciclo {cycle}: {units} café(s)", ct);
+                $"Ventas del ciclo {cycle}: {units} café(s){(helperWorks ? " con ayudante" : "")}", ct);
+            if (wages > 0)
+                await TransferMoneyAsync(c, tx, txId, from: account, to: population, wages, ct); // el sueldo vuelve a la población
             await TransferMoneyAsync(c, tx, txId, from: population, to: account, revenue, ct);
             await TransferMoneyAsync(c, tx, txId, from: account, to: valenti, rent, ct);
             await MoveItemsAsync(c, tx, txId, EconomyCatalog.CoffeeBagItem, units,
@@ -152,14 +180,15 @@ public sealed partial class EconomyService
                 notEnough: "Sin stock.", ct);
 
             await using var record = new NpgsqlCommand("""
-                INSERT INTO distrito.business_cycles (business_id, cycle, units_sold, revenue_cents, rent_cents, transaction_id)
-                VALUES (@b, @cycle, @u, @rev, @rent, @tx)
+                INSERT INTO distrito.business_cycles (business_id, cycle, units_sold, revenue_cents, rent_cents, wages_cents, transaction_id)
+                VALUES (@b, @cycle, @u, @rev, @rent, @wages, @tx)
                 """, c, tx);
             record.Parameters.AddWithValue("b", businessId);
             record.Parameters.AddWithValue("cycle", cycle);
             record.Parameters.AddWithValue("u", units);
             record.Parameters.AddWithValue("rev", revenue);
             record.Parameters.AddWithValue("rent", rent);
+            record.Parameters.AddWithValue("wages", wages);
             record.Parameters.AddWithValue("tx", txId);
             await record.ExecuteNonQueryAsync(ct);
             totalSold += units;

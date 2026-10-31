@@ -7,7 +7,7 @@ public sealed record NpcOption(string Id, string Label);
 
 public sealed record NpcDialog(string NpcCode, string Title, string Text, IReadOnlyList<NpcOption> Options);
 
-public enum NpcActionKind { AcceptContract, Buy, Deliver, BuyLicense, Restock, Withdraw }
+public enum NpcActionKind { AcceptContract, Buy, Deliver, BuyLicense, Restock, Withdraw, HireHelper, FireHelper }
 
 public sealed record NpcAction(NpcActionKind Kind, string Code, Guid? ContractId = null);
 
@@ -68,6 +68,8 @@ public static class NpcInteractionRules
             "license" => new NpcAction(NpcActionKind.BuyLicense, parts[1]),
             "restock" => new NpcAction(NpcActionKind.Restock, parts[1]),
             "withdraw" => new NpcAction(NpcActionKind.Withdraw, parts[1]),
+            "hire" => new NpcAction(NpcActionKind.HireHelper, parts[1]),
+            "fire" => new NpcAction(NpcActionKind.FireHelper, parts[1]),
             "deliver" when Guid.TryParse(parts[1], out var id) =>
                 new NpcAction(NpcActionKind.Deliver, s.ActiveContracts.First(c => c.Id == id).TemplateCode, id),
             _ => null,
@@ -101,15 +103,20 @@ public static class NpcInteractionRules
 
         var m = EconomyCatalog.FormatMoney;
         var text = $"{b.Name} — {b.OperatingState}\n" +
-                   $"Stock: {b.Stock} bolsa(s) · vende hasta {EconomyCatalog.CoffeeDemandPerCycle} por ciclo a {m(EconomyCatalog.CoffeeSalePriceCents)}\n" +
+                   $"Stock: {b.Stock} bolsa(s) · vende hasta {EconomyCatalog.CoffeeDemandPerCycle + (b.HasHelper ? EconomyCatalog.CoffeeHelperExtraDemand : 0)} por ciclo a {m(EconomyCatalog.CoffeeSalePriceCents)}\n" +
                    $"Caja: {m(b.CashCents)} · Patrimonio: {m(b.EquityCents)}\n" +
-                   $"Vendidos: {b.UnitsSold} · Facturación: {m(b.RevenueCents)} · Alquiler: {m(b.RentCents)} · Ganancia: {m(b.ProfitCents)}";
+                   $"Vendidos: {b.UnitsSold} · Facturación: {m(b.RevenueCents)} · Alquiler: {m(b.RentCents)} · Sueldos: {m(b.WagesCents)} · Ganancia: {m(b.ProfitCents)}\n" +
+                   (b.HasHelper ? "Ayudante: contratado" : "Ayudante: no");
         var options = new List<NpcOption>();
         var carrying = s.QuantityOf(EconomyCatalog.CoffeeBagItem);
         if (carrying > 0)
             options.Add(new NpcOption("restock:puesto-cafe", $"Reponer ({carrying} bolsa(s) que llevás)"));
         if (b.CashCents > 0)
             options.Add(new NpcOption("withdraw:puesto-cafe", $"Retirar ganancias ({m(b.CashCents)})"));
+        options.Add(b.HasHelper
+            ? new NpcOption("fire:puesto-cafe", "Despedir al ayudante")
+            : new NpcOption("hire:puesto-cafe",
+                $"Contratar ayudante ({m(EconomyCatalog.CoffeeHelperWageCents)} por ciclo abierto, vende hasta {EconomyCatalog.CoffeeDemandPerCycle + EconomyCatalog.CoffeeHelperExtraDemand})"));
         if (b.Stock == 0 && carrying == 0)
             text += "\n\nSin café no hay ventas: comprá bolsas en el Almacén Moretti.";
         return (text, options);

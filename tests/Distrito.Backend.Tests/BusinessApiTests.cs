@@ -130,6 +130,46 @@ public class BusinessApiTests
     }
 
     [Fact]
+    public async Task El_ayudante_cobra_por_ciclo_abierto_y_vende_una_mas_solo_si_hay_caja()
+    {
+        await using var factory = TestBackend.Create();
+        var api = TestBackend.Api(factory);
+        var economy = TestBackend.Economy();
+        var id = await NewCharacter(api);
+
+        Assert.Equal("no_business", (await api.BusinessActionAsync(Key, "hire", Req(id))).Value!.ErrorCode);
+        await api.BusinessActionAsync(Key, "license", Req(id));
+        await GrantMoney(api, id, 2_000);
+        for (var i = 0; i < 6; i++) Assert.True((await BuyBag(api, id)).Value!.Ok);
+        await api.BusinessActionAsync(Key, "restock", Req(id));
+
+        var hireReq = Req(id);
+        var hired = (await api.BusinessActionAsync(Key, "hire", hireReq)).Value!;
+        Assert.True(hired.Ok, hired.Message);
+        Assert.True(hired.Snapshot.Business!.HasHelper);
+        Assert.True((await api.BusinessActionAsync(Key, "hire", hireReq)).Value!.Ok); // reintento idempotente
+        Assert.Equal("already_hired", (await api.BusinessActionAsync(Key, "hire", Req(id))).Value!.ErrorCode);
+
+        var start = economy.CurrentCycle();
+        // Ciclo 1: la caja está en $0, no hay con qué pagarle → no trabaja, vende 2.
+        Assert.Equal(2, await economy.RunBusinessCyclesAsync(start + 1, default, id));
+        // Ciclo 2: ya hay caja → trabaja, cobra $1 y se venden 3.
+        Assert.Equal(3, await economy.RunBusinessCyclesAsync(start + 2, default, id));
+
+        var b = (await api.GetEconomyAsync(Key, id)).Value!.Business!;
+        Assert.Equal(EconomyCatalog.CoffeeHelperWageCents, b.WagesCents);
+        Assert.Equal(5 * EconomyCatalog.CoffeeSalePriceCents - 2 * EconomyCatalog.CoffeeStandRentCents - EconomyCatalog.CoffeeHelperWageCents, b.CashCents);
+        Assert.Equal(b.RevenueCents - b.RentCents - b.WagesCents - 5 * EconomyCatalog.CoffeeBagPriceCents, b.ProfitCents);
+
+        var fired = (await api.BusinessActionAsync(Key, "fire", Req(id))).Value!;
+        Assert.True(fired.Ok, fired.Message);
+        Assert.False(fired.Snapshot.Business!.HasHelper);
+        Assert.Equal("no_helper", (await api.BusinessActionAsync(Key, "fire", Req(id))).Value!.ErrorCode);
+        Assert.Equal(1, await economy.RunBusinessCyclesAsync(start + 3, default, id)); // queda 1 bolsa, sin sueldo
+        Assert.Equal(EconomyCatalog.CoffeeHelperWageCents, (await api.GetEconomyAsync(Key, id)).Value!.Business!.WagesCents);
+    }
+
+    [Fact]
     public async Task El_precio_de_la_bolsa_coincide_con_la_base()
     {
         await using var factory = TestBackend.Create();

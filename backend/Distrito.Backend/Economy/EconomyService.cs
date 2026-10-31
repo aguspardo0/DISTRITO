@@ -401,7 +401,9 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                    COALESCE((SELECT sum(revenue_cents) FROM distrito.business_cycles bc WHERE bc.business_id = b.id), 0)::bigint,
                    COALESCE((SELECT sum(rent_cents) FROM distrito.business_cycles bc WHERE bc.business_id = b.id), 0)::bigint,
                    COALESCE((SELECT sum(units_sold) FROM distrito.business_cycles bc WHERE bc.business_id = b.id), 0)::int,
-                   COALESCE((SELECT units_sold FROM distrito.business_cycles bc WHERE bc.business_id = b.id ORDER BY cycle DESC LIMIT 1), 0)
+                   COALESCE((SELECT units_sold FROM distrito.business_cycles bc WHERE bc.business_id = b.id ORDER BY cycle DESC LIMIT 1), 0),
+                   b.has_helper,
+                   COALESCE((SELECT sum(wages_cents) FROM distrito.business_cycles bc WHERE bc.business_id = b.id), 0)::bigint
               FROM distrito.businesses b JOIN distrito.economic_accounts a ON a.id = b.account_id
              WHERE b.owner_character_id = @c;
             """, c, tx))
@@ -422,7 +424,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             await reader.NextResultAsync(ct);
             if (await reader.ReadAsync(ct))
                 business = new BusinessView(reader.GetGuid(0), reader.GetString(1), reader.GetInt32(2), reader.GetInt64(3),
-                    reader.GetInt64(4), reader.GetInt64(5), reader.GetInt32(6), reader.GetInt32(7));
+                    reader.GetInt64(4), reader.GetInt64(5), reader.GetInt32(6), reader.GetInt32(7), reader.GetBoolean(8), reader.GetInt64(9));
         }
 
         return new EconomySnapshot(balance, inventory, active, completed, reputation, business);
