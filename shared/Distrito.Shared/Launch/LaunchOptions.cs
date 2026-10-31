@@ -32,6 +32,7 @@ public enum LaunchMode
 /// <param name="ExpectVisibleAtEnd">La prueba exige ver exactamente esta cantidad de jugadores al final (incluido uno mismo).</param>
 /// <param name="BotBusiness">El bot abre un puesto de café, lo repone, espera ventas y retira la ganancia.</param>
 /// <param name="BotContract">El bot cumple el contrato de prueba (depósito → taller) y la prueba verifica el cobro.</param>
+/// <param name="UiSnapshotDir">Prueba visual: guarda capturas de pantalla de la interfaz en esta carpeta y cierra.</param>
 /// <param name="ExpectMapPlayers">La prueba exige que el mapa muestre esta cantidad de jugadores al final.</param>
 /// <param name="BotContractCode">Qué contrato juega el bot (por defecto, la entrega de repuestos).</param>
 public sealed record LaunchOptions(
@@ -57,7 +58,8 @@ public sealed record LaunchOptions(
     int? ExpectVisibleAtEnd = null,
     bool BotBusiness = false,
     string? BotContractCode = null,
-    int? ExpectMapPlayers = null)
+    int? ExpectMapPlayers = null,
+    string? UiSnapshotDir = null)
 {
     public static LaunchOptions Default { get; } = new(
         LaunchMode.Client,
@@ -107,6 +109,9 @@ public sealed record LaunchOptions(
                     break;
                 case "--bot-goto":
                     options = options with { Bot = true, BotGoto = ParsePoint(RequireValue(args, ref i)) };
+                    break;
+                case "--ui-snapshot":
+                    options = options with { UiSnapshotDir = RequireValue(args, ref i) };
                     break;
                 case "--expect-map-players":
                     options = options with { ExpectMapPlayers = ParseInt(RequireValue(args, ref i), args[i - 1], 0, NetworkDefaults.MaxPlayersPerZone) };

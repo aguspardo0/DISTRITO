@@ -28,10 +28,7 @@ public partial class MapPanel : Control
     public override void _Ready()
     {
         Visible = false;
-        SetAnchorsPreset(LayoutPreset.Center);
         CustomMinimumSize = new Vector2(SizePx, SizePx + 24);
-        Size = CustomMinimumSize;
-        Position = -Size / 2;
         MouseFilter = MouseFilterEnum.Ignore;
     }
 

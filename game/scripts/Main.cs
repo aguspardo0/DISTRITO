@@ -27,6 +27,7 @@ public partial class Main : Node3D
     private Distrito.Game.Map.MapNetwork _map = null!;
     private Distrito.Game.Map.MapPanel? _mapPanel;
     private PauseMenu? _pause;
+    private NpcInteractionController? _interaction;
     private AccountSession? _account;
     private ConnectMenu? _menu;
     private Label? _hud;
@@ -92,8 +93,16 @@ public partial class Main : Node3D
             return;
         }
 
-        GameSettings.Load();
+        if (Options.UiSnapshotDir is null)
+            GameSettings.Load(); // la prueba visual usa la ventana que le pasa la línea de comandos
         CreateHud();
+
+        if (Options.UiSnapshotDir is { } snapshotDir)
+        {
+            ShowMenu();
+            StartUiSnapshot(snapshotDir);
+            return;
+        }
 
         if (Options.AutoConnect)
             _ = AutoConnectAsync();
@@ -221,23 +230,26 @@ public partial class Main : Node3D
         _hud = new Label { Position = new Vector2(12, 10), Text = "" };
         _hud.AddThemeColorOverride("font_shadow_color", Colors.Black);
         layer.AddChild(_hud);
-        layer.AddChild(new MetricsOverlay { Name = "Metrics", PlayerCount = () => _network.PlayerCount });
+        layer.AddChild(UiAnchor.Wrap(new MetricsOverlay { Name = "Metrics", PlayerCount = () => _network.PlayerCount },
+            UiAnchor.End, UiAnchor.Start, name: "MetricsArea"));
 
         var interaction = new NpcInteractionController { Name = "NpcInteraction" };
+        _interaction = interaction;
         AddChild(interaction);
         interaction.Initialize(_network, _economy, layer);
 
         _mapPanel = new Distrito.Game.Map.MapPanel { Name = "MapPanel" };
-        layer.AddChild(_mapPanel);
+        layer.AddChild(UiAnchor.Wrap(_mapPanel, UiAnchor.Center, UiAnchor.Center, name: "MapArea"));
         _mapPanel.Initialize(_network, _map);
 
+        _crewPanel = new CrewPanel { Name = "CrewPanel" };
+        layer.AddChild(UiAnchor.Wrap(_crewPanel, UiAnchor.End, UiAnchor.Center, right: 20, name: "CrewArea"));
+        _crewPanel.Initialize(_crews);
+
+        // Las opciones van arriba de todo lo demás.
         _pause = new PauseMenu { Name = "PauseMenu" };
         layer.AddChild(_pause);
         _pause.LeaveRequested += LeaveMatch;
-
-        _crewPanel = new CrewPanel { Name = "CrewPanel" };
-        layer.AddChild(_crewPanel);
-        _crewPanel.Initialize(_crews);
         _crews.MessageReceived += text =>
         {
             if (_hud is not null)
@@ -342,12 +354,33 @@ public partial class Main : Node3D
         menu.ShowStatus($"Personaje {character.Name} creado.");
     }
 
+    private void StartUiSnapshot(string dir)
+    {
+        var shot = new UiSnapshot { Name = "UiSnapshot" };
+        AddChild(shot);
+        shot.Initialize(dir,
+        [
+            ("menu", () => { }),
+            ("juego", () =>
+            {
+                _menu?.Hide();
+                _network.StartHost(7990);
+            }),
+            ("dialogo", () => _interaction?.Dialog.ShowDialog(new NpcDialog(NpcInteractionRules.Deposit.Code, NpcInteractionRules.Deposit.Name,
+                "Texto de prueba del diálogo, con varias líneas para ver que el panel crezca y siga centrado abajo.",
+                [new NpcOption("a", "Primera opción"), new NpcOption("b", "Segunda opción")]))),
+            ("cuadrilla", () => { _interaction?.Dialog.Close(); _crewPanel?.Toggle(); }),
+            ("mapa", () => { _crewPanel?.Toggle(); _mapPanel?.Toggle(); }),
+            ("opciones", () => { _mapPanel?.Toggle(); _pause?.Open(); }),
+        ]);
+    }
+
     /// <summary>Salir de la partida sin cerrar el juego: se guarda (el servidor guarda al desconectar) y vuelve al menú.</summary>
     private void LeaveMatch()
     {
         if (_crewPanel is { IsOpen: true }) _crewPanel.Toggle();
         if (_mapPanel is { Visible: true }) _mapPanel.Toggle();
-        GetNodeOrNull<NpcDialogPanel>("Hud/NpcDialog")?.Close();
+        _interaction?.Dialog.Close();
         _network.Leave();
         GetNode<Camera3D>("OverviewCamera").Current = true;
         Input.MouseMode = Input.MouseModeEnum.Visible;
@@ -377,7 +410,7 @@ public partial class Main : Node3D
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Escape } && _network.LocalPlayer is not null && _pause is not null)
         {
             // Esc cierra primero lo que esté abierto; si no hay nada, abre o cierra las opciones.
-            if (GetNodeOrNull<NpcDialogPanel>("Hud/NpcDialog") is { IsOpen: true })
+            if (_interaction?.Dialog is { IsOpen: true })
                 return; // el diálogo se cierra solo con Esc
             if (_crewPanel is { IsOpen: true }) _crewPanel.Toggle();
             else if (_mapPanel is { Visible: true }) _mapPanel.Toggle();

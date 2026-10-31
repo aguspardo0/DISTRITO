@@ -19,11 +19,7 @@ public partial class NpcDialogPanel : PanelContainer
     public override void _Ready()
     {
         Visible = false;
-        SetAnchorsPreset(LayoutPreset.CenterBottom);
         CustomMinimumSize = new Vector2(520, 0);
-        GrowHorizontal = GrowDirection.Both;
-        GrowVertical = GrowDirection.Begin;
-        Position = new Vector2(-260, -30);
 
         var margin = new MarginContainer();
         foreach (var side in new[] { "left", "right", "top", "bottom" })

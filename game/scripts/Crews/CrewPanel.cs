@@ -22,10 +22,6 @@ public partial class CrewPanel : PanelContainer
     public override void _Ready()
     {
         Visible = false;
-        SetAnchorsPreset(LayoutPreset.CenterRight);
-        GrowHorizontal = GrowDirection.Begin;
-        GrowVertical = GrowDirection.Both;
-        Position = new Vector2(-20, 0);
         CustomMinimumSize = new Vector2(340, 0);
 
         var margin = new MarginContainer();

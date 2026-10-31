@@ -17,9 +17,6 @@ public partial class MetricsOverlay : Label
     {
         AddThemeColorOverride("font_shadow_color", Colors.Black);
         AddThemeFontSizeOverride("font_size", 14);
-        SetAnchorsPreset(LayoutPreset.TopRight);
-        GrowHorizontal = GrowDirection.Begin;
-        Position = new Vector2(-12, 10);
         HorizontalAlignment = HorizontalAlignment.Right;
     }
 
