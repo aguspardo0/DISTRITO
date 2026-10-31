@@ -317,7 +317,11 @@ jobs:
           if grep -q NET_TEST_OK prod-test.log; then
             echo "::notice title=Servidor real::https://$DEPLOY_DOMAIN — ${line#*\] }"
           else
-            grep -E "DISTRITO|rror" prod-test.log | tail -15
+            grep -E "DISTRITO|rror|xception" prod-test.log | tail -8 | while IFS= read -r l; do echo "::error title=Bot contra servidor real::${l:0:400}"; done
+            [ -s prod-test.log ] || echo "::error title=Bot contra servidor real::el log está vacío"
+            key="$RUNNER_TEMP/k3"; .github/scripts/prepare-key.sh "$key" >/dev/null
+            ssh -i "$key" -o StrictHostKeyChecking=accept-new -o BatchMode=yes "${TARGET_USER:-root}@${TARGET_HOST:-$DEPLOY_HOST}" \
+              "systemctl is-active distrito-gameserver; journalctl -u distrito-gameserver -n 15 --no-pager" 2>&1 | tail -10 | while IFS= read -r l; do echo "::error title=Servidor de juego::${l:0:400}"; done
             echo "::error title=Servidor real::${line:-sin resultado}"
             exit 1
           fi
