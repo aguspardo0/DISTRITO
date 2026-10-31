@@ -153,3 +153,29 @@ public class LaunchOptionsCrewBotTests
         Assert.True(joiner.BotCrewJoin);
     }
 }
+
+public class LaunchOptionsScaleTests
+{
+    [Fact]
+    public void Opciones_de_escala_y_metricas()
+    {
+        var options = LaunchOptions.Parse(["--server", "--interest-radius", "15", "--metrics-interval", "5"]);
+        Assert.Equal(15f, options.InterestRadius);
+        Assert.Equal(5, options.MetricsIntervalSeconds);
+    }
+
+    [Fact]
+    public void Bot_que_camina_a_un_punto_y_espera_ver_cierta_cantidad()
+    {
+        var options = LaunchOptions.Parse(["--bot-goto", "-8,12", "--expect-visible-end", "1"]);
+        Assert.True(options.Bot);
+        Assert.Equal((-8f, 12f), options.BotGoto);
+        Assert.Equal(1, options.ExpectVisibleAtEnd);
+    }
+
+    [Fact]
+    public void Radio_por_defecto()
+    {
+        Assert.Equal(Distrito.Shared.Networking.NetworkDefaults.InterestRadius, LaunchOptions.Parse([]).InterestRadius);
+    }
+}

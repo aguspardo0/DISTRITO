@@ -26,6 +26,10 @@ public enum LaunchMode
 /// <param name="ExpectSpawn">La prueba verifica que el personaje aparezca cerca de este punto (X, Z).</param>
 /// <param name="BotCrewCreate">El bot funda una cuadrilla con este nombre e invita al otro jugador.</param>
 /// <param name="BotCrewJoin">El bot espera una invitación a cuadrilla y la acepta.</param>
+/// <param name="InterestRadius">Servidor: radio de interés de red en metros.</param>
+/// <param name="MetricsIntervalSeconds">Servidor: cada cuántos segundos imprime métricas (0 = nunca).</param>
+/// <param name="BotGoto">El bot camina hasta este punto (X, Z) y se queda ahí.</param>
+/// <param name="ExpectVisibleAtEnd">La prueba exige ver exactamente esta cantidad de jugadores al final (incluido uno mismo).</param>
 /// <param name="BotContract">El bot cumple el contrato de prueba (depósito → taller) y la prueba verifica el cobro.</param>
 public sealed record LaunchOptions(
     LaunchMode Mode,
@@ -43,7 +47,11 @@ public sealed record LaunchOptions(
     (float X, float Z)? ExpectSpawn = null,
     bool BotContract = false,
     string? BotCrewCreate = null,
-    bool BotCrewJoin = false)
+    bool BotCrewJoin = false,
+    float InterestRadius = NetworkDefaults.InterestRadius,
+    int MetricsIntervalSeconds = 0,
+    (float X, float Z)? BotGoto = null,
+    int? ExpectVisibleAtEnd = null)
 {
     public static LaunchOptions Default { get; } = new(
         LaunchMode.Client,
@@ -84,6 +92,18 @@ public sealed record LaunchOptions(
                     break;
                 case "--bot-crew-join":
                     options = options with { Bot = true, BotCrewJoin = true };
+                    break;
+                case "--interest-radius":
+                    options = options with { InterestRadius = ParseInt(RequireValue(args, ref i), args[i - 1], 1, 10_000) };
+                    break;
+                case "--metrics-interval":
+                    options = options with { MetricsIntervalSeconds = ParseInt(RequireValue(args, ref i), args[i - 1], 1, 3600) };
+                    break;
+                case "--bot-goto":
+                    options = options with { Bot = true, BotGoto = ParsePoint(RequireValue(args, ref i)) };
+                    break;
+                case "--expect-visible-end":
+                    options = options with { ExpectVisibleAtEnd = ParseInt(RequireValue(args, ref i), args[i - 1], 0, NetworkDefaults.MaxPlayersPerZone) };
                     break;
                 case "--bot-contract":
                     options = options with { Bot = true, BotContract = true };

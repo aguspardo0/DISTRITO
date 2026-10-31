@@ -45,6 +45,10 @@ public partial class Main : Node3D
 
         GD.Print($"[DISTRITO] Arranque OK — modo={Options.Mode} host={Options.Host} puerto={Options.Port} godot={Engine.GetVersionInfo()["string"]}");
 
+        // Sin pantalla no hay sincronización vertical: sin límite, cada proceso usaría un núcleo entero.
+        if (DisplayServer.GetName() == "headless")
+            Engine.MaxFps = Options.Mode == LaunchMode.Server ? 60 : 30;
+
         if (Options.SmokeTest)
         {
             GD.Print("[DISTRITO] SMOKE_TEST_OK");
@@ -59,6 +63,12 @@ public partial class Main : Node3D
         _network = new GameNetwork { Name = "GameNetwork" };
         AddChild(_network);
         _network.Initialize(GetNode<Node3D>("Players"), GetNode<MultiplayerSpawner>("PlayerSpawner"), bot);
+
+        // Interés de red: solo actúa en el proceso que es servidor (dedicado o anfitrión).
+        var interest = new InterestManager { Name = "Interest" };
+        AddChild(interest);
+        interest.Initialize(Options.InterestRadius);
+        _network.Interest = interest;
 
         _economy = new EconomyNetwork { Name = "Economy" };
         AddChild(_economy);
@@ -110,7 +120,18 @@ public partial class Main : Node3D
         }
 
         if (_network.StartDedicatedServer(Options.Port, backend, serverKey) != Error.Ok)
+        {
             GetTree().Quit(1);
+            return;
+        }
+        GD.Print($"[DISTRITO] Radio de interés: {Options.InterestRadius} m");
+
+        if (Options.MetricsIntervalSeconds > 0)
+        {
+            var metrics = new ServerMetrics { Name = "ServerMetrics" };
+            AddChild(metrics);
+            metrics.Initialize(_network, Options.MetricsIntervalSeconds);
+        }
     }
 
     /// <summary>Conexión automática (bots / pruebas): opcionalmente inicia sesión y elige personaje.</summary>
@@ -122,6 +143,16 @@ public partial class Main : Node3D
             test.Configure(_network, Options.TestSeconds, Options.ExpectPlayers,
                 expectMovement: Options.Bot && Options.ExpectSpawn is null, Options.ExpectSpawn);
             AddChild(test);
+
+            if (Options.ExpectVisibleAtEnd is { } visible)
+                test.ExpectVisibleAtEnd(visible);
+
+            if (Options.BotGoto is { } destination)
+            {
+                var gotoBot = new GotoBot { Name = "GotoBot" };
+                AddChild(gotoBot);
+                gotoBot.Initialize(_network, destination);
+            }
 
             if (Options.BotCrewCreate is not null || Options.BotCrewJoin)
             {

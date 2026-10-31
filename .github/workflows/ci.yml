@@ -118,6 +118,31 @@ jobs:
         run: |
           for f in net-*.log persist-*.log; do echo "===== $f"; grep -E "DISTRITO|ERROR|error|Exception" "$f" | head -40 || true; done
 
+  load:
+    name: Escala — interés de red y carga (10 y 20 jugadores)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Descargar Godot ${{ env.GODOT_VERSION }} .NET
+        run: .github/scripts/install-godot.sh
+
+      - name: Compilar e importar
+        run: |
+          .github/scripts/run-annotated.sh dotnet build game/Distrito.Game.csproj -c Debug
+          timeout 300 "$GODOT" --headless --path game --import
+
+      - name: Pruebas de escala
+        run: |
+          echo "::notice title=Máquina de prueba::$(nproc) núcleos, $(free -g | awk '/Mem/{print $2}') GB RAM (servidor y clientes comparten la misma máquina)"
+          .github/scripts/load-test.sh 10 20
+
   export-windows:
     name: Exportar Windows y publicar prototipo
     needs: [dotnet, godot]

@@ -41,6 +41,9 @@ public partial class GameNetwork : Node
     private double _clock;
     private double _nextSave = SaveIntervalSeconds;
 
+    /// <summary>Servidor: interés de red (qué personajes recibe cada cliente).</summary>
+    public InterestManager? Interest { get; set; }
+
     // Solo en el servidor con cuentas:
     private DistritoApiClient? _backend;
     private string _serverKey = "";
@@ -281,6 +284,7 @@ public partial class GameNetwork : Node
         player.SpawnPoint = new Vector3(zoneSession.SpawnPoint.X, zoneSession.SpawnPoint.Y, zoneSession.SpawnPoint.Z);
         player.Position = position;
         player.Rotation = new Vector3(0, (float)(session?.State.Yaw ?? 0), 0);
+        Interest?.Register(player); // antes de entrar al árbol, así el primer envío ya respeta el filtro
         _players.AddChild(player, forceReadableName: true);
         return true;
     }
