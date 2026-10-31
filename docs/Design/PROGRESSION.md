@@ -48,3 +48,12 @@ Hasta 3 cuadrillas. El jefe invita a otra cuadrilla por nombre (con el nombre de
 invitado acepta o rechaza (24 h). En territorio, la influencia de las cuadrillas aliadas en una zona se suma y cuenta el 75 %;
 si la coalición controla, todos sus integrantes cobran el +5 %. En trabajos de cuadrilla sirven compañeros de cuadrillas
 aliadas. Salir: cuando el jefe quiere, con 24 h de espera para entrar a otra; con una sola cuadrilla se disuelve.
+
+# Votaciones y acuerdos (Etapa E, aprobado el 2026-10-31)
+
+Votaciones: cualquier integrante abre una (cambiar de jefe a X, o darle $N de la caja a X); quien la abre vota que sí.
+Gana con más de la mitad de los integrantes; cierra a las 24 h o cuando ya no puede ganar; se ejecuta sola. Una abierta a la vez.
+
+Acuerdos con familias: el jefe firma en el NPC de la familia; pide 50 de reputación sumada de la cuadrilla con esa familia y
+$50 de la caja (van a la familia). Uno por familia y temporada. Da +5 % en los contratos que paga la familia (a la cuadrilla o
+su coalición) y +2 de influencia por día en la zona de la familia (aparte del tope diario).
