@@ -151,12 +151,12 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
 
             // Pago: partes iguales (el resto de la división queda para quien entrega) y cada uno con su bonificación de Negociación.
             var payerMood = await MoodOfNpcAsync(c, tx, template.Payer, ct);
-            var reward = FamilyRules.ContractPay(template.RewardCents, payerMood);
-            var share = reward / participants.Count;
+            var totalPay = FamilyRules.ContractPay(template.RewardCents, payerMood);
+            var share = totalPay / participants.Count;
             var amounts = new List<long>();
             for (var i = 0; i < participants.Count; i++)
             {
-                var baseAmount = share + (i == 0 ? reward - share * participants.Count : 0);
+                var baseAmount = share + (i == 0 ? totalPay - share * participants.Count : 0);
                 var negotiation = (await LoadProgressAsync(c, tx, participants[i], ct)).NegotiationLevel;
                 amounts.Add(ProgressionRules.WithNegotiationBonus(baseAmount, negotiation));
             }
