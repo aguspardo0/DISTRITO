@@ -186,10 +186,15 @@ public partial class GameNetwork : Node
     private bool IsServerActive() =>
         Multiplayer.MultiplayerPeer is ENetMultiplayerPeer && Multiplayer.IsServer();
 
+    /// <summary>Un cliente que deja de responder (se colgó, perdió la red) sale del mundo a los ~8 s, no a los 30 s de ENet.</summary>
+    private const int PeerTimeoutMinMs = 3000, PeerTimeoutMaxMs = 8000;
+
     private void OnPeerConnected(long id)
     {
         if (!Multiplayer.IsServer())
             return;
+        if (Multiplayer.MultiplayerPeer is ENetMultiplayerPeer enet && enet.GetPeer((int)id) is { } peer)
+            peer.SetTimeout(32, PeerTimeoutMinMs, PeerTimeoutMaxMs);
         _pending.Add(id, _clock);
     }
 

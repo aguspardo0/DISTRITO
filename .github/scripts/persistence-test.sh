@@ -214,7 +214,7 @@ else error "Cobranza en la base" "el recluta no recibió su parte: ${collect_db:
 crew_bot persist-cut-survivor.log bot_alfa "Bot Alfa" --bot --expect-visible-end 1 & a=$!
 crew_bot persist-cut-victim.log bot_corte "Bot Corte" --bot & b=$!
 sleep 14
-kill -9 $b 2>/dev/null; wait $b 2>/dev/null
+pkill -9 -f "Bot Corte" 2>/dev/null; wait $b 2>/dev/null # mata a Godot, no solo a la subshell
 cut_at=$(grep -c . persist-server.log)
 wait $a
 line=$(result_line persist-cut-survivor.log)
