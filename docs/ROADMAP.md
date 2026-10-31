@@ -65,7 +65,8 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 
 ## Etapa D — Alpha de contenido (en curso)
 - [x] Progresión del personaje: nivel 1–30 y oficios (ver `docs/Design/PROGRESSION.md`)
-- [ ] Segundo negocio con proveedor
+- [x] Menú de opciones en partida (Esc) y arreglos de ventana/pantalla completa (pedido del equipo)
+- [ ] Segundo negocio con proveedor (rubro a definir por el equipo)
 - [ ] Familias NPC con estados
 - [ ] Herramientas de la cuadrilla (caja común, permisos por rol)
 
