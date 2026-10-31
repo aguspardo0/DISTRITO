@@ -22,12 +22,12 @@ Estados: ✅ terminado y probado · 🟡 implementado parcialmente · 🔌 cread
 | Cuentas y sesiones | ✅ | PBKDF2, tokens opacos, tests | — |
 | NPC / familias | 🟡 | 4 NPC (Moretti, Caruso, Valenti, esquina), diálogos validados en servidor | Familias como instituciones con estados (diseño v0.1) |
 | Reputación | ✅ | 0–1000, eventos auditables, persiste; sube y baja con 3 contratos (también por vencimiento) | — |
-| Contratos | ✅ | 3 contratos: entrega de repuestos; pedido urgente con plazo y falla (−3 Moretti); cobranza en cuadrilla con reparto del pago. Backend + reglas + bots | Bot de punta a punta para la cobranza |
+| Contratos | ✅ | 3 contratos: entrega de repuestos; pedido urgente con plazo y falla (−3 Moretti); cobranza en cuadrilla con reparto del pago. Backend + reglas + bots de punta a punta para los 3 | — |
 | Economía (libro contable) | ✅ | Doble entrada, idempotencia, concurrencia, conservación probada | — |
 | Negocio | ✅ | Puesto de café: licencia, stock, ventas por ciclo offline, alquiler, ayudante opcional ($1/ciclo, vende hasta 3 si hay caja), estado operativo, caja, retiro | — |
 | Cuadrillas | ✅ | Capacidad 3 (niveles 4 y 5 preparados), roles Jefe/Segundo/Miembro, expulsar, historial visible | Costos/requisitos para ampliar a 4 y 5 (decisión pendiente) |
 | Liderazgo / sucesión | ✅ | Jefe y Segundo; herencia al irse; sucesión por inactividad de 14 días (el equipo decidió mantenerla) | — |
-| Ciclo completo (hito 7) | 🟡 | Entrar → contrato → cuadrilla → cobranza en grupo → cobrar → negocio paga costos → reputación → guardar → volver: todo implementado | Prueba de punta a punta del ciclo entero con dos bots |
+| Ciclo completo (hito 7) | ✅ | Entrar → contrato → cuadrilla → cobranza en grupo → cobrar (repartido) → negocio paga costos → reputación → guardar → volver. CI: dos bots de la misma cuadrilla hacen la cobranza y la base confirma la reputación de ambos | Prueba manual de dos personas |
 | Métricas | ✅ | `ServerMetrics` en CI y en el servidor real (cada 60 s) | — |
 | Bots de carga | ✅ | 10 y 20 bots, interés de red, métricas por corrida | — |
 | CI | ✅ | 5 jobs; anotaciones legibles | — |
@@ -46,4 +46,5 @@ Estados: ✅ terminado y probado · 🟡 implementado parcialmente · 🔌 cread
 
 - Hecho y en CI verde: ubicación segura (incluye la corrección de personajes que se elevaban al aparecer encimados), reconexión automática,
   cuadrilla de 3 con roles Jefe/Segundo/Miembro y expulsión, ayudante del puesto, contratos 2 y 3, métricas en producción.
-- Pendiente: prueba de punta a punta de la cobranza y del ciclo completo con dos bots; decisión sobre costos para ampliar la cuadrilla.
+- Pruebas de punta a punta agregadas: pedido urgente y cobranza en cuadrilla (dos bots).
+- Pendiente: prueba manual con dos personas; decisión sobre costos para ampliar la cuadrilla a 4 y 5.
