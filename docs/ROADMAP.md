@@ -19,13 +19,13 @@ Cada etapa debe compilar, tener sus pruebas en verde en CI y quedar explicada an
 
 Deuda conocida del prototipo: sin predicción del lado del cliente (con latencia alta el movimiento propio se siente demorado), sin interés de red (todos ven a todos), sin login.
 
-## Etapa 2 — Hito jugable 1
+## Etapa 2 — Hito jugable 1 *(completo en CI; falta servidor en internet para probarlo entre casas)*
 - [x] Cuentas y login (backend)
 - [x] Crear / cargar personaje
 - [x] Un NPC con interacción
 - [x] Un contrato simple: conseguir y entregar una mercancía
 - [x] Pago y transferencia validados por el servidor, con ledger
-- [ ] Formar una cuadrilla
+- [x] Formar una cuadrilla
 - [x] Guardado y recarga correcta de la posición (probado en CI: salir, volver, aparecer en el mismo lugar)
 - [ ] Servidor en internet (backend + base + servidor de juego) para probar con cuentas entre casas
 
