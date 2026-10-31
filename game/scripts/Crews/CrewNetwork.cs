@@ -40,6 +40,7 @@ public partial class CrewNetwork : Node
     public void Respond(Guid crewId, bool accept) => Send(MethodName.ServerRespond, crewId.ToString(), accept);
     public void Leave() => Send(MethodName.ServerLeave);
     public void Kick(Guid characterId) => Send(MethodName.ServerKick, characterId.ToString());
+    public void Expand() => Send(MethodName.ServerExpand);
     public void SetRole(Guid characterId, string role) => Send(MethodName.ServerSetRole, characterId.ToString(), role);
 
     private void Send(StringName method, params Variant[] args)
@@ -81,6 +82,10 @@ public partial class CrewNetwork : Node
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerLeave() =>
         Handle(async (api, me) => (ApiResult<CrewActionResult>?)await api.LeaveCrewAsync(_network.ServerKey, new LeaveCrewRequest(me)));
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerExpand() =>
+        Handle(async (api, me) => (ApiResult<CrewActionResult>?)await api.ExpandCrewAsync(_network.ServerKey, new ExpandCrewRequest(me)));
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerKick(string characterId) =>

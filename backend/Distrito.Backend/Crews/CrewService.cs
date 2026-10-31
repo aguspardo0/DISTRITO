@@ -156,6 +156,33 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
             return r.Role == CrewRoles.Second ? "Nombraste un segundo." : "Ya no es segundo.";
         });
 
+    public Task<CrewActionResult> ExpandAsync(ExpandCrewRequest r, CancellationToken ct) =>
+        RunAsync(r.CharacterId, ct, async (c, tx) =>
+        {
+            var crew = await CrewOfAsync(c, tx, r.CharacterId, ct)
+                ?? throw new CrewRejected("not_in_crew", "No estás en una cuadrilla.");
+            await LockCrewAsync(c, tx, crew.Id, ct);
+            await ApplyInactivitySuccessionAsync(c, tx, crew.Id, ct);
+            crew = await CrewOfAsync(c, tx, r.CharacterId, ct) ?? crew;
+            if (crew.Role != CrewRoles.Leader)
+                throw new CrewRejected("not_leader", "Solo el jefe puede ampliar la cuadrilla.");
+
+            var status = await LoadStatusAsync(c, tx, r.CharacterId, ct);
+            var next = status.NextExpansion
+                ?? throw new CrewRejected("max_level", "La cuadrilla ya tiene el cupo máximo.");
+            if (!status.CanExpand)
+                throw new CrewRejected("requirements_not_met",
+                    $"Para ampliar a {next.Capacity} hacen falta {next.Contracts} contratos y {next.Reputation} de reputación entre todos " +
+                    $"(tienen {status.Contracts} y {status.Reputation}).");
+
+            await using var cmd = new NpgsqlCommand("UPDATE distrito.crews SET level = @l WHERE id = @id", c, tx);
+            cmd.Parameters.AddWithValue("l", next.ToLevel);
+            cmd.Parameters.AddWithValue("id", crew.Id);
+            await cmd.ExecuteNonQueryAsync(ct);
+            await LogAsync(c, tx, crew.Id, "expanded", r.CharacterId, next.Capacity.ToString(System.Globalization.CultureInfo.InvariantCulture), ct);
+            return $"¡La cuadrilla creció! Ahora entran {next.Capacity}.";
+        });
+
     /// <summary>Verifica que quien pide sea jefe y que el objetivo sea otro integrante de la misma cuadrilla.</summary>
     private async Task<Membership> RequireManagerAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid manager, Guid target, CancellationToken ct)
     {
@@ -383,6 +410,14 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
               LEFT JOIN distrito.characters ch ON ch.id = e.character_id
              WHERE e.crew_id = (SELECT crew_id FROM distrito.crew_members WHERE character_id = @c)
              ORDER BY e.id DESC LIMIT 8;
+            SELECT
+              (SELECT count(*) FROM distrito.contracts k
+                 WHERE k.status = 'completed'
+                   AND k.character_id IN (SELECT character_id FROM distrito.crew_members
+                                          WHERE crew_id = (SELECT crew_id FROM distrito.crew_members WHERE character_id = @c)))::int,
+              (SELECT COALESCE(sum(r.value), 0) FROM distrito.character_reputation r
+                 WHERE r.character_id IN (SELECT character_id FROM distrito.crew_members
+                                          WHERE crew_id = (SELECT crew_id FROM distrito.crew_members WHERE character_id = @c)))::int;
             """, c, tx);
         cmd.Parameters.AddWithValue("c", characterId);
         cmd.Parameters.AddWithValue("now", clock.GetUtcNow());
@@ -405,8 +440,12 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
         while (await reader.ReadAsync(ct))
             history.Add(new CrewEventView(reader.GetFieldValue<DateTimeOffset>(0), reader.GetString(1),
                 reader.IsDBNull(2) ? null : reader.GetString(2), reader.GetString(3)));
+        int contracts = 0, reputation = 0;
+        await reader.NextResultAsync(ct);
+        if (await reader.ReadAsync(ct))
+            (contracts, reputation) = (reader.GetInt32(0), reader.GetInt32(1));
 
-        return new CrewStatus(crewId, crewName, isLeader, members, invitations, level, history)
+        return new CrewStatus(crewId, crewName, isLeader, members, invitations, level, history, contracts, reputation)
         {
             MyRole = members.FirstOrDefault(m => m.CharacterId == characterId)?.Role,
         };

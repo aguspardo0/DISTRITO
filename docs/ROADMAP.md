@@ -49,7 +49,7 @@ Deuda conocida del prototipo: sin predicción del lado del cliente (con latencia
 ## Hoja de ruta v0.2.1 — vertical slice
 Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y probados en CI (incluido el ciclo completo con dos bots de una cuadrilla).
 - [ ] Prueba manual con dos personas del ciclo completo
-- [ ] Costos y requisitos para ampliar la cuadrilla a 4 y 5 (decisión del equipo)
+- [x] Ampliar la cuadrilla a 4 y 5 por contratos cumplidos y reputación de los integrantes
 
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.

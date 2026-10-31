@@ -126,6 +126,17 @@ public partial class CrewPanel : PanelContainer
             }
         }
 
+        // Ampliación del cupo: por contratos cumplidos y reputación de todos los integrantes.
+        if (status.NextExpansion is { } next)
+        {
+            _content.AddChild(new Label
+            {
+                Text = $"Para ampliar a {next.Capacity}: contratos {status.Contracts}/{next.Contracts} · reputación {status.Reputation}/{next.Reputation}",
+            });
+            if (status.IsLeader && status.CanExpand)
+                AddButton($"Ampliar la cuadrilla a {next.Capacity}", () => _crews.Expand());
+        }
+
         if (status.CanInvite)
         {
             _content.AddChild(new Label { Text = "Invitar a alguien conectado:" });

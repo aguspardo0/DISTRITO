@@ -325,4 +325,64 @@ public class CrewApiTests
         Assert.Equal(4, CrewRules.CapacityForLevel(2));
         Assert.Equal(5, CrewRules.CapacityForLevel(3));
     }
+
+    [Fact]
+    public void Ampliar_pide_contratos_y_reputacion_y_tope_en_5()
+    {
+        Assert.Equal(new CrewExpansion(2, 4, 5, 30), CrewRules.ExpansionFor(1));
+        Assert.Equal(new CrewExpansion(3, 5, 15, 100), CrewRules.ExpansionFor(2));
+        Assert.Null(CrewRules.ExpansionFor(3));
+    }
+
+    [Fact]
+    public async Task El_jefe_amplia_el_cupo_cuando_la_cuadrilla_suma_contratos_y_reputacion()
+    {
+        await using var factory = TestBackend.Create();
+        var api = TestBackend.Api(factory);
+        var leader = await NewCharacter(api);
+        var crewId = (await api.CreateCrewAsync(Key, new CreateCrewRequest(leader, UniqueCrewName()))).Value!.Status.CrewId!.Value;
+        var members = new List<Guid>();
+        for (var i = 0; i < 2; i++)
+        {
+            var recruit = await NewCharacter(api);
+            members.Add(recruit);
+            await api.InviteToCrewAsync(Key, new InviteToCrewRequest(leader, recruit));
+            await api.RespondCrewInvitationAsync(Key, new CrewInvitationResponse(recruit, crewId, true));
+        }
+
+        var notYet = (await api.ExpandCrewAsync(Key, new ExpandCrewRequest(leader))).Value!;
+        Assert.Equal("requirements_not_met", notYet.ErrorCode);
+        Assert.False(notYet.Status.CanExpand);
+
+        // Contratos y reputación repartidos entre integrantes: se suman.
+        await using (var db = NpgsqlDataSource.Create(TestBackend.ConnectionString))
+        {
+            await using var cmd = db.CreateCommand("""
+                INSERT INTO distrito.contracts (id, template_code, character_id, status, accept_key, completed_at)
+                SELECT gen_random_uuid(), 'entrega-repuestos', c, 'completed', 'test:' || gen_random_uuid(), now()
+                FROM unnest(@ids) AS c, generate_series(1, 2);
+                INSERT INTO distrito.character_reputation (character_id, family_code, value)
+                SELECT c, 'caruso', 10 FROM unnest(@ids) AS c;
+                """);
+            cmd.Parameters.AddWithValue("ids", new[] { leader, members[0], members[1] });
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var byMember = (await api.ExpandCrewAsync(Key, new ExpandCrewRequest(members[0]))).Value!;
+        Assert.Equal("not_leader", byMember.ErrorCode);
+        Assert.True(byMember.Status.CanExpand);
+        Assert.Equal(6, byMember.Status.Contracts);
+        Assert.Equal(30, byMember.Status.Reputation);
+
+        var expanded = (await api.ExpandCrewAsync(Key, new ExpandCrewRequest(leader))).Value!;
+        Assert.True(expanded.Ok, expanded.Message);
+        Assert.Equal(2, expanded.Status.Level);
+        Assert.Equal(4, expanded.Status.Capacity);
+        Assert.Equal("expanded", expanded.Status.History![0].Kind);
+        Assert.False(expanded.Status.CanExpand); // el cupo 5 pide 15 contratos y 100 de reputación
+
+        var fourth = await NewCharacter(api);
+        await api.InviteToCrewAsync(Key, new InviteToCrewRequest(leader, fourth));
+        Assert.True((await api.RespondCrewInvitationAsync(Key, new CrewInvitationResponse(fourth, crewId, true))).Value!.Ok);
+    }
 }

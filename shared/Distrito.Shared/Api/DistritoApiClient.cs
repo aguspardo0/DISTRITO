@@ -79,6 +79,9 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<CrewActionResult>> RespondCrewInvitationAsync(string serverKey, CrewInvitationResponse request, CancellationToken ct = default) =>
         SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/respond", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<CrewActionResult>> ExpandCrewAsync(string serverKey, ExpandCrewRequest request, CancellationToken ct = default) =>
+        SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/expand", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<CrewActionResult>> KickFromCrewAsync(string serverKey, KickFromCrewRequest request, CancellationToken ct = default) =>
         SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/kick", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
