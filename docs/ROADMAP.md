@@ -51,5 +51,11 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [ ] Prueba manual con dos personas del ciclo completo
 - [x] Ampliar la cuadrilla a 4 y 5 por contratos cumplidos y reputación de los integrantes
 
+## Etapa B — Estabilidad multijugador (en curso)
+- [x] Prueba con latencia, variación y pérdida de paquetes (netem en CI)
+- [x] Prueba de colisiones (edificios y bordes del barrio; se agregaron bordes invisibles)
+- [x] Métricas: CPU, RAM, RTT, ancho de banda, desconexiones y errores
+- [ ] Prueba de corte de cliente a mitad de partida (el resto sigue jugando, se guarda el progreso)
+
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.
