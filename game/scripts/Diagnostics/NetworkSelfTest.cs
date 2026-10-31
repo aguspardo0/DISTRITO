@@ -41,6 +41,7 @@ public partial class NetworkSelfTest : Node
     private double _connectedSeconds;
 
     private Distrito.Game.Map.MapNetwork? _map;
+    private int _maxMapMarkers; // el máximo visto: al final otro bot puede haber cerrado un instante antes
     private int? _expectMapPlayers;
 
     /// <summary>Si se asigna, la prueba exige que el mapa muestre esta cantidad de jugadores al terminar.</summary>
@@ -74,6 +75,8 @@ public partial class NetworkSelfTest : Node
             _maxDisplacement = Mathf.Max(_maxDisplacement, FlatDistance(_firstPosition.Value, local.GlobalPosition));
         }
         _maxPlayersSeen = Math.Max(_maxPlayersSeen, _network.PlayerCount);
+        if (_map is not null)
+            _maxMapMarkers = Math.Max(_maxMapMarkers, _map.Markers.Count);
         SampleRtt();
 
         _remaining -= delta;
@@ -102,7 +105,7 @@ public partial class NetworkSelfTest : Node
             ? FlatDistance(predicted.GlobalPosition, local.GlobalPosition)
             : null;
         var rttInfo = _rttSamples == 0 ? "" : $" ping_ms_prom={_rttSum / _rttSamples:0} ping_ms_max={_rttMax:0}";
-        var contractInfo = rttInfo + (_map is null ? "" : $" en_mapa={_map.Markers.Count}") + $" visibles_al_final={visibleNow} altura_max={_maxHeight:0.0}"
+        var contractInfo = rttInfo + (_map is null ? "" : $" en_mapa_max={_maxMapMarkers}") + $" visibles_al_final={visibleNow} altura_max={_maxHeight:0.0}"
             + (predictionError is null ? "" : $" prediccion_error={predictionError:0.00}m") + (_contractBot is null
             ? ""
             : $" contrato={_contractBot.Template.Code}:{_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance} reputacion_caruso={_contractBot.ReputationCaruso}")
@@ -130,7 +133,7 @@ public partial class NetworkSelfTest : Node
             _maxHeight > MaxHeight ? $"el personaje quedó flotando a {_maxHeight:0.0} m" :
             predictionError > MaxPredictionError ? $"la predicción local quedó a {predictionError:0.00}m del servidor" :
             _expectVisibleAtEnd is { } v && visibleNow != v ? $"al final ve {visibleNow} jugadores y se esperaban {v}" :
-            _expectMapPlayers is { } mp && _map!.Markers.Count != mp ? $"el mapa muestra {_map.Markers.Count} jugadores y se esperaban {mp}" :
+            _expectMapPlayers is { } mp && _maxMapMarkers != mp ? $"el mapa mostró como mucho {_maxMapMarkers} jugadores y se esperaban {mp}" :
             _businessBot is { Completed: false } ? $"el negocio no cerró el ciclo (quedó en {_businessBot.StepName})" :
             _businessBot is not null && _businessBot.FinalBalance != expectedBusinessBalance
                 ? $"saldo final {_businessBot.FinalBalance}, se esperaba {expectedBusinessBalance}" :

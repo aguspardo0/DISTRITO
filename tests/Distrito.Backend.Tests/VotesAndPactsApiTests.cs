@@ -98,10 +98,18 @@ public class VotesAndPactsApiTests
             """, ("a", leader), ("b", others[0]));
         Assert.Equal("insufficient_funds", (await api.SignPactAsync(Key, Pact(leader))).Value!.ErrorCode);
 
-        await api.CrewMoneyAsync(Key, true, new CrewMoneyRequest(leader, 1_800, Guid.NewGuid().ToString()));
-        await api.CrewMoneyAsync(Key, true, new CrewMoneyRequest(others[0], 1_800, Guid.NewGuid().ToString()));
-        await api.CrewMoneyAsync(Key, true, new CrewMoneyRequest(others[0], 200, Guid.NewGuid().ToString()));
-        await api.CrewMoneyAsync(Key, true, new CrewMoneyRequest(leader, 200, Guid.NewGuid().ToString()));
+        // $50 para la caja: fondos de prueba al jefe desde la emisión (asiento válido) y depósito.
+        await Sql("""
+            WITH t AS (INSERT INTO distrito.ledger_transactions (id, idempotency_key, kind, description)
+                       VALUES (gen_random_uuid(), 'test-grant:' || gen_random_uuid(), 'test', 'Fondos para prueba') RETURNING id),
+                 mint AS (SELECT id FROM distrito.economic_accounts WHERE code = 'system:emision'),
+                 acc AS (SELECT id FROM distrito.economic_accounts WHERE character_id = @c)
+            INSERT INTO distrito.ledger_entries (transaction_id, account_id, amount_cents)
+            SELECT t.id, mint.id, -5000 FROM t, mint UNION ALL SELECT t.id, acc.id, 5000 FROM t, acc;
+            UPDATE distrito.economic_accounts SET balance_cents = balance_cents - 5000 WHERE code = 'system:emision';
+            UPDATE distrito.economic_accounts SET balance_cents = balance_cents + 5000 WHERE character_id = @c;
+            """, ("c", leader));
+        Assert.True((await api.CrewMoneyAsync(Key, true, new CrewMoneyRequest(leader, 5_000, Guid.NewGuid().ToString()))).Value!.Ok);
         var signed = (await api.SignPactAsync(Key, Pact(leader))).Value!;
         Assert.True(signed.Ok, signed.Message);
         Assert.Contains(signed.Snapshot.Pacts!, p => p.FamilyCode == EconomyCatalog.Caruso && p.Mine);
