@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Distrito.Shared.Api;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
