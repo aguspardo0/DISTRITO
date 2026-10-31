@@ -69,7 +69,8 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Segundo negocio con proveedor: club de jazz (cajones de bebidas del Almacén Moretti, músico opcional, +1 de noche)
 - [x] Familias NPC con estados: neutral, cooperación y rivalidad según las últimas 24 h (ver `FamilyRules`)
 - [x] Herramientas de la cuadrilla: caja común, permisos por rol configurables por el jefe y aporte automático de contratos (0–20 %)
-- [ ] Prueba manual del equipo de la Etapa D (progresión, club de jazz, ánimo de las familias, caja de la cuadrilla)
+- [x] Prueba manual del equipo de la Etapa D (2026-10-31: anda bien)
+- [x] Contratos por nivel: reparto para la fiesta (nivel 3, Logística 2), revisar las cuentas (nivel 5, Negociación 3), cobranza grande (nivel 8, 15 Caruso, dos compañeros)
 
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.
