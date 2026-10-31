@@ -26,7 +26,7 @@ public class NpcInteractionRulesTests
     {
         var dialog = NpcInteractionRules.DialogFor(EconomyCatalog.DepositNpc, State(contract: true));
         Assert.Contains(dialog.Options, o => o.Id == $"buy:{Contract.ItemCode}");
-        Assert.DoesNotContain(dialog.Options, o => o.Id.StartsWith("accept:"));
+        Assert.DoesNotContain(dialog.Options, o => o.Id == $"accept:{Contract.Code}");
     }
 
     [Fact]
@@ -61,6 +61,40 @@ public class NpcInteractionRulesTests
     {
         Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.WorkshopNpc, optionId, State(contract: true)));
         Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.DepositNpc, optionId, State(contract: true)));
+    }
+
+    private static readonly Guid OrderId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+    private static EconomySnapshot Contracts(string? active = null, int bags = 0, int carusoRep = 0) => new(
+        2000,
+        bags > 0 ? [new InventoryItem(EconomyCatalog.CoffeeBagItem, "Bolsa de café", bags)] : [],
+        active is null ? [] : [new ContractView(OrderId, active, "active", DateTimeOffset.UtcNow.AddMinutes(2))],
+        0,
+        [new ReputationView(EconomyCatalog.Caruso, "Familia Caruso", carusoRep)]);
+
+    [Fact]
+    public void Pedido_urgente_se_acepta_en_Moretti_y_se_entrega_en_Valenti_con_las_dos_bolsas()
+    {
+        var urgent = EconomyCatalog.UrgentCoffeeOrder;
+        Assert.Contains(NpcInteractionRules.DialogFor(EconomyCatalog.DepositNpc, Contracts()).Options, o => o.Id == $"accept:{urgent.Code}");
+        Assert.DoesNotContain(NpcInteractionRules.DialogFor(EconomyCatalog.DepositNpc, Contracts(urgent.Code)).Options, o => o.Id == $"accept:{urgent.Code}");
+
+        Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.ValentiOfficeNpc, $"deliver:{OrderId}", Contracts(urgent.Code, bags: 1)));
+        var action = NpcInteractionRules.Resolve(EconomyCatalog.ValentiOfficeNpc, $"deliver:{OrderId}", Contracts(urgent.Code, bags: 2));
+        Assert.Equal(NpcActionKind.Deliver, action!.Kind);
+        Assert.Equal(urgent.Code, action.Code);
+    }
+
+    [Fact]
+    public void Cobranza_requiere_reputacion_con_los_Caruso_y_se_cobra_en_el_taller()
+    {
+        var collection = EconomyCatalog.CarusoCollection;
+        Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.ValentiOfficeNpc, $"accept:{collection.Code}", Contracts(carusoRep: 4)));
+        Assert.NotNull(NpcInteractionRules.Resolve(EconomyCatalog.ValentiOfficeNpc, $"accept:{collection.Code}", Contracts(carusoRep: 5)));
+
+        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, Contracts(carusoRep: 5)).Options);
+        var deliver = NpcInteractionRules.Resolve(EconomyCatalog.WorkshopNpc, $"deliver:{OrderId}", Contracts(collection.Code, carusoRep: 5));
+        Assert.Equal(collection.Code, deliver!.Code);
     }
 
     [Fact]

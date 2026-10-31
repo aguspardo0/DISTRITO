@@ -6,7 +6,11 @@ namespace Distrito.Shared.Economy;
 
 public sealed record InventoryItem(string ItemCode, string Name, int Quantity);
 
-public sealed record ContractView(Guid Id, string TemplateCode, string Status);
+/// <summary>Contrato en curso. ExpiresAt: solo en contratos con plazo.</summary>
+public sealed record ContractView(Guid Id, string TemplateCode, string Status, DateTimeOffset? ExpiresAt = null)
+{
+    public int SecondsLeft(DateTimeOffset now) => ExpiresAt is { } e ? Math.Max(0, (int)Math.Ceiling((e - now).TotalSeconds)) : -1;
+}
 
 public sealed record ReputationView(string FamilyCode, string FamilyName, int Value);
 
@@ -61,7 +65,8 @@ public sealed record AcceptContractRequest(Guid CharacterId, string TemplateCode
 
 public sealed record BuyItemRequest(Guid CharacterId, string NpcCode, string ItemCode, int Quantity, string RequestId);
 
-public sealed record DeliverContractRequest(Guid CharacterId, Guid ContractId, string RequestId);
+/// <summary>Companions: personajes que el servidor de juego vio cerca del NPC. El backend se queda solo con los de la misma cuadrilla.</summary>
+public sealed record DeliverContractRequest(Guid CharacterId, Guid ContractId, string RequestId, IReadOnlyList<Guid>? Companions = null);
 
 /// <summary>Comprar licencia, reponer o retirar ganancias del negocio propio.</summary>
 public sealed record BusinessActionRequest(Guid CharacterId, string RequestId);
@@ -79,7 +84,18 @@ public sealed record ContractTemplate(
     string DestinationNpc,
     string DestinationLocation,
     long RewardCents,
-    IReadOnlyList<ReputationReward> Reputation);
+    IReadOnlyList<ReputationReward> Reputation,
+    string? PayerNpc = null,
+    int TimeLimitSeconds = 0,
+    IReadOnlyList<ReputationReward>? FailureReputation = null,
+    ReputationReward? RequiredReputation = null,
+    bool RequiresCrewMate = false)
+{
+    /// <summary>Quién paga: por defecto el destinatario.</summary>
+    public string Payer => PayerNpc ?? DestinationNpc;
+    public bool HasGoods => Quantity > 0;
+    public bool HasTimeLimit => TimeLimitSeconds > 0;
+}
 
 /// <summary>
 /// Valores de prueba para el primer contrato. No son diseño de juego definitivo (ver ADR-003).
@@ -132,8 +148,47 @@ public static class EconomyCatalog
         RewardCents: 1_500,
         Reputation: [new ReputationReward(Caruso, 5), new ReputationReward(Moretti, 2)]);
 
+    // Contratos 2 y 3 (propuesta aprobada por el equipo, 2026-10-31).
+    public static readonly ContractTemplate UrgentCoffeeOrder = new(
+        Code: "pedido-urgente",
+        Title: "Pedido urgente: 2 bolsas de café a la Oficina Valenti",
+        ItemCode: CoffeeBagItem,
+        Quantity: 2,
+        SourceNpc: DepositNpc,
+        DestinationNpc: ValentiOfficeNpc,
+        DestinationLocation: "oficina-valenti",
+        RewardCents: 1_000,
+        Reputation: [new ReputationReward(Moretti, 4)],
+        PayerNpc: DepositNpc,
+        TimeLimitSeconds: 180,
+        FailureReputation: [new ReputationReward(Moretti, -3)]);
+
+    public static readonly ContractTemplate CarusoCollection = new(
+        Code: "cobranza-caruso",
+        Title: "Cobranza en el Taller Caruso (en cuadrilla)",
+        ItemCode: "",
+        Quantity: 0,
+        SourceNpc: ValentiOfficeNpc,
+        DestinationNpc: WorkshopNpc,
+        DestinationLocation: "taller-moreno",
+        RewardCents: 1_200,
+        Reputation: [new ReputationReward(Valenti, 6), new ReputationReward(Caruso, -2)],
+        PayerNpc: ValentiOfficeNpc,
+        RequiredReputation: new ReputationReward(Caruso, 5),
+        RequiresCrewMate: true);
+
     public static readonly IReadOnlyDictionary<string, ContractTemplate> Templates =
-        new Dictionary<string, ContractTemplate> { [SparePartsDelivery.Code] = SparePartsDelivery };
+        new Dictionary<string, ContractTemplate>
+        {
+            [SparePartsDelivery.Code] = SparePartsDelivery,
+            [UrgentCoffeeOrder.Code] = UrgentCoffeeOrder,
+            [CarusoCollection.Code] = CarusoCollection,
+        };
+
+    public static string FamilyName(string code) => $"{char.ToUpperInvariant(code[0])}{code[1..]}";
+
+    public static string DescribeReputation(IEnumerable<ReputationReward> rewards) =>
+        string.Join(", ", rewards.Select(r => $"{(r.Delta >= 0 ? "+" : "")}{r.Delta} con los {FamilyName(r.FamilyCode)}"));
 
     public static string FormatMoney(long cents) =>
         string.Create(CultureInfo.InvariantCulture, $"{(cents < 0 ? "-" : "")}${Math.Abs(cents) / 100}.{Math.Abs(cents) % 100:00}");

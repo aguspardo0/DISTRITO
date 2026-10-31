@@ -82,6 +82,18 @@ public static class NpcInteractionRules
     private static (string, List<NpcOption>) DepositDialog(EconomySnapshot s)
     {
         var (text, options) = DepositContractDialog(s);
+        var urgent = EconomyCatalog.UrgentCoffeeOrder;
+        if (s.ActiveContract(urgent.Code) is null)
+        {
+            options.Add(new NpcOption($"accept:{urgent.Code}",
+                $"Aceptar: {urgent.Title} (paga {EconomyCatalog.FormatMoney(urgent.RewardCents)}, {urgent.TimeLimitSeconds / 60} minutos)"));
+            text += $"\n\nTambién tengo un pedido urgente: {urgent.Quantity} bolsas de café para la Oficina Valenti, " +
+                    $"en menos de {urgent.TimeLimitSeconds / 60} minutos. Si llegás tarde, quedo mal y me lo voy a acordar.";
+        }
+        else
+        {
+            text += $"\n\n¡Apurate con el pedido! Llevá {urgent.Quantity} bolsas de café a la Oficina Valenti.";
+        }
         options.Add(CoffeeBagOption());
         return (text, options);
     }
@@ -89,11 +101,53 @@ public static class NpcInteractionRules
     private static (string, List<NpcOption>) ValentiDialog(EconomySnapshot s)
     {
         var license = EconomyCatalog.FormatMoney(EconomyCatalog.CoffeeStandLicenseCents);
+        var options = new List<NpcOption>();
+        string text;
         if (s.Business is null)
-            return ($"Los Valenti otorgamos las licencias de comercio en Bellmont. Un puesto de café en la esquina sale {license}, " +
-                    $"y nos pagás {EconomyCatalog.FormatMoney(EconomyCatalog.CoffeeStandRentCents)} de alquiler por cada ciclo con ventas.",
-                new List<NpcOption> { new("license:puesto-cafe", $"Comprar licencia de puesto de café ({license})") });
-        return ("Tu licencia está en regla. Que el negocio prospere… y el alquiler llegue a tiempo.", new List<NpcOption>());
+        {
+            text = $"Los Valenti otorgamos las licencias de comercio en Bellmont. Un puesto de café en la esquina sale {license}, " +
+                   $"y nos pagás {EconomyCatalog.FormatMoney(EconomyCatalog.CoffeeStandRentCents)} de alquiler por cada ciclo con ventas.";
+            options.Add(new("license:puesto-cafe", $"Comprar licencia de puesto de café ({license})"));
+        }
+        else
+        {
+            text = "Tu licencia está en regla. Que el negocio prospere… y el alquiler llegue a tiempo.";
+        }
+
+        // Pedido urgente de los Moretti: se entrega acá.
+        var urgent = EconomyCatalog.UrgentCoffeeOrder;
+        if (s.ActiveContract(urgent.Code) is { } order)
+        {
+            if (s.QuantityOf(urgent.ItemCode) >= urgent.Quantity)
+            {
+                options.Add(new NpcOption($"deliver:{order.Id}",
+                    $"Entregar {urgent.Quantity} bolsas de café de los Moretti (cobrar {EconomyCatalog.FormatMoney(urgent.RewardCents)})"));
+                text += "\n\n¿El café de los Moretti? Justo a tiempo.";
+            }
+            else
+            {
+                text += $"\n\nEstoy esperando {urgent.Quantity} bolsas de café de los Moretti. ¿Las traés?";
+            }
+        }
+
+        // Cobranza: trabajo de cuadrilla, solo para quien ya es conocido en el Taller Caruso.
+        var collection = EconomyCatalog.CarusoCollection;
+        var required = collection.RequiredReputation!;
+        if (s.ActiveContract(collection.Code) is not null)
+        {
+            text += "\n\nAndá con tu cuadrilla al Taller Caruso y cobrá lo que nos deben.";
+        }
+        else if (s.ReputationWith(required.FamilyCode) >= required.Delta)
+        {
+            options.Add(new NpcOption($"accept:{collection.Code}",
+                $"Aceptar: {collection.Title} (paga {EconomyCatalog.FormatMoney(collection.RewardCents)} a repartir)"));
+            text += "\n\nLos Caruso nos deben dinero y a vos te conocen. Andá con alguien de tu cuadrilla y cobrales.";
+        }
+        else
+        {
+            text += $"\n\nTengo trabajos para gente conocida en el Taller Caruso (hace falta {required.Delta} de reputación con los Caruso).";
+        }
+        return (text, options);
     }
 
     private static (string, List<NpcOption>) CornerDialog(EconomySnapshot s)
@@ -153,14 +207,25 @@ public static class NpcInteractionRules
         var template = EconomyCatalog.SparePartsDelivery;
         var active = s.ActiveContract(template.Code);
         var options = new List<NpcOption>();
+        string text;
 
         if (active is null)
-            return ("Estamos cortos de repuestos. Hablá con el Almacén Moretti si querés hacer una changa.", options);
+            text = "Estamos cortos de repuestos. Hablá con el Almacén Moretti si querés hacer una changa.";
+        else if (s.QuantityOf(template.ItemCode) < template.Quantity)
+            text = "¿Y los repuestos? Conseguilos en el Almacén Moretti y volvé.";
+        else
+        {
+            options.Add(new NpcOption($"deliver:{active.Id}", $"Entregar la caja de repuestos (cobrar {EconomyCatalog.FormatMoney(template.RewardCents)})"));
+            text = "¡Justo lo que necesitaba! ¿Me la dejás?";
+        }
 
-        if (s.QuantityOf(template.ItemCode) < template.Quantity)
-            return ("¿Y los repuestos? Conseguilos en el Almacén Moretti y volvé.", options);
-
-        options.Add(new NpcOption($"deliver:{active.Id}", $"Entregar la caja de repuestos (cobrar {EconomyCatalog.FormatMoney(template.RewardCents)})"));
-        return ("¡Justo lo que necesitaba! ¿Me la dejás?", options);
+        var collection = EconomyCatalog.CarusoCollection;
+        if (s.ActiveContract(collection.Code) is { } debt)
+        {
+            options.Add(new NpcOption($"deliver:{debt.Id}",
+                $"Cobrar la deuda de los Valenti ({EconomyCatalog.FormatMoney(collection.RewardCents)}, con tu cuadrilla cerca)"));
+            text += "\n\n¿Vienen de parte de los Valenti? …Está bien, está bien. Pero no vengas solo.";
+        }
+        return (text, options);
     }
 }

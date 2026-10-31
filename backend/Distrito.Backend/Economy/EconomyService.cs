@@ -24,6 +24,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         await using var connection = await db.OpenConnectionAsync(ct);
         await using var tx = await connection.BeginTransactionAsync(ct);
         await EnsureCharacterAccountAsync(connection, tx, characterId, ct);
+        await ExpireContractsAsync(connection, tx, characterId, ct);
         var snapshot = await LoadSnapshotAsync(connection, tx, characterId, ct);
         await tx.CommitAsync(ct);
         return snapshot;
@@ -37,15 +38,32 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             if (!EconomyCatalog.Templates.TryGetValue(request.TemplateCode, out var template))
                 throw new EconomyRejected("unknown_contract", "Ese contrato no existe.");
 
+            if (template.RequiredReputation is { } required)
+            {
+                await using var rep = new NpgsqlCommand(
+                    "SELECT COALESCE((SELECT value FROM distrito.character_reputation WHERE character_id = @c AND family_code = @f), 0)", c, tx);
+                rep.Parameters.AddWithValue("c", request.CharacterId);
+                rep.Parameters.AddWithValue("f", required.FamilyCode);
+                if ((int)(await rep.ExecuteScalarAsync(ct))! < required.Delta)
+                    throw new EconomyRejected("not_enough_reputation",
+                        $"Necesitás {required.Delta} de reputación con los {EconomyCatalog.FamilyName(required.FamilyCode)}.");
+            }
+            if (template.RequiresCrewMate &&
+                !await ExistsAsync(c, tx, "SELECT 1 FROM distrito.crew_members WHERE character_id = @k::uuid", request.CharacterId.ToString(), ct))
+                throw new EconomyRejected("no_crew", "Este trabajo es para una cuadrilla: formá o unite a una primero.");
+
             await using var cmd = new NpgsqlCommand("""
-                INSERT INTO distrito.contracts (id, template_code, character_id, status, accept_key)
-                VALUES (@id, @t, @c, 'active', @k)
+                INSERT INTO distrito.contracts (id, template_code, character_id, status, accept_key, expires_at)
+                VALUES (@id, @t, @c, 'active', @k, @exp)
                 ON CONFLICT DO NOTHING
                 """, c, tx);
             cmd.Parameters.AddWithValue("id", Guid.CreateVersion7());
             cmd.Parameters.AddWithValue("t", template.Code);
             cmd.Parameters.AddWithValue("c", request.CharacterId);
             cmd.Parameters.AddWithValue("k", request.RequestId);
+            cmd.Parameters.AddWithValue("exp", template.HasTimeLimit
+                ? clock.GetUtcNow().AddSeconds(template.TimeLimitSeconds)
+                : DBNull.Value);
             if (await cmd.ExecuteNonQueryAsync(ct) == 0)
             {
                 // Si fue un reintento del mismo pedido, no es un error.
@@ -53,7 +71,9 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                     return "Contrato aceptado.";
                 throw new EconomyRejected("contract_already_active", "Ya tenés ese contrato en curso.");
             }
-            return $"Contrato aceptado: {template.Title}.";
+            return template.HasTimeLimit
+                ? $"Contrato aceptado: {template.Title}. Tenés {template.TimeLimitSeconds / 60} minutos."
+                : $"Contrato aceptado: {template.Title}.";
         });
 
     public Task<EconomyActionResult> BuyAsync(BuyItemRequest request, CancellationToken ct) =>
@@ -86,33 +106,60 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
     public Task<EconomyActionResult> DeliverAsync(DeliverContractRequest request, CancellationToken ct) =>
         RunAsync(request.CharacterId, request.RequestId, ct, async (c, tx) =>
         {
-            string templateCode;
+            string templateCode, status;
             await using (var find = new NpgsqlCommand("""
-                SELECT template_code FROM distrito.contracts
-                WHERE id = @id AND character_id = @c AND status = 'active'
+                SELECT template_code, status FROM distrito.contracts
+                WHERE id = @id AND character_id = @c
                 FOR UPDATE
                 """, c, tx))
             {
                 find.Parameters.AddWithValue("id", request.ContractId);
                 find.Parameters.AddWithValue("c", request.CharacterId);
-                templateCode = await find.ExecuteScalarAsync(ct) as string
-                    ?? throw new EconomyRejected("contract_not_active", "No tenés ese contrato en curso.");
+                await using var reader = await find.ExecuteReaderAsync(ct);
+                if (!await reader.ReadAsync(ct))
+                    throw new EconomyRejected("contract_not_active", "No tenés ese contrato en curso.");
+                (templateCode, status) = (reader.GetString(0), reader.GetString(1));
             }
+            if (status == "failed")
+                throw new EconomyRejected("contract_expired", "Se te pasó el plazo: el contrato venció.");
+            if (status != "active")
+                throw new EconomyRejected("contract_not_active", "No tenés ese contrato en curso.");
 
             var template = EconomyCatalog.Templates[templateCode];
-            var courier = await EnsureCharacterAccountAsync(c, tx, request.CharacterId, ct);
-            var client = await AccountIdByCodeAsync(c, tx, template.DestinationNpc, ct);
-            await LockAccountsAsync(c, tx, ct, courier, client);
 
-            if (await BalanceAsync(c, tx, client, ct) < template.RewardCents)
+            // Participantes: quien entrega y, en trabajos de cuadrilla, los compañeros presentes de la misma cuadrilla.
+            var participants = new List<Guid> { request.CharacterId };
+            if (template.RequiresCrewMate)
+            {
+                participants.AddRange(await CrewMatesAmongAsync(c, tx, request.CharacterId, request.Companions ?? [], ct));
+                if (participants.Count < 2)
+                    throw new EconomyRejected("need_crew_mate", "Para este trabajo tiene que estar cerca alguien de tu cuadrilla.");
+            }
+
+            var accounts = new List<Guid>();
+            foreach (var p in participants)
+                accounts.Add(await EnsureCharacterAccountAsync(c, tx, p, ct));
+            var payer = await AccountIdByCodeAsync(c, tx, template.Payer, ct);
+            var receiver = template.HasGoods ? await AccountIdByCodeAsync(c, tx, template.DestinationNpc, ct) : payer;
+            await LockAccountsAsync(c, tx, ct, [.. accounts, payer, receiver]);
+
+            if (await BalanceAsync(c, tx, payer, ct) < template.RewardCents)
                 throw new EconomyRejected("client_cannot_pay", "El cliente no tiene fondos para pagar.");
 
             var txId = await NewLedgerTransactionAsync(c, tx, request.RequestId, "contract_delivery",
                 $"Entrega del contrato {templateCode} ({request.ContractId})", ct);
-            await MoveItemsAsync(c, tx, txId, template.ItemCode, template.Quantity,
-                from: (courier, EconomyCatalog.CarriedLocation), to: (client, template.DestinationLocation),
-                notEnough: "No tenés la mercadería que pide el contrato.", ct);
-            await TransferMoneyAsync(c, tx, txId, from: client, to: courier, template.RewardCents, ct);
+            if (template.HasGoods)
+                await MoveItemsAsync(c, tx, txId, template.ItemCode, template.Quantity,
+                    from: (accounts[0], EconomyCatalog.CarriedLocation), to: (receiver, template.DestinationLocation),
+                    notEnough: "No tenés la mercadería que pide el contrato.", ct);
+
+            // El pago se reparte en partes iguales; el resto de la división (centavos) queda para quien entrega.
+            var share = template.RewardCents / participants.Count;
+            for (var i = 0; i < accounts.Count; i++)
+            {
+                var amount = share + (i == 0 ? template.RewardCents - share * participants.Count : 0);
+                await TransferMoneyAsync(c, tx, txId, from: payer, to: accounts[i], amount, ct);
+            }
 
             await using (var complete = new NpgsqlCommand("""
                 UPDATE distrito.contracts
@@ -125,12 +172,73 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                 await complete.ExecuteNonQueryAsync(ct);
             }
 
-            foreach (var reward in template.Reputation)
-                await GrantReputationAsync(c, tx, request.CharacterId, reward, $"contrato {templateCode}", txId, ct);
+            foreach (var p in participants)
+                foreach (var reward in template.Reputation)
+                    await GrantReputationAsync(c, tx, p, reward, $"contrato {templateCode}", txId, ct);
 
-            var reputationText = string.Join(", ", template.Reputation.Select(r => $"+{r.Delta} con los {char.ToUpperInvariant(r.FamilyCode[0])}{r.FamilyCode[1..]}"));
-            return $"Contrato cumplido. Cobraste {EconomyCatalog.FormatMoney(template.RewardCents)} y ganaste reputación ({reputationText}).";
+            var reputationText = EconomyCatalog.DescribeReputation(template.Reputation);
+            return participants.Count > 1
+                ? $"Trabajo hecho entre {participants.Count}. Cada uno cobró {EconomyCatalog.FormatMoney(share)} y ganó reputación ({reputationText})."
+                : $"Contrato cumplido. Cobraste {EconomyCatalog.FormatMoney(template.RewardCents)} y ganaste reputación ({reputationText}).";
         });
+
+    private static async Task<List<Guid>> CrewMatesAmongAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId,
+        IReadOnlyList<Guid> candidates, CancellationToken ct)
+    {
+        var mates = new List<Guid>();
+        if (candidates.Count == 0)
+            return mates;
+        await using var cmd = new NpgsqlCommand("""
+            SELECT m.character_id FROM distrito.crew_members m
+            WHERE m.crew_id = (SELECT crew_id FROM distrito.crew_members WHERE character_id = @c)
+              AND m.character_id = ANY(@ids) AND m.character_id <> @c
+            ORDER BY m.character_id
+            """, c, tx);
+        cmd.Parameters.AddWithValue("c", characterId);
+        cmd.Parameters.AddWithValue("ids", candidates.Distinct().ToArray());
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            mates.Add(reader.GetGuid(0));
+        return mates;
+    }
+
+    /// <summary>
+    /// Vence los contratos con plazo cumplido: pasan a 'failed' y aplican la reputación de la falla.
+    /// Con characterId solo los de ese personaje (antes de cada acción); sin él, todos (lo hace el ciclo económico).
+    /// </summary>
+    public async Task<int> ExpireContractsAsync(CancellationToken ct)
+    {
+        await using var connection = await db.OpenConnectionAsync(ct);
+        await using var tx = await connection.BeginTransactionAsync(ct);
+        var expired = await ExpireContractsAsync(connection, tx, null, ct);
+        await tx.CommitAsync(ct);
+        return expired;
+    }
+
+    private async Task<int> ExpireContractsAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid? characterId, CancellationToken ct)
+    {
+        var failed = new List<(Guid Character, string Template)>();
+        await using (var cmd = new NpgsqlCommand($"""
+            UPDATE distrito.contracts SET status = 'failed', completed_at = @now
+            WHERE status = 'active' AND expires_at IS NOT NULL AND expires_at <= @now
+              {(characterId is null ? "" : "AND character_id = @c")}
+            RETURNING character_id, template_code
+            """, c, tx))
+        {
+            cmd.Parameters.AddWithValue("now", clock.GetUtcNow());
+            if (characterId is { } id)
+                cmd.Parameters.AddWithValue("c", id);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+                failed.Add((reader.GetGuid(0), reader.GetString(1)));
+        }
+
+        foreach (var (character, templateCode) in failed)
+            if (EconomyCatalog.Templates.TryGetValue(templateCode, out var template))
+                foreach (var penalty in template.FailureReputation ?? [])
+                    await GrantReputationAsync(c, tx, character, penalty, $"contrato {templateCode} vencido", null, ct);
+        return failed.Count;
+    }
 
     // ---------- Infraestructura de la transacción ----------
 
@@ -146,6 +254,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         try
         {
             await EnsureCharacterAccountAsync(connection, tx, characterId, ct);
+            await ExpireContractsAsync(connection, tx, characterId, ct);
 
             // Idempotencia: si este pedido ya se aplicó, se devuelve el estado actual sin repetir nada.
             if (await ExistsAsync(connection, tx, "SELECT 1 FROM distrito.ledger_transactions WHERE idempotency_key = @k", requestId, ct))
@@ -389,7 +498,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
               JOIN distrito.item_definitions d ON d.code = s.item_code
              WHERE a.character_id = @c AND s.location = @carried
              ORDER BY d.name;
-            SELECT id, template_code, status FROM distrito.contracts WHERE character_id = @c AND status = 'active' ORDER BY accepted_at;
+            SELECT id, template_code, status, expires_at FROM distrito.contracts WHERE character_id = @c AND status = 'active' ORDER BY accepted_at;
             SELECT count(*) FROM distrito.contracts WHERE character_id = @c AND status = 'completed';
             SELECT f.code, f.name, COALESCE(r.value, 0)
               FROM distrito.families f
@@ -416,7 +525,9 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             await reader.NextResultAsync(ct);
             while (await reader.ReadAsync(ct)) inventory.Add(new InventoryItem(reader.GetString(0), reader.GetString(1), reader.GetInt32(2)));
             await reader.NextResultAsync(ct);
-            while (await reader.ReadAsync(ct)) active.Add(new ContractView(reader.GetGuid(0), reader.GetString(1), reader.GetString(2)));
+            while (await reader.ReadAsync(ct))
+                active.Add(new ContractView(reader.GetGuid(0), reader.GetString(1), reader.GetString(2),
+                    reader.IsDBNull(3) ? null : reader.GetFieldValue<DateTimeOffset>(3)));
             await reader.NextResultAsync(ct);
             if (await reader.ReadAsync(ct)) completed = (int)reader.GetInt64(0);
             await reader.NextResultAsync(ct);

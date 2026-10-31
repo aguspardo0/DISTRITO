@@ -136,7 +136,7 @@ public partial class EconomyNetwork : Node
                 NpcActionKind.FireHelper => await backend.BusinessActionAsync(_network.ServerKey, "fire",
                     new BusinessActionRequest(session.CharacterId, requestId)),
                 _ => await backend.DeliverAsync(_network.ServerKey,
-                    new DeliverContractRequest(session.CharacterId, action.ContractId!.Value, requestId)),
+                    new DeliverContractRequest(session.CharacterId, action.ContractId!.Value, requestId, CompanionsNear(peer, npc))),
             };
 
             if (!result.IsSuccess)
@@ -154,6 +154,24 @@ public partial class EconomyNetwork : Node
         {
             _busy.Remove(peer);
         }
+    }
+
+    /// <summary>
+    /// Personajes conectados que el servidor ve junto al NPC (la presencia la decide el servidor de juego;
+    /// que sean de la misma cuadrilla lo verifica el backend).
+    /// </summary>
+    private List<Guid> CompanionsNear(long peer, NpcDefinition npc)
+    {
+        var companions = new List<Guid>();
+        foreach (var (otherPeer, other) in _network.AuthenticatedPlayers)
+        {
+            if (otherPeer == peer || _network.GetPlayer(otherPeer) is not { } body)
+                continue;
+            var q = body.GlobalPosition;
+            if (NpcInteractionRules.InRange(new System.Numerics.Vector3(q.X, q.Y, q.Z), npc))
+                companions.Add(other.CharacterId);
+        }
+        return companions;
     }
 
     private async Task PushSnapshotAsync(long peer, Guid characterId)

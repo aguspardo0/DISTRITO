@@ -47,8 +47,18 @@ public partial class NpcInteractionController : Node
         _economy.EconomyChanged += ShowEconomy;
     }
 
+    private double _timerRefresh;
+
     public override void _Process(double delta)
     {
+        // Contratos con plazo: la cuenta regresiva se actualiza una vez por segundo.
+        _timerRefresh += delta;
+        if (_timerRefresh >= 1 && _economy.LastSnapshot is { } snapshot && snapshot.ActiveContracts.Any(c => c.ExpiresAt is not null))
+        {
+            _timerRefresh = 0;
+            ShowEconomy(snapshot);
+        }
+
         var npc = NearestNpc();
         _prompt.Text = npc is not null && !_dialog.IsOpen ? $"[E] Hablar con {npc.Name}" : "";
     }
@@ -76,13 +86,16 @@ public partial class NpcInteractionController : Node
             .FirstOrDefault();
     }
 
+    private static string FormatLeft(int seconds) => seconds <= 0 ? "venció" : $"quedan {seconds / 60}:{seconds % 60:00}";
+
     private void ShowEconomy(EconomySnapshot s)
     {
         var carried = s.Inventory.Count == 0 ? "nada" : string.Join(", ", s.Inventory.Select(i => $"{i.Name} ×{i.Quantity}"));
         var contract = s.ActiveContracts.Count == 0
             ? "ninguno"
             : string.Join(", ", s.ActiveContracts.Select(c =>
-                EconomyCatalog.Templates.TryGetValue(c.TemplateCode, out var t) ? t.Title : c.TemplateCode));
+                (EconomyCatalog.Templates.TryGetValue(c.TemplateCode, out var t) ? t.Title : c.TemplateCode) +
+                (c.ExpiresAt is null ? "" : $" ({FormatLeft(c.SecondsLeft(DateTimeOffset.UtcNow))})")));
         var reputation = s.Reputation is { Count: > 0 }
             ? string.Join(" · ", s.Reputation.Select(r => $"{r.FamilyName.Replace("Familia ", "")} {r.Value}"))
             : "—";
