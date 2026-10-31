@@ -27,7 +27,7 @@ public partial class ContractBot : Node
     public ContractTemplate Template => _template;
     /// <summary>Lo que debería ganar: el pago menos lo que cuesta la mercadería.</summary>
     /// En trabajos de cuadrilla el bot va con un compañero: le toca la mitad.
-    public long ExpectedGain => _template.RewardCents / (_template.RequiresCrewMate ? 2 : 1)
+    public long ExpectedGain => _template.RewardCents / (1 + _template.MatesNeeded)
                                 - _template.Quantity * PriceOf(_template.ItemCode);
 
     private string? _pendingDeliver;

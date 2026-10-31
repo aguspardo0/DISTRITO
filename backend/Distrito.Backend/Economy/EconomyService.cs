@@ -49,6 +49,14 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                     throw new EconomyRejected("not_enough_reputation",
                         $"Necesitás {required.Delta} de reputación con los {EconomyCatalog.FamilyName(required.FamilyCode)}.");
             }
+            if (template.MinLevel > 1 || template.SkillCode is not null)
+            {
+                var progress = await LoadProgressAsync(c, tx, request.CharacterId, ct);
+                if (progress.Level < template.MinLevel)
+                    throw new EconomyRejected("level_too_low", $"Este trabajo pide nivel {template.MinLevel}.");
+                if (template.SkillCode is { } skill && progress.Skills.First(k => k.Code == skill) is { } sk && sk.Level < template.MinSkillLevel)
+                    throw new EconomyRejected("skill_too_low", $"Este trabajo pide {sk.Name} {template.MinSkillLevel}.");
+            }
             if (template.RequiresCrewMate &&
                 !await ExistsAsync(c, tx, "SELECT 1 FROM distrito.crew_members WHERE character_id = @k::uuid", request.CharacterId.ToString(), ct))
                 throw new EconomyRejected("no_crew", "Este trabajo es para una cuadrilla: formá o unite a una primero.");
@@ -138,8 +146,10 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             if (template.RequiresCrewMate)
             {
                 participants.AddRange(await CrewMatesAmongAsync(c, tx, request.CharacterId, request.Companions ?? [], ct));
-                if (participants.Count < 2)
-                    throw new EconomyRejected("need_crew_mate", "Para este trabajo tiene que estar cerca alguien de tu cuadrilla.");
+                if (participants.Count < 1 + template.MatesNeeded)
+                    throw new EconomyRejected("need_crew_mate", template.MatesNeeded == 1
+                        ? "Para este trabajo tiene que estar cerca alguien de tu cuadrilla."
+                        : $"Para este trabajo tienen que estar cerca {template.MatesNeeded} de tu cuadrilla.");
             }
 
             var accounts = new List<Guid>();

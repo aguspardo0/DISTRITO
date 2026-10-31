@@ -45,7 +45,7 @@ public static class NpcInteractionRules
     public static NpcDialog DialogFor(string npcCode, EconomySnapshot s, string? prefix = null)
     {
         var npc = Find(npcCode) ?? throw new ArgumentException($"NPC desconocido: {npcCode}", nameof(npcCode));
-        var (text, options) = npcCode switch
+        var (text, rawOptions) = npcCode switch
         {
             EconomyCatalog.DepositNpc => DepositDialog(s),
             EconomyCatalog.WorkshopNpc => WorkshopDialog(s),
@@ -55,6 +55,8 @@ public static class NpcInteractionRules
                 "Un local vacío con escenario. Con licencia de la Oficina Valenti puede ser un club de jazz; las bebidas las vende el Almacén Moretti."),
             _ => ("…", new List<NpcOption>()),
         };
+        var options = rawOptions;
+        LevelContractsDialog(npc.Code, s, ref text, options);
         if (FamilyRules.FamilyOfNpc(npc.Code) is { } family && s.Families is not null)
             text += $"\n\nÁnimo de la familia: {FamilyRules.Display(s.MoodOf(family))}.";
         return new NpcDialog(npc.Code, npc.Name, prefix is null ? text : $"{prefix}\n\n{text}", options);
@@ -81,6 +83,50 @@ public static class NpcInteractionRules
             _ => null,
         };
     }
+
+    /// <summary>
+    /// Contratos por nivel: en el NPC de origen se ofrecen (o se dice qué falta); en el de destino se entregan.
+    /// </summary>
+    private static void LevelContractsDialog(string npcCode, EconomySnapshot s, ref string text, List<NpcOption> options)
+    {
+        var m = EconomyCatalog.FormatMoney;
+        foreach (var t in EconomyCatalog.LevelContracts)
+        {
+            var active = s.ActiveContract(t.Code);
+            if (t.SourceNpc == npcCode && active is null)
+            {
+                var missing = EconomyCatalog.MissingRequirements(t, s);
+                var crew = t.MatesNeeded > 0 ? $", con {t.MatesNeeded} de tu cuadrilla" : "";
+                var time = t.HasTimeLimit ? $", {t.TimeLimitSeconds / 60} minutos" : "";
+                if (missing.Count == 0)
+                    options.Add(new NpcOption($"accept:{t.Code}", $"Aceptar: {t.Title} (paga {m(Pay(s, t))}{time})"));
+                else
+                    text += $"\n\nMás adelante: {t.Title} (pide {string.Join(", ", missing)}{crew}).";
+            }
+            if (t.DestinationNpc == npcCode && active is not null)
+            {
+                if (!t.HasGoods || s.QuantityOf(t.ItemCode) >= t.Quantity)
+                {
+                    var what = t.HasGoods ? $"Entregar {t.Quantity} × {ItemsLabel(t.ItemCode)}" : "Hacer el trabajo";
+                    var crew = t.MatesNeeded > 0 ? $", con {t.MatesNeeded} de tu cuadrilla cerca" : "";
+                    options.Add(new NpcOption($"deliver:{active.Id}", $"{what}: {t.Title} (cobrar {m(Pay(s, t))}{crew})"));
+                }
+                else
+                {
+                    text += $"\n\nPara «{t.Title}» te faltan {t.Quantity - s.QuantityOf(t.ItemCode)} × {ItemsLabel(t.ItemCode)}.";
+                }
+            }
+            if (t.SourceNpc == npcCode && active is not null && t.DestinationNpc != npcCode)
+                text += $"\n\nTenés en curso: {t.Title}.";
+        }
+    }
+
+    private static string ItemsLabel(string item) => item switch
+    {
+        EconomyCatalog.DrinksCrateItem => "cajones de bebidas",
+        EconomyCatalog.CoffeeBagItem => "bolsas de café",
+        _ => "cajas de repuestos",
+    };
 
     /// <summary>Precio que cobra la familia del NPC, según su ánimo.</summary>
     private static long Price(EconomySnapshot s, string npcCode, long cents) =>

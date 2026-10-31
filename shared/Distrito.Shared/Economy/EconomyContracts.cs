@@ -124,8 +124,14 @@ public sealed record ContractTemplate(
     int TimeLimitSeconds = 0,
     IReadOnlyList<ReputationReward>? FailureReputation = null,
     ReputationReward? RequiredReputation = null,
-    bool RequiresCrewMate = false)
+    bool RequiresCrewMate = false,
+    int MinLevel = 1,
+    string? SkillCode = null,
+    int MinSkillLevel = 0,
+    int CrewMatesNeeded = 1)
 {
+    /// <summary>Compañeros de cuadrilla que tienen que estar presentes (0 si no es trabajo de cuadrilla).</summary>
+    public int MatesNeeded => RequiresCrewMate ? Math.Max(1, CrewMatesNeeded) : 0;
     /// <summary>Quién paga: por defecto el destinatario.</summary>
     public string Payer => PayerNpc ?? DestinationNpc;
     public bool HasGoods => Quantity > 0;
@@ -237,13 +243,82 @@ public static class EconomyCatalog
         RequiredReputation: new ReputationReward(Caruso, 5),
         RequiresCrewMate: true);
 
+    // Contratos por nivel (propuesta aprobada por el equipo, 2026-10-31).
+    public static readonly ContractTemplate PartyDelivery = new(
+        Code: "reparto-fiesta",
+        Title: "Reparto para la fiesta: 3 cajones de bebidas al Taller Caruso",
+        ItemCode: DrinksCrateItem,
+        Quantity: 3,
+        SourceNpc: DepositNpc,
+        DestinationNpc: WorkshopNpc,
+        DestinationLocation: "taller-moreno",
+        RewardCents: 2_000,
+        Reputation: [new ReputationReward(Moretti, 4), new ReputationReward(Caruso, 2)],
+        PayerNpc: DepositNpc,
+        TimeLimitSeconds: 240,
+        FailureReputation: [new ReputationReward(Moretti, -3)],
+        MinLevel: 3,
+        SkillCode: "logistica",
+        MinSkillLevel: 2);
+
+    public static readonly ContractTemplate AuditBooks = new(
+        Code: "revisar-cuentas",
+        Title: "Revisar las cuentas del Almacén Moretti",
+        ItemCode: "",
+        Quantity: 0,
+        SourceNpc: ValentiOfficeNpc,
+        DestinationNpc: DepositNpc,
+        DestinationLocation: "deposito-delgado",
+        RewardCents: 1_800,
+        Reputation: [new ReputationReward(Valenti, 5), new ReputationReward(Moretti, -1)],
+        PayerNpc: ValentiOfficeNpc,
+        MinLevel: 5,
+        SkillCode: "negociacion",
+        MinSkillLevel: 3);
+
+    public static readonly ContractTemplate BigCollection = new(
+        Code: "cobranza-grande",
+        Title: "Cobranza grande en el Taller Caruso (con dos de tu cuadrilla)",
+        ItemCode: "",
+        Quantity: 0,
+        SourceNpc: ValentiOfficeNpc,
+        DestinationNpc: WorkshopNpc,
+        DestinationLocation: "taller-moreno",
+        RewardCents: 3_600,
+        Reputation: [new ReputationReward(Valenti, 8), new ReputationReward(Caruso, -3)],
+        PayerNpc: ValentiOfficeNpc,
+        RequiredReputation: new ReputationReward(Caruso, 15),
+        RequiresCrewMate: true,
+        MinLevel: 8,
+        CrewMatesNeeded: 2);
+
+    /// <summary>Contratos que los diálogos ofrecen de forma genérica (requisitos, aceptar y entregar).</summary>
+    public static readonly IReadOnlyList<ContractTemplate> LevelContracts = [PartyDelivery, AuditBooks, BigCollection];
+
     public static readonly IReadOnlyDictionary<string, ContractTemplate> Templates =
         new Dictionary<string, ContractTemplate>
         {
             [SparePartsDelivery.Code] = SparePartsDelivery,
             [UrgentCoffeeOrder.Code] = UrgentCoffeeOrder,
             [CarusoCollection.Code] = CarusoCollection,
+            [PartyDelivery.Code] = PartyDelivery,
+            [AuditBooks.Code] = AuditBooks,
+            [BigCollection.Code] = BigCollection,
         };
+
+    /// <summary>Qué le falta a un personaje para aceptar el contrato (vacío = puede).</summary>
+    public static List<string> MissingRequirements(ContractTemplate t, EconomySnapshot s)
+    {
+        var missing = new List<string>();
+        var p = s.ProgressOrEmpty;
+        if (p.Level < t.MinLevel)
+            missing.Add($"nivel {t.MinLevel}");
+        if (t.SkillCode is { } skill && p.Skills.FirstOrDefault(k => k.Code == skill) is { } sk && sk.Level < t.MinSkillLevel)
+            missing.Add($"{sk.Name} {t.MinSkillLevel}");
+        if (t.RequiredReputation is { } rep && s.ReputationWith(rep.FamilyCode) < rep.Delta)
+            missing.Add($"{rep.Delta} de reputación con los {FamilyName(rep.FamilyCode)}");
+        return missing;
+    }
 
     public static string FamilyName(string code) => $"{char.ToUpperInvariant(code[0])}{code[1..]}";
 

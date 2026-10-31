@@ -97,6 +97,42 @@ public class NpcInteractionRulesTests
         Assert.Equal(collection.Code, deliver!.Code);
     }
 
+    private static EconomySnapshot Leveled(long xp, int logistics = 0, int negotiation = 0, int caruso = 0, string? active = null, int crates = 0) => new(
+        2000,
+        crates > 0 ? [new InventoryItem(EconomyCatalog.DrinksCrateItem, "Cajón de bebidas", crates)] : [],
+        active is null ? [] : [new ContractView(OrderId, active, "active")],
+        0,
+        [new ReputationView(EconomyCatalog.Caruso, "Familia Caruso", caruso)],
+        Progress: new Distrito.Shared.Progression.ProgressView(xp, logistics, negotiation, 0));
+
+    [Fact]
+    public void Los_contratos_por_nivel_se_ofrecen_solo_con_los_requisitos()
+    {
+        var party = EconomyCatalog.PartyDelivery;
+        var low = NpcInteractionRules.DialogFor(EconomyCatalog.DepositNpc, Leveled(xp: 0));
+        Assert.DoesNotContain(low.Options, o => o.Id == $"accept:{party.Code}");
+        Assert.Contains("nivel 3", low.Text);
+        // Nivel 3 (300 de experiencia) y Logística 2 (5 prácticas).
+        Assert.NotNull(NpcInteractionRules.Resolve(EconomyCatalog.DepositNpc, $"accept:{party.Code}", Leveled(xp: 300, logistics: 5)));
+        Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.DepositNpc, $"accept:{party.Code}", Leveled(xp: 300)));
+
+        // Se entrega en el Taller Caruso con los 3 cajones.
+        Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.WorkshopNpc, $"deliver:{OrderId}", Leveled(300, 5, active: party.Code, crates: 2)));
+        Assert.Equal(party.Code, NpcInteractionRules.Resolve(EconomyCatalog.WorkshopNpc, $"deliver:{OrderId}", Leveled(300, 5, active: party.Code, crates: 3))!.Code);
+
+        // Revisar las cuentas: nivel 5 y Negociación 3; se hace en el Almacén Moretti sin mercadería.
+        var audit = EconomyCatalog.AuditBooks;
+        Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.ValentiOfficeNpc, $"accept:{audit.Code}", Leveled(xp: 1000, negotiation: 14)));
+        Assert.NotNull(NpcInteractionRules.Resolve(EconomyCatalog.ValentiOfficeNpc, $"accept:{audit.Code}", Leveled(xp: 1000, negotiation: 15)));
+        Assert.NotNull(NpcInteractionRules.Resolve(EconomyCatalog.DepositNpc, $"deliver:{OrderId}", Leveled(1000, negotiation: 15, active: audit.Code)));
+
+        // Cobranza grande: nivel 8 y 15 con los Caruso.
+        var big = EconomyCatalog.BigCollection;
+        Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.ValentiOfficeNpc, $"accept:{big.Code}", Leveled(xp: 2800, caruso: 14)));
+        Assert.NotNull(NpcInteractionRules.Resolve(EconomyCatalog.ValentiOfficeNpc, $"accept:{big.Code}", Leveled(xp: 2800, caruso: 15)));
+        Assert.Equal(2, big.MatesNeeded);
+    }
+
     [Fact]
     public void Resolver_rechaza_npcs_desconocidos()
     {
