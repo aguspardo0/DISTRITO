@@ -223,9 +223,14 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                     logistics: i == 0 && template.HasGoods ? 1 : 0, negotiation: 1, administration: 0, ct);
 
             // Influencia en la zona para cada cuadrilla que participó (una vez por contrato).
+            // Durante un evento de distrito en la zona, la influencia es la del evento (con su propio tope).
+            var districtEvent = zone is null ? null : ActiveEventIn(zone);
             if (zone is not null)
                 foreach (var crew in crews.OfType<Guid>().Distinct())
-                    await GrantInfluenceAsync(c, tx, crew, zone, TerritoryRules.ContractPoints, $"contrato {templateCode}", ct);
+                    if (districtEvent is not null)
+                        await GrantEventInfluenceAsync(c, tx, crew, districtEvent, ct);
+                    else
+                        await GrantInfluenceAsync(c, tx, crew, zone, TerritoryRules.ContractPoints, $"contrato {templateCode}", ct);
 
             var reputationText = EconomyCatalog.DescribeReputation(template.Reputation)
                                  + (myTithe > 0 ? $"; aportaste {EconomyCatalog.FormatMoney(myTithe)} a la caja de la cuadrilla" : "");
@@ -666,6 +671,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         var progress = await LoadProgressAsync(c, tx, characterId, ct);
         var families = await LoadFamilyMoodsAsync(c, tx, ct);
         var territory = await LoadTerritoryAsync(c, tx, characterId, ct);
-        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory);
+        var events = UpcomingEvents(TimeSpan.FromHours(24));
+        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory, events);
     }
 }

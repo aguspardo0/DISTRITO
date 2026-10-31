@@ -1,0 +1,49 @@
+{
+  "_ayuda": "Eventos de distrito. Se pueden editar o agregar: cada evento necesita codigo (único, sin espacios), nombre, zona (calle-almacen, los-talleres, la-oficina o la-esquina), dias (lunes..domingo o todos), inicio (HH:MM, hora de Argentina), minutos, puntosPorContrato y topePorCuadrilla. Al guardar el cambio en GitHub, las pruebas lo validan y el servidor se actualiza solo.",
+  "eventos": [
+    {
+      "codigo": "feria",
+      "nombre": "Feria en La Esquina",
+      "descripcion": "Puestos, música y gente con plata en el bolsillo.",
+      "zona": "la-esquina",
+      "dias": ["lunes", "viernes"],
+      "inicio": "21:00",
+      "minutos": 30,
+      "puntosPorContrato": 10,
+      "topePorCuadrilla": 20
+    },
+    {
+      "codigo": "barco",
+      "nombre": "Llega un barco a la Calle del Almacén",
+      "descripcion": "Los Moretti necesitan brazos para descargar.",
+      "zona": "calle-almacen",
+      "dias": ["martes", "sabado"],
+      "inicio": "21:00",
+      "minutos": 30,
+      "puntosPorContrato": 10,
+      "topePorCuadrilla": 20
+    },
+    {
+      "codigo": "carrera",
+      "nombre": "Carrera de camiones en Los Talleres",
+      "descripcion": "Los Caruso apuestan fuerte y todos quieren estar cerca.",
+      "zona": "los-talleres",
+      "dias": ["miercoles", "domingo"],
+      "inicio": "21:00",
+      "minutos": 30,
+      "puntosPorContrato": 10,
+      "topePorCuadrilla": 20
+    },
+    {
+      "codigo": "elecciones",
+      "nombre": "Elecciones del sindicato en La Oficina",
+      "descripcion": "Los Valenti cuentan votos y favores.",
+      "zona": "la-oficina",
+      "dias": ["jueves"],
+      "inicio": "21:00",
+      "minutos": 30,
+      "puntosPorContrato": 10,
+      "topePorCuadrilla": 20
+    }
+  ]
+}

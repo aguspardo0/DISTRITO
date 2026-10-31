@@ -17,6 +17,8 @@ public partial class NpcInteractionController : Node
     private NpcDialogPanel _dialog = null!;
     private Label _prompt = null!;
     private Label _status = null!;
+    private Label _banner = null!;
+    private double _bannerRefresh;
 
     public NpcDialogPanel Dialog => _dialog;
 
@@ -34,6 +36,13 @@ public partial class NpcInteractionController : Node
         _status.AddThemeColorOverride("font_shadow_color", Colors.Black);
         _status.AddThemeFontSizeOverride("font_size", 16);
         hud.AddChild(UiAnchor.Wrap(_status, UiAnchor.Start, UiAnchor.End, name: "StatusArea"));
+
+        // Anuncio de eventos de distrito (arriba, al centro).
+        _banner = new Label { HorizontalAlignment = HorizontalAlignment.Center };
+        _banner.AddThemeColorOverride("font_color", new Color(0.95f, 0.8f, 0.45f));
+        _banner.AddThemeColorOverride("font_shadow_color", Colors.Black);
+        _banner.AddThemeFontSizeOverride("font_size", 20);
+        hud.AddChild(UiAnchor.Wrap(_banner, UiAnchor.Center, UiAnchor.Start, top: 80, name: "EventBanner"));
 
         _dialog = new NpcDialogPanel { Name = "NpcDialog" };
         hud.AddChild(UiAnchor.Wrap(_dialog, UiAnchor.Center, UiAnchor.End, bottom: 30, name: "DialogArea"));
@@ -53,6 +62,15 @@ public partial class NpcInteractionController : Node
         {
             _timerRefresh = 0;
             ShowEconomy(snapshot);
+        }
+
+        _bannerRefresh += delta;
+        if (_bannerRefresh >= 1)
+        {
+            _bannerRefresh = 0;
+            _banner.Text = _economy.LastSnapshot?.Events is { } events
+                ? Distrito.Shared.Economy.DistrictEvents.Banner(events, DateTimeOffset.UtcNow) ?? ""
+                : "";
         }
 
         var npc = NearestNpc();

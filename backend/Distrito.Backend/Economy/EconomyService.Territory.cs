@@ -14,6 +14,90 @@ public sealed partial class EconomyService
         return await cmd.ExecuteScalarAsync(ct) as Guid?;
     }
 
+    // ---------- Eventos de distrito (config/eventos.json, se relee si cambia) ----------
+
+    private readonly object _eventsLock = new();
+    private List<DistrictEvent> _events = [];
+    private DateTime _eventsStamp = DateTime.MinValue;
+
+    private string EventsFile => config.GetValue<string>("Events:File") ?? Path.Combine(AppContext.BaseDirectory, "eventos.json");
+
+    public List<DistrictEvent> DistrictEventList()
+    {
+        lock (_eventsLock)
+        {
+            var file = EventsFile;
+            var stamp = File.Exists(file) ? File.GetLastWriteTimeUtc(file) : DateTime.MinValue;
+            if (stamp != _eventsStamp)
+            {
+                _eventsStamp = stamp;
+                if (stamp == DateTime.MinValue)
+                    _events = [];
+                else
+                {
+                    var (events, errors) = DistrictEvents.Parse(File.ReadAllText(file));
+                    if (errors.Count == 0)
+                        _events = events;
+                    else
+                        Console.Error.WriteLine($"[DISTRITO] eventos.json con errores, se mantienen los anteriores: {string.Join(" | ", errors)}");
+                }
+            }
+            return _events;
+        }
+    }
+
+    public List<EventView> UpcomingEvents(TimeSpan window)
+    {
+        var now = clock.GetUtcNow();
+        return DistrictEvents.Occurrences(DistrictEventList(), now, now + window);
+    }
+
+    private EventView? ActiveEventIn(string zone)
+    {
+        var now = clock.GetUtcNow();
+        return DistrictEvents.Occurrences(DistrictEventList(), now, now.AddSeconds(1)).FirstOrDefault(e => e.Zone == zone && e.IsActive(now));
+    }
+
+    /// <summary>Influencia de un evento: tiene tope propio por cuadrilla y vez del evento, y no cuenta para el tope diario.</summary>
+    private async Task<int> GrantEventInfluenceAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid crewId, EventView e, CancellationToken ct)
+    {
+        var reason = $"evento:{e.OccurrenceId}";
+        await using (var lockCmd = new NpgsqlCommand("SELECT pg_advisory_xact_lock(hashtext(@k))", c, tx))
+        {
+            lockCmd.Parameters.AddWithValue("k", $"influence:{crewId}:{e.Zone}");
+            await lockCmd.ExecuteNonQueryAsync(ct);
+        }
+        int already;
+        await using (var sum = new NpgsqlCommand(
+            "SELECT COALESCE(sum(points), 0)::int FROM distrito.zone_influence WHERE crew_id = @crew AND reason = @r", c, tx))
+        {
+            sum.Parameters.AddWithValue("crew", crewId);
+            sum.Parameters.AddWithValue("r", reason);
+            already = (int)(await sum.ExecuteScalarAsync(ct))!;
+        }
+        var grant = Math.Clamp(e.CapPerCrew - already, 0, e.PointsPerContract);
+        if (grant <= 0)
+            return 0;
+        await InsertInfluenceAsync(c, tx, crewId, e.Zone, grant, reason, ct);
+        return grant;
+    }
+
+    private async Task InsertInfluenceAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid crewId, string zone, int points, string reason, CancellationToken ct)
+    {
+        var now = clock.GetUtcNow();
+        await using var insert = new NpgsqlCommand("""
+            INSERT INTO distrito.zone_influence (season, zone, crew_id, points, reason, created_at)
+            VALUES (@season, @zone, @crew, @points, @reason, @now)
+            """, c, tx);
+        insert.Parameters.AddWithValue("season", TerritoryRules.SeasonAt(now));
+        insert.Parameters.AddWithValue("zone", zone);
+        insert.Parameters.AddWithValue("crew", crewId);
+        insert.Parameters.AddWithValue("points", points);
+        insert.Parameters.AddWithValue("reason", reason);
+        insert.Parameters.AddWithValue("now", now);
+        await insert.ExecuteNonQueryAsync(ct);
+    }
+
     /// <summary>Suma influencia respetando el tope diario por zona. Devuelve los puntos que se sumaron.</summary>
     private async Task<int> GrantInfluenceAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid crewId, string zone, int points,
         string reason, CancellationToken ct)
@@ -27,7 +111,7 @@ public sealed partial class EconomyService
         int today;
         await using (var sum = new NpgsqlCommand("""
             SELECT COALESCE(sum(points), 0)::int FROM distrito.zone_influence
-            WHERE crew_id = @crew AND zone = @zone AND created_at >= @day AND created_at <= @now
+            WHERE crew_id = @crew AND zone = @zone AND created_at >= @day AND created_at <= @now AND reason NOT LIKE 'evento:%'
             """, c, tx))
         {
             sum.Parameters.AddWithValue("crew", crewId);
@@ -39,17 +123,7 @@ public sealed partial class EconomyService
         var grant = TerritoryRules.Grantable(points, today);
         if (grant <= 0)
             return 0;
-        await using var insert = new NpgsqlCommand("""
-            INSERT INTO distrito.zone_influence (season, zone, crew_id, points, reason, created_at)
-            VALUES (@season, @zone, @crew, @points, @reason, @now)
-            """, c, tx);
-        insert.Parameters.AddWithValue("season", TerritoryRules.SeasonAt(now));
-        insert.Parameters.AddWithValue("zone", zone);
-        insert.Parameters.AddWithValue("crew", crewId);
-        insert.Parameters.AddWithValue("points", grant);
-        insert.Parameters.AddWithValue("reason", reason);
-        insert.Parameters.AddWithValue("now", now);
-        await insert.ExecuteNonQueryAsync(ct);
+        await InsertInfluenceAsync(c, tx, crewId, zone, grant, reason, ct);
         return grant;
     }
 

@@ -61,6 +61,10 @@ public static class NpcInteractionRules
             text += zone.ControllerCrew is { } owner
                 ? $"\n\nZona {zone.Name}: la controla «{owner}» ({zone.ControllerPoints} de influencia)."
                 : $"\n\nZona {zone.Name}: nadie la controla todavía (hacen falta {TerritoryRules.ControlThreshold} de influencia).";
+        if (TerritoryRules.ZoneOfNpc(npc.Code) is { } eventZone && s.Events?.FirstOrDefault(e => e.Zone == eventZone) is { } ev)
+            text += ev.IsActive(DateTimeOffset.UtcNow)
+                ? $"\n\n¡{ev.Name}! Hasta las {ev.EndsAt.ToOffset(TerritoryRules.ArgentinaOffset):HH:mm}: cada contrato entregado acá da +{ev.PointsPerContract} de influencia."
+                : $"\n\nPróximo evento acá: {ev.Name}, a las {ev.StartsAt.ToOffset(TerritoryRules.ArgentinaOffset):HH:mm}.";
         if (FamilyRules.FamilyOfNpc(npc.Code) is { } family && s.Families is not null)
             text += $"\n\nÁnimo de la familia: {FamilyRules.Display(s.MoodOf(family))}.";
         return new NpcDialog(npc.Code, npc.Name, prefix is null ? text : $"{prefix}\n\n{text}", options);

@@ -13,5 +13,7 @@
   <ItemGroup>
     <!-- Las migraciones viajan con el backend: bin/.../migrations/*.sql -->
     <None Include="..\..\database\migrations\*.sql" LinkBase="migrations" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!-- Eventos de distrito editables (config/eventos.json) -->
+    <None Include="..\..\config\eventos.json" Link="eventos.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

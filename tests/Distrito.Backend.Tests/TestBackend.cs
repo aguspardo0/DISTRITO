@@ -38,9 +38,12 @@ public static class TestBackend
     }
 
     public static WebApplicationFactory<Program> Create(
-        string? connectionString = null, bool migrate = true, string? serverKey = ServerKey, TimeProvider? clock = null) =>
+        string? connectionString = null, bool migrate = true, string? serverKey = ServerKey, TimeProvider? clock = null,
+        IReadOnlyDictionary<string, string>? settings = null) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
+            foreach (var (k, v) in settings ?? new Dictionary<string, string>())
+                builder.UseSetting(k, v);
             if (clock is not null)
                 builder.ConfigureServices(services => services.AddSingleton(clock));
             builder.UseSetting("ConnectionStrings:Distrito", connectionString ?? ConnectionString);
