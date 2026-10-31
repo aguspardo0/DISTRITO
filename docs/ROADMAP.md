@@ -67,7 +67,7 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Progresión del personaje: nivel 1–30 y oficios (ver `docs/Design/PROGRESSION.md`)
 - [x] Menú de opciones en partida (Esc) y arreglos de ventana/pantalla completa (pedido del equipo)
 - [x] Segundo negocio con proveedor: club de jazz (cajones de bebidas del Almacén Moretti, músico opcional, +1 de noche)
-- [ ] Familias NPC con estados
+- [x] Familias NPC con estados: neutral, cooperación y rivalidad según las últimas 24 h (ver `FamilyRules`)
 - [ ] Herramientas de la cuadrilla (caja común, permisos por rol)
 
 ## Más adelante (sin orden fijado)

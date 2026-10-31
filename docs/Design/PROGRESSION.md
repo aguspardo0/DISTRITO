@@ -10,3 +10,10 @@
 
 El nivel todavía no habilita contenido: queda listo para los contratos y negocios nuevos de la Etapa D.
 Código: `shared/Distrito.Shared/Progression/Progression.cs`, tabla `character_progress` (migración 0009).
+
+# Ánimo de las familias (aprobado el 2026-10-31)
+
+Común a todos los jugadores; se calcula con las 24 h anteriores al comienzo de la hora actual.
+- Cooperación: 10+ contratos cumplidos que paga la familia → sus contratos pagan +10 %.
+- Rivalidad: 10+ puntos de reputación perdidos con la familia → contratos −10 %, precios de venta y licencias +10 %. Gana sobre cooperación.
+- Neutral en otro caso. Expansión y recuperación quedan para cuando haya territorio.
