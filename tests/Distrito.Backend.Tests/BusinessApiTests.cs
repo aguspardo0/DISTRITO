@@ -18,6 +18,26 @@ public class BusinessApiTests
         return (await api.CreateCharacterAsync(token, TestBackend.UniqueCharacterName())).Value!.Id;
     }
 
+    /// <summary>Le da dinero al personaje con una transacción contable válida (desde la emisión), para preparar escenarios.</summary>
+    private static async Task GrantMoney(DistritoApiClient api, Guid character, long cents)
+    {
+        await api.GetEconomyAsync(Key, character); // asegura que exista la cuenta del personaje
+        await using var db = NpgsqlDataSource.Create(TestBackend.ConnectionString);
+        await using var cmd = db.CreateCommand("""
+            WITH t AS (INSERT INTO distrito.ledger_transactions (id, idempotency_key, kind, description)
+                       VALUES (gen_random_uuid(), 'test-grant:' || gen_random_uuid(), 'test', 'Fondos para prueba') RETURNING id),
+                 mint AS (SELECT id FROM distrito.economic_accounts WHERE code = 'system:emision'),
+                 acc AS (SELECT id FROM distrito.economic_accounts WHERE character_id = @c)
+            INSERT INTO distrito.ledger_entries (transaction_id, account_id, amount_cents)
+            SELECT t.id, mint.id, -@amount FROM t, mint UNION ALL SELECT t.id, acc.id, @amount FROM t, acc;
+            UPDATE distrito.economic_accounts SET balance_cents = balance_cents - @amount WHERE code = 'system:emision';
+            UPDATE distrito.economic_accounts SET balance_cents = balance_cents + @amount WHERE character_id = @c;
+            """);
+        cmd.Parameters.AddWithValue("c", character);
+        cmd.Parameters.AddWithValue("amount", cents);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     private static BusinessActionRequest Req(Guid character) => new(character, Guid.NewGuid().ToString());
 
     private static Task<ApiResult<EconomyActionResult>> BuyBag(DistritoApiClient api, Guid character) =>
@@ -36,6 +56,7 @@ public class BusinessApiTests
         Assert.NotNull(license.Snapshot.Business);
         Assert.Equal(EconomyCatalog.StartingFundsCents - EconomyCatalog.CoffeeStandLicenseCents, license.Snapshot.BalanceCents);
 
+        await GrantMoney(api, id, 1_000); // con $5 no alcanza para 3 bolsas
         for (var i = 0; i < 3; i++)
             Assert.True((await BuyBag(api, id)).Value!.Ok);
         var restocked = (await api.BusinessActionAsync(Key, "restock", Req(id))).Value!;
@@ -92,7 +113,8 @@ public class BusinessApiTests
         var economy = TestBackend.Economy();
         var id = await NewCharacter(api);
         await api.BusinessActionAsync(Key, "license", Req(id));
-        for (var i = 0; i < 4; i++) await BuyBag(api, id);
+        await GrantMoney(api, id, 1_000);
+        for (var i = 0; i < 4; i++) Assert.True((await BuyBag(api, id)).Value!.Ok);
         await api.BusinessActionAsync(Key, "restock", Req(id));
 
         var cycle = economy.CurrentCycle() + 1;
