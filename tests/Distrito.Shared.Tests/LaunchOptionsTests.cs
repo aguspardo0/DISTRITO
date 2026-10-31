@@ -197,4 +197,10 @@ public class LaunchOptionsBusinessBotTests
         Assert.True(options.BotContract);
         Assert.Equal("pedido-urgente", options.BotContractCode);
     }
+
+    [Fact]
+    public void Prueba_del_mapa_espera_jugadores()
+    {
+        Assert.Equal(2, LaunchOptions.Parse(["--expect-map-players", "2"]).ExpectMapPlayers);
+    }
 }

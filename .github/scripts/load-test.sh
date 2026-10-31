@@ -20,8 +20,8 @@ PORT=7801
 "$GODOT" --headless --path game -- --server --port $PORT --interest-radius 12 > interest-server.log 2>&1 &
 srv=$!
 sleep 4
-client interest-a.log $PORT --bot-goto -8,12 --test-seconds 20 --expect-players 2 --expect-visible-end 1 & a=$!
-client interest-b.log $PORT --bot-goto 12,-5 --test-seconds 20 --expect-players 2 --expect-visible-end 1 & b=$!
+client interest-a.log $PORT --bot-goto -8,12 --test-seconds 20 --expect-players 2 --expect-visible-end 1 --expect-map-players 2 & a=$!
+client interest-b.log $PORT --bot-goto 12,-5 --test-seconds 20 --expect-players 2 --expect-visible-end 1 --expect-map-players 2 & b=$!
 wait $a; wait $b
 kill $srv 2>/dev/null; wait $srv 2>/dev/null
 for x in a b; do

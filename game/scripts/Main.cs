@@ -18,12 +18,14 @@ namespace Distrito.Game;
 public partial class Main : Node3D
 {
     private const string ControlsHelp =
-        "WASD: moverse   Mouse: cámara   Espacio: saltar   E: hablar   C: cuadrilla   Esc: soltar el mouse (clic para volver)   F3: métricas";
+        "WASD: moverse   Mouse: cámara   Espacio: saltar   E: hablar   C: cuadrilla   M: mapa   Esc: soltar el mouse (clic para volver)   F3: métricas";
 
     private GameNetwork _network = null!;
     private EconomyNetwork _economy = null!;
     private CrewNetwork _crews = null!;
     private CrewPanel? _crewPanel;
+    private Distrito.Game.Map.MapNetwork _map = null!;
+    private Distrito.Game.Map.MapPanel? _mapPanel;
     private AccountSession? _account;
     private ConnectMenu? _menu;
     private Label? _hud;
@@ -77,6 +79,10 @@ public partial class Main : Node3D
         _crews = new CrewNetwork { Name = "Crews" };
         AddChild(_crews);
         _crews.Initialize(_network);
+
+        _map = new Distrito.Game.Map.MapNetwork { Name = "Map" };
+        AddChild(_map);
+        _map.Initialize(_network);
         SpawnNpcs();
 
         if (Options.Mode == LaunchMode.Server)
@@ -148,6 +154,8 @@ public partial class Main : Node3D
 
             if (Options.ExpectVisibleAtEnd is { } visible)
                 test.ExpectVisibleAtEnd(visible);
+            if (Options.ExpectMapPlayers is { } onMap)
+                test.ExpectMapPlayers(_map, onMap);
 
             if (Options.BotGoto is { } destination)
             {
@@ -215,6 +223,10 @@ public partial class Main : Node3D
         var interaction = new NpcInteractionController { Name = "NpcInteraction" };
         AddChild(interaction);
         interaction.Initialize(_network, _economy, layer);
+
+        _mapPanel = new Distrito.Game.Map.MapPanel { Name = "MapPanel" };
+        layer.AddChild(_mapPanel);
+        _mapPanel.Initialize(_network, _map);
 
         _crewPanel = new CrewPanel { Name = "CrewPanel" };
         layer.AddChild(_crewPanel);
@@ -327,6 +339,8 @@ public partial class Main : Node3D
     {
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.C } && _network.LocalPlayer is not null)
             _crewPanel?.Toggle();
+        if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.M } && _network.LocalPlayer is not null)
+            _mapPanel?.Toggle();
     }
 
     public override void _ExitTree() => _account?.Dispose();
