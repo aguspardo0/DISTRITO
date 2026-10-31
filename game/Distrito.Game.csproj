@@ -9,5 +9,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\shared\Distrito.Shared\Distrito.Shared.csproj" />
+    <ProjectReference Include="..\server\Distrito.Server.Core\Distrito.Server.Core.csproj" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,25 @@
+DISTRITO — prototipo de red
+============================
+
+QUÉ ES
+  Un barrio de prueba donde dos o más jugadores se conectan, se ven y caminan.
+  Todavía no hay misiones, NPC ni economía.
+
+PROBARLO SOLO (en una misma PC)
+  1. Abrí DISTRITO.exe  -> tocá "Crear partida (anfitrión)".
+  2. Abrí DISTRITO.exe otra vez -> dejá 127.0.0.1 -> "Unirse a partida".
+  3. Movete en una ventana y mirá cómo se mueve en la otra.
+
+PROBARLO CON UN AMIGO
+  - En la misma red (misma casa / wifi): el que crea la partida busca su IP local
+    (cmd -> ipconfig -> "Dirección IPv4", ej. 192.168.0.15) y el otro la escribe en "Dirección".
+  - Por internet: el anfitrión tiene que abrir el puerto UDP 7777 en su router,
+    o ambos usar una red virtual tipo Radmin VPN / ZeroTier / Tailscale.
+
+CONTROLES
+  WASD mover · Mouse cámara · Espacio saltar · Esc soltar el mouse · Clic para volver
+
+AVISOS DE WINDOWS
+  - SmartScreen puede decir "Windows protegió su PC": tocá "Más información" -> "Ejecutar de todas formas".
+    Pasa porque el .exe no está firmado digitalmente.
+  - El firewall puede pedir permiso de red al crear partida: aceptá.

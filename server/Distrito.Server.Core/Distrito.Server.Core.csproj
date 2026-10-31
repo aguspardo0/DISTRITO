@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Lógica autoritativa del servidor de juego. C# puro: sin dependencia de Godot, probada con xUnit. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Distrito.Server.Core</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\shared\Distrito.Shared\Distrito.Shared.csproj" />
+  </ItemGroup>
+</Project>

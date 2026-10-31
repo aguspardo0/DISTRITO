@@ -68,7 +68,7 @@ jobs:
           done
 
   godot:
-    name: Godot — importar y arrancar headless
+    name: Godot — arranque y prueba de red (servidor + 2 clientes)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
@@ -80,14 +80,7 @@ jobs:
             10.0.x
 
       - name: Descargar Godot ${{ env.GODOT_VERSION }} .NET
-        run: |
-          name="Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64"
-          curl -fsSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${name}.zip"
-          unzip -q godot.zip -d "$HOME/godot"
-          bin=$(find "$HOME/godot" -maxdepth 2 -type f -name 'Godot_v*mono_linux*x86_64' | head -1)
-          chmod +x "$bin"
-          echo "GODOT=$bin" >> "$GITHUB_ENV"
-          "$bin" --version
+        run: .github/scripts/install-godot.sh
 
       - name: Compilar C# del juego
         run: dotnet build game/Distrito.Game.csproj -c Debug
@@ -106,3 +99,71 @@ jobs:
           timeout 60 "$GODOT" --headless --path game -- --client --smoke-test 2>&1 | tee boot-client.log
           grep -q "SMOKE_TEST_OK" boot-client.log
           echo "::notice title=Godot cliente::$(grep 'Arranque OK' boot-client.log)"
+
+      - name: Prueba de red — servidor dedicado + 2 clientes bot
+        run: .github/scripts/network-test.sh
+
+      - name: Logs de la prueba de red
+        if: always()
+        run: |
+          for f in net-*.log; do echo "===== $f"; grep -E "DISTRITO|ERROR|error|Exception" "$f" | head -40 || true; done
+
+  export-windows:
+    name: Exportar Windows y publicar prototipo
+    needs: [dotnet, godot]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Descargar Godot ${{ env.GODOT_VERSION }} .NET
+        run: .github/scripts/install-godot.sh
+
+      - name: Cache de plantillas de exportación
+        id: templates-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-mono-${{ env.GODOT_VERSION }}
+
+      - name: Descargar plantillas de exportación
+        if: steps.templates-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_mono_export_templates.tpz"
+          dest="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable.mono"
+          mkdir -p "$dest"
+          unzip -q templates.tpz -d tpl
+          mv tpl/templates/* "$dest/"
+          ls "$dest" | head -30
+
+      - name: Importar proyecto
+        run: timeout 300 "$GODOT" --headless --path game --import
+
+      - name: Exportar
+        run: |
+          mkdir -p build/windows
+          timeout 600 "$GODOT" --headless --path game --export-release "Windows" ../build/windows/DISTRITO.exe 2>&1 | tee export.log
+          test -f build/windows/DISTRITO.exe
+          cp .github/scripts/LEEME-prototipo.txt build/windows/LEEME.txt
+          ls -la build/windows
+          (cd build && zip -qr ../DISTRITO-windows.zip windows)
+          echo "::notice title=Export Windows::$(du -h DISTRITO-windows.zip | cut -f1) — commit ${GITHUB_SHA::7}"
+
+      - name: Publicar en la release "prototipo"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete prototipo --yes --cleanup-tag || true
+          gh release create prototipo DISTRITO-windows.zip \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Prototipo (último build de main)" \
+            --notes "Build automático del commit ${GITHUB_SHA::7}. Descargá DISTRITO-windows.zip, descomprimilo y abrí DISTRITO.exe. Instrucciones en LEEME.txt."
