@@ -72,5 +72,12 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Prueba manual del equipo de la Etapa D (2026-10-31: anda bien)
 - [x] Contratos por nivel: reparto para la fiesta (nivel 3, Logística 2), revisar las cuentas (nivel 5, Negociación 3), cobranza grande (nivel 8, 15 Caruso, dos compañeros)
 
+## Etapa E — Beta social y territorial (en curso)
+- [x] Territorio: 4 zonas, influencia por contratos (+3) y ventas (+1) con tope de 30/día/zona, control con 20+ (+5 % en contratos), temporadas de 4 semanas con ganadores en el historial
+- [ ] Coaliciones entre cuadrillas
+- [ ] Eventos de distrito (+10 a +20 de influencia, programados)
+- [ ] Subfacciones, diplomacia y votaciones
+- [ ] Prueba manual del equipo de la Etapa E
+
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.

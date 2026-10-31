@@ -33,3 +33,11 @@ Común a todos los jugadores; se calcula con las 24 h anteriores al comienzo de 
 | Reparto para la fiesta (Moretti) | nivel 3, Logística 2 | 3 cajones de bebidas al Taller Caruso en 4 min | $20 | +4 Moretti, +2 Caruso; vencido −3 Moretti |
 | Revisar las cuentas (Valenti) | nivel 5, Negociación 3 | ir al Almacén Moretti, sin mercadería | $18 | +5 Valenti, −1 Moretti |
 | Cobranza grande (Valenti) | nivel 8, 15 Caruso, 2 compañeros presentes | cobrar en el Taller Caruso | $36 entre los tres | +8 Valenti, −3 Caruso |
+
+# Territorio (Etapa E, aprobado el 2026-10-31)
+
+Zonas: Calle del Almacén (Moretti), Los Talleres (Caruso), La Oficina (Valenti), La Esquina (café y club).
+Influencia por cuadrilla y temporada: +3 por contrato entregado en la zona (una vez por cuadrilla), +1 por ciclo con ventas
+de un negocio de un integrante; tope de 30 por día (hora de Argentina) por zona. Controla quien más tiene con 20 o más
+(empate: quien llegó primero): sus integrantes cobran +5 % en contratos entregados ahí. Temporadas de 4 semanas desde el
+lunes 26/10/2026; al cerrar, el ganador de cada zona queda en `zone_season_results` y en el historial de la cuadrilla.
