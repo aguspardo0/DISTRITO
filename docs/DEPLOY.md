@@ -22,7 +22,7 @@ Secretos del servidor (contraseña de la base, clave interna) se generan la prim
 ## Configuración en GitHub
 
 Secretos del repositorio (*Settings → Secrets and variables → Actions*):
-- `DEPLOY_HOST`: IP pública.
+- `DEPLOY_HOST` y `DEPLOY_USER`: opcionales como secretos; si no están, se leen de `deploy/target.env` (no son datos secretos).
 - `DEPLOY_SSH_KEY`: llave privada SSH.
 - `DEPLOY_USER`: usuario SSH (`root` en Vultr; si falta, `ubuntu`).
 

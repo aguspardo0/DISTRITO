@@ -159,6 +159,12 @@ jobs:
       - name: Importar proyecto
         run: timeout 300 "$GODOT" --headless --path game --import
 
+      - name: Leer servidor de pruebas
+        run: |
+          if [ -z "$DEPLOY_HOST" ] && [ -f deploy/target.env ]; then
+            grep -E '^DEPLOY_(HOST|USER)=' deploy/target.env >> "$GITHUB_ENV"
+          fi
+
       - name: Apuntar el cliente al servidor oficial
         if: env.DEPLOY_HOST != ''
         run: |
@@ -198,13 +204,20 @@ jobs:
       DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
     steps:
+      - uses: actions/checkout@v5
+
+      - name: Leer servidor de pruebas
+        run: |
+          # Los secretos tienen prioridad; si no están, se usa deploy/target.env (IP y usuario no son secretos).
+          if [ -z "$DEPLOY_HOST" ] && [ -f deploy/target.env ]; then
+            grep -E '^DEPLOY_(HOST|USER)=' deploy/target.env >> "$GITHUB_ENV"
+          fi
+
       - name: Verificar configuración
         run: |
           if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_SSH_KEY" ]; then
-            echo "::notice title=Despliegue::Sin servidor configurado (faltan los secretos DEPLOY_HOST / DEPLOY_SSH_KEY). Se arma el release pero no se despliega."
+            echo "::notice title=Despliegue::Falta el secreto DEPLOY_SSH_KEY (o el servidor). Se arma el release pero no se despliega."
           fi
-
-      - uses: actions/checkout@v5
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -234,7 +247,7 @@ jobs:
       - name: Detectar arquitectura del servidor
         run: |
           arch=x64
-          if [ -n "$DEPLOY_HOST" ]; then
+          if [ -n "$DEPLOY_HOST" ] && [ -n "$DEPLOY_SSH_KEY" ]; then
             key="$RUNNER_TEMP/k"; printf '%s\n' "$DEPLOY_SSH_KEY" > "$key"; chmod 600 "$key"
             machine=$(ssh -i "$key" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 "${DEPLOY_USER:-ubuntu}@$DEPLOY_HOST" uname -m || echo "?")
             rm -f "$key"
@@ -257,11 +270,11 @@ jobs:
           echo "::notice title=Release Linux $ARCH::backend $(du -sh build/release/backend | cut -f1), servidor $(du -sh build/release/server | cut -f1)"
 
       - name: Desplegar
-        if: env.DEPLOY_HOST != ''
+        if: env.DEPLOY_HOST != '' && env.DEPLOY_SSH_KEY != ''
         run: .github/scripts/deploy.sh
 
       - name: Prueba contra el servidor real
-        if: env.DEPLOY_HOST != ''
+        if: env.DEPLOY_HOST != '' && env.DEPLOY_SSH_KEY != ''
         run: |
           curl -fsS "https://$DEPLOY_DOMAIN/health/ready"; echo
           # cuenta de CI estable; la contraseña deriva de un secreto, no está en el repo
