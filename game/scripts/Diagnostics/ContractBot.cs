@@ -8,8 +8,8 @@ using Godot;
 namespace Distrito.Game.Diagnostics;
 
 /// <summary>
-/// Bot de prueba que juega el contrato completo como lo haría una persona:
-/// camina al depósito, acepta el contrato, compra la caja, camina al taller y la entrega.
+/// Bot de prueba que juega un contrato de entrega completo como lo haría una persona:
+/// camina al origen, acepta el contrato, compra la mercadería, camina al destino y la entrega.
 /// Usa los mismos RPC que el jugador; el servidor valida todo igual.
 /// </summary>
 public partial class ContractBot : Node
@@ -22,6 +22,11 @@ public partial class ContractBot : Node
     private EconomyNetwork _economy = null!;
     private Step _step = Step.WaitingForSpawn;
     private int _startCompleted;
+    private ContractTemplate _template = EconomyCatalog.SparePartsDelivery;
+
+    public ContractTemplate Template => _template;
+    /// <summary>Lo que debería ganar: el pago menos lo que cuesta la mercadería.</summary>
+    public long ExpectedGain => _template.RewardCents - _template.Quantity * PriceOf(_template.ItemCode);
 
     public long? StartBalance { get; private set; }
     public long? FinalBalance { get; private set; }
@@ -29,8 +34,13 @@ public partial class ContractBot : Node
     public int ReputationCaruso { get; private set; }
     public string StepName => _step.ToString();
 
-    public void Initialize(GameNetwork network, EconomyNetwork economy)
+    private static long PriceOf(string item) =>
+        item == EconomyCatalog.CoffeeBagItem ? EconomyCatalog.CoffeeBagPriceCents : EconomyCatalog.SparePartsPriceCents;
+
+    public void Initialize(GameNetwork network, EconomyNetwork economy, string? contractCode = null)
     {
+        if (contractCode is not null)
+            _template = EconomyCatalog.Templates[contractCode];
         _network = network;
         _economy = economy;
         _economy.DialogReceived += OnDialog;
@@ -53,17 +63,17 @@ public partial class ContractBot : Node
                 _step = Step.GoingToDeposit;
                 break;
             case Step.GoingToDeposit:
-                if (WalkTo(player, controller, NpcInteractionRules.Deposit))
+                if (WalkTo(player, controller, NpcInteractionRules.Find(_template.SourceNpc)!))
                 {
                     _step = Step.TalkingToDeposit;
-                    _economy.Interact(NpcInteractionRules.Deposit.Code);
+                    _economy.Interact(_template.SourceNpc);
                 }
                 break;
             case Step.GoingToWorkshop:
-                if (WalkTo(player, controller, NpcInteractionRules.Workshop))
+                if (WalkTo(player, controller, NpcInteractionRules.Find(_template.DestinationNpc)!))
                 {
                     _step = Step.TalkingToWorkshop;
-                    _economy.Interact(NpcInteractionRules.Workshop.Code);
+                    _economy.Interact(_template.DestinationNpc);
                 }
                 break;
             default:
@@ -94,16 +104,18 @@ public partial class ContractBot : Node
 
         if (_step == Step.TalkingToDeposit)
         {
-            var next = dialog.Options.FirstOrDefault(o => o.Id == $"accept:{EconomyCatalog.SparePartsDelivery.Code}")
-                       ?? dialog.Options.FirstOrDefault(o => o.Id == $"buy:{EconomyCatalog.SparePartsItem}");
+            var carrying = snapshot?.QuantityOf(_template.ItemCode) ?? 0;
+            var next = dialog.Options.FirstOrDefault(o => o.Id == $"accept:{_template.Code}")
+                       ?? (carrying < _template.Quantity ? dialog.Options.FirstOrDefault(o => o.Id == $"buy:{_template.ItemCode}") : null);
             if (next is not null)
                 _economy.Choose(dialog.NpcCode, next.Id);
-            else if (snapshot is not null && snapshot.QuantityOf(EconomyCatalog.SparePartsItem) > 0)
+            else if (carrying >= _template.Quantity)
                 _step = Step.GoingToWorkshop;
         }
         else if (_step == Step.TalkingToWorkshop)
         {
-            var deliver = dialog.Options.FirstOrDefault(o => o.Id.StartsWith("deliver:", StringComparison.Ordinal));
+            var contract = _economy.LastSnapshot?.ActiveContract(_template.Code);
+            var deliver = contract is null ? null : dialog.Options.FirstOrDefault(o => o.Id == $"deliver:{contract.Id}");
             if (deliver is not null)
                 _economy.Choose(dialog.NpcCode, deliver.Id);
         }
@@ -115,7 +127,7 @@ public partial class ContractBot : Node
             return;
         FinalBalance = snapshot.BalanceCents;
         _step = Step.Done;
-        Log($"contrato cumplido: saldo {EconomyCatalog.FormatMoney(snapshot.BalanceCents)}, reputación Caruso {snapshot.ReputationWith(EconomyCatalog.Caruso)} / Moretti {snapshot.ReputationWith(EconomyCatalog.Moretti)}");
+        Log($"contrato {_template.Code} cumplido: saldo {EconomyCatalog.FormatMoney(snapshot.BalanceCents)}, reputación Caruso {snapshot.ReputationWith(EconomyCatalog.Caruso)} / Moretti {snapshot.ReputationWith(EconomyCatalog.Moretti)}");
         ReputationCaruso = snapshot.ReputationWith(EconomyCatalog.Caruso);
     }
 

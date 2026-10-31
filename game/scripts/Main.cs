@@ -176,7 +176,7 @@ public partial class Main : Node3D
             {
                 var contractBot = new ContractBot { Name = "ContractBot" };
                 AddChild(contractBot);
-                contractBot.Initialize(_network, _economy);
+                contractBot.Initialize(_network, _economy, Options.BotContractCode);
                 test.ExpectContract(contractBot);
             }
         }

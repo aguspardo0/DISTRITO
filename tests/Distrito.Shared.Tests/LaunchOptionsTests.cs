@@ -189,4 +189,12 @@ public class LaunchOptionsBusinessBotTests
         Assert.True(options.Bot);
         Assert.True(options.BotBusiness);
     }
+
+    [Fact]
+    public void Bot_de_contrato_puede_elegir_el_contrato()
+    {
+        var options = LaunchOptions.Parse(["--bot-contract-code", "pedido-urgente"]);
+        Assert.True(options.BotContract);
+        Assert.Equal("pedido-urgente", options.BotContractCode);
+    }
 }

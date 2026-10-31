@@ -129,6 +129,19 @@ else
   error "Contrato" "${line:-sin resultado}"
 fi
 
+# --- Pedido urgente (contrato 2): Moretti → Oficina Valenti con plazo de 3 minutos ---
+timeout 120 "$GODOT" --headless --path game -- \
+  --client --host 127.0.0.1 --port "$PORT" --backend "$BACKEND_URL" \
+  --account bot_urgente --password "clave-de-bot-123" --character "Bot Apurado" \
+  --bot-contract-code pedido-urgente --test-seconds 60 --expect-players 1 > persist-urgent.log 2>&1
+line=$(result_line persist-urgent.log)
+if grep -q NET_TEST_OK persist-urgent.log; then
+  note "Pedido urgente" "${line#*\] }"
+else
+  grep "bot-contrato" persist-urgent.log | tail -8
+  error "Pedido urgente" "${line:-sin resultado}"
+fi
+
 # --- Negocio: licencia, reponer, ventas automáticas por ciclo y retiro ---
 timeout 150 "$GODOT" --headless --path game -- \
   --client --host 127.0.0.1 --port "$PORT" --backend "$BACKEND_URL" \

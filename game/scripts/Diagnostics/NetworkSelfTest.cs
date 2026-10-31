@@ -99,7 +99,7 @@ public partial class NetworkSelfTest : Node
         var contractInfo = rttInfo + $" visibles_al_final={visibleNow} altura_max={_maxHeight:0.0}"
             + (predictionError is null ? "" : $" prediccion_error={predictionError:0.00}m") + (_contractBot is null
             ? ""
-            : $" contrato={_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance} reputacion_caruso={_contractBot.ReputationCaruso}")
+            : $" contrato={_contractBot.Template.Code}:{_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance} reputacion_caruso={_contractBot.ReputationCaruso}")
             + (_crewBot is null ? "" : $" cuadrilla=\"{_crewBot.State}\"")
             + (_businessBot is null ? "" : $" negocio={_businessBot.StepName} saldo={_businessBot.StartBalance}->{_businessBot.FinalBalance}");
 
@@ -113,8 +113,7 @@ public partial class NetworkSelfTest : Node
             $"jugadores_max={_maxPlayersSeen}/{_expectedPlayers} desplazamiento={_maxDisplacement:0.00}m " +
             $"aparicion={first.X:0.00},{first.Z:0.00} pos={final.X:0.00},{final.Z:0.00}{contractInfo}");
 
-        var expectedGain = Distrito.Shared.Economy.EconomyCatalog.SparePartsDelivery.RewardCents
-                           - Distrito.Shared.Economy.EconomyCatalog.SparePartsPriceCents;
+        var expectedGain = _contractBot?.ExpectedGain ?? 0;
 
         string? failure =
             !connected ? "no está conectado" :

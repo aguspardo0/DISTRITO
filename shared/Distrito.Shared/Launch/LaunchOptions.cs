@@ -32,6 +32,7 @@ public enum LaunchMode
 /// <param name="ExpectVisibleAtEnd">La prueba exige ver exactamente esta cantidad de jugadores al final (incluido uno mismo).</param>
 /// <param name="BotBusiness">El bot abre un puesto de café, lo repone, espera ventas y retira la ganancia.</param>
 /// <param name="BotContract">El bot cumple el contrato de prueba (depósito → taller) y la prueba verifica el cobro.</param>
+/// <param name="BotContractCode">Qué contrato juega el bot (por defecto, la entrega de repuestos).</param>
 public sealed record LaunchOptions(
     LaunchMode Mode,
     string Host,
@@ -53,7 +54,8 @@ public sealed record LaunchOptions(
     int MetricsIntervalSeconds = 0,
     (float X, float Z)? BotGoto = null,
     int? ExpectVisibleAtEnd = null,
-    bool BotBusiness = false)
+    bool BotBusiness = false,
+    string? BotContractCode = null)
 {
     public static LaunchOptions Default { get; } = new(
         LaunchMode.Client,
@@ -112,6 +114,9 @@ public sealed record LaunchOptions(
                     break;
                 case "--bot-contract":
                     options = options with { Bot = true, BotContract = true };
+                    break;
+                case "--bot-contract-code":
+                    options = options with { Bot = true, BotContract = true, BotContractCode = RequireValue(args, ref i) };
                     break;
                 case "--host":
                     options = options with { Host = RequireValue(args, ref i) };
