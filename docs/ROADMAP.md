@@ -74,7 +74,7 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 
 ## Etapa E — Beta social y territorial (en curso)
 - [x] Territorio: 4 zonas, influencia por contratos (+3) y ventas (+1) con tope de 30/día/zona, control con 20+ (+5 % en contratos), temporadas de 4 semanas con ganadores en el historial
-- [ ] Coaliciones entre cuadrillas
+- [x] Coaliciones entre cuadrillas: hasta 3, territorio sumado al 75 %, cobranzas con aliados, 24 h de espera al salir
 - [x] Eventos de distrito programados y editables (`config/eventos.json`, ver `docs/EVENTOS.md`)
 - [ ] Subfacciones, diplomacia y votaciones
 - [ ] Prueba manual del equipo de la Etapa E

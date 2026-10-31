@@ -41,3 +41,10 @@ Influencia por cuadrilla y temporada: +3 por contrato entregado en la zona (una 
 de un negocio de un integrante; tope de 30 por día (hora de Argentina) por zona. Controla quien más tiene con 20 o más
 (empate: quien llegó primero): sus integrantes cobran +5 % en contratos entregados ahí. Temporadas de 4 semanas desde el
 lunes 26/10/2026; al cerrar, el ganador de cada zona queda en `zone_season_results` y en el historial de la cuadrilla.
+
+# Coaliciones (Etapa E, aprobado el 2026-10-31)
+
+Hasta 3 cuadrillas. El jefe invita a otra cuadrilla por nombre (con el nombre de la coalición si todavía no tiene); el jefe
+invitado acepta o rechaza (24 h). En territorio, la influencia de las cuadrillas aliadas en una zona se suma y cuenta el 75 %;
+si la coalición controla, todos sus integrantes cobran el +5 %. En trabajos de cuadrilla sirven compañeros de cuadrillas
+aliadas. Salir: cuando el jefe quiere, con 24 h de espera para entrar a otra; con una sola cuadrilla se disuelve.
