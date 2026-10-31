@@ -30,12 +30,14 @@ public sealed partial class EconomyService
             var buyer = await EnsureCharacterAccountAsync(c, tx, r.CharacterId, ct);
             var valenti = await AccountIdByCodeAsync(c, tx, EconomyCatalog.ValentiOfficeNpc, ct);
             await LockAccountsAsync(c, tx, ct, buyer, valenti);
-            if (await BalanceAsync(c, tx, buyer, ct) < type.LicenseCents)
+            // Los Valenti en rivalidad cobran la licencia +10 %.
+            var price = FamilyRules.SellPrice(type.LicenseCents, await MoodOfNpcAsync(c, tx, EconomyCatalog.ValentiOfficeNpc, ct));
+            if (await BalanceAsync(c, tx, buyer, ct) < price)
                 throw new EconomyRejected("insufficient_funds",
-                    $"La licencia cuesta {EconomyCatalog.FormatMoney(type.LicenseCents)}.");
+                    $"La licencia cuesta {EconomyCatalog.FormatMoney(price)}.");
 
             var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "business_license", $"Licencia de {type.Name.ToLowerInvariant()}", ct);
-            await TransferMoneyAsync(c, tx, txId, from: buyer, to: valenti, type.LicenseCents, ct);
+            await TransferMoneyAsync(c, tx, txId, from: buyer, to: valenti, price, ct);
 
             var accountId = Guid.CreateVersion7();
             await using var create = new NpgsqlCommand("""

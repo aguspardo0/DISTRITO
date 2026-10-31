@@ -241,6 +241,7 @@ public partial class Main : Node3D
         _mapPanel = new Distrito.Game.Map.MapPanel { Name = "MapPanel" };
         layer.AddChild(UiAnchor.Wrap(_mapPanel, UiAnchor.Center, UiAnchor.Center, name: "MapArea"));
         _mapPanel.Initialize(_network, _map);
+        _mapPanel.Economy = () => _economy.LastSnapshot;
 
         _crewPanel = new CrewPanel { Name = "CrewPanel" };
         layer.AddChild(UiAnchor.Wrap(_crewPanel, UiAnchor.End, UiAnchor.Center, right: 20, name: "CrewArea"));

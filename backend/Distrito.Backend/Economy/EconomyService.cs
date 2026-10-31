@@ -87,7 +87,8 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             if (request.Quantity is < 1 or > 100)
                 throw new EconomyRejected("invalid_quantity", "Cantidad inválida.");
 
-            var (itemName, unitPrice) = await LoadItemAsync(c, tx, request.ItemCode, ct);
+            var (itemName, basePrice) = await LoadItemAsync(c, tx, request.ItemCode, ct);
+            var unitPrice = FamilyRules.SellPrice(basePrice, await MoodOfNpcAsync(c, tx, request.NpcCode, ct));
             var buyer = await EnsureCharacterAccountAsync(c, tx, request.CharacterId, ct);
             var seller = await AccountIdByCodeAsync(c, tx, request.NpcCode, ct);
             var sellerLocation = request.NpcCode.Replace("npc:", "");
@@ -149,11 +150,13 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             await LockAccountsAsync(c, tx, ct, [.. accounts, payer, receiver]);
 
             // Pago: partes iguales (el resto de la división queda para quien entrega) y cada uno con su bonificación de Negociación.
-            var share = template.RewardCents / participants.Count;
+            var payerMood = await MoodOfNpcAsync(c, tx, template.Payer, ct);
+            var reward = FamilyRules.ContractPay(template.RewardCents, payerMood);
+            var share = reward / participants.Count;
             var amounts = new List<long>();
             for (var i = 0; i < participants.Count; i++)
             {
-                var baseAmount = share + (i == 0 ? template.RewardCents - share * participants.Count : 0);
+                var baseAmount = share + (i == 0 ? reward - share * participants.Count : 0);
                 var negotiation = (await LoadProgressAsync(c, tx, participants[i], ct)).NegotiationLevel;
                 amounts.Add(ProgressionRules.WithNegotiationBonus(baseAmount, negotiation));
             }
@@ -195,6 +198,43 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                 ? $"Trabajo hecho entre {participants.Count}. Cobraste {EconomyCatalog.FormatMoney(amounts[0])} y ganaste reputación ({reputationText}) y {ProgressionRules.XpPerContract} de experiencia."
                 : $"Contrato cumplido. Cobraste {EconomyCatalog.FormatMoney(amounts[0])} y ganaste reputación ({reputationText}) y {ProgressionRules.XpPerContract} de experiencia.";
         });
+
+    /// <summary>Ánimo de las familias: contratos cumplidos para cada una y reputación que perdió, en la ventana de 24 h.</summary>
+    private async Task<List<FamilyMoodView>> LoadFamilyMoodsAsync(NpgsqlConnection c, NpgsqlTransaction tx, CancellationToken ct)
+    {
+        var end = FamilyRules.WindowEnd(clock.GetUtcNow());
+        var start = end - FamilyRules.Window;
+        var contracts = new Dictionary<string, int>();
+        var lost = new Dictionary<string, int>();
+        var names = new List<(string Code, string Name)>();
+        await using (var cmd = new NpgsqlCommand("""
+            SELECT code, name FROM distrito.families ORDER BY code;
+            SELECT template_code, count(*)::int FROM distrito.contracts
+             WHERE status = 'completed' AND completed_at >= @start AND completed_at < @end GROUP BY template_code;
+            SELECT family_code, (-sum(delta))::int FROM distrito.reputation_events
+             WHERE delta < 0 AND created_at >= @start AND created_at < @end GROUP BY family_code;
+            """, c, tx))
+        {
+            cmd.Parameters.AddWithValue("start", start);
+            cmd.Parameters.AddWithValue("end", end);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct)) names.Add((reader.GetString(0), reader.GetString(1)));
+            await reader.NextResultAsync(ct);
+            while (await reader.ReadAsync(ct))
+                if (EconomyCatalog.Templates.TryGetValue(reader.GetString(0), out var t) && FamilyRules.FamilyOfNpc(t.Payer) is { } family)
+                    contracts[family] = contracts.GetValueOrDefault(family) + reader.GetInt32(1);
+            await reader.NextResultAsync(ct);
+            while (await reader.ReadAsync(ct)) lost[reader.GetString(0)] = reader.GetInt32(1);
+        }
+        return names.Select(n => new FamilyMoodView(n.Code, n.Name,
+            FamilyRules.Decide(contracts.GetValueOrDefault(n.Code), lost.GetValueOrDefault(n.Code)),
+            contracts.GetValueOrDefault(n.Code), lost.GetValueOrDefault(n.Code))).ToList();
+    }
+
+    private async Task<string> MoodOfNpcAsync(NpgsqlConnection c, NpgsqlTransaction tx, string npcCode, CancellationToken ct) =>
+        FamilyRules.FamilyOfNpc(npcCode) is { } family
+            ? (await LoadFamilyMoodsAsync(c, tx, ct)).First(f => f.FamilyCode == family).Mood
+            : FamilyRules.Neutral;
 
     private static async Task<ProgressView> LoadProgressAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, CancellationToken ct)
     {
@@ -528,7 +568,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
-    private static async Task<EconomySnapshot> LoadSnapshotAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, CancellationToken ct)
+    private async Task<EconomySnapshot> LoadSnapshotAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, CancellationToken ct)
     {
         long balance = 0;
         var inventory = new List<InventoryItem>();
@@ -589,6 +629,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         }
 
         var progress = await LoadProgressAsync(c, tx, characterId, ct);
-        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses);
+        var families = await LoadFamilyMoodsAsync(c, tx, ct);
+        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families);
     }
 }

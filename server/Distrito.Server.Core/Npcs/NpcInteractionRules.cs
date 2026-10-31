@@ -55,6 +55,8 @@ public static class NpcInteractionRules
                 "Un local vacío con escenario. Con licencia de la Oficina Valenti puede ser un club de jazz; las bebidas las vende el Almacén Moretti."),
             _ => ("…", new List<NpcOption>()),
         };
+        if (FamilyRules.FamilyOfNpc(npc.Code) is { } family && s.Families is not null)
+            text += $"\n\nÁnimo de la familia: {FamilyRules.Display(s.MoodOf(family))}.";
         return new NpcDialog(npc.Code, npc.Name, prefix is null ? text : $"{prefix}\n\n{text}", options);
     }
 
@@ -80,8 +82,16 @@ public static class NpcInteractionRules
         };
     }
 
-    private static NpcOption CoffeeBagOption() =>
-        new($"buy:{EconomyCatalog.CoffeeBagItem}", $"Comprar una bolsa de café ({EconomyCatalog.FormatMoney(EconomyCatalog.CoffeeBagPriceCents)})");
+    /// <summary>Precio que cobra la familia del NPC, según su ánimo.</summary>
+    private static long Price(EconomySnapshot s, string npcCode, long cents) =>
+        FamilyRules.FamilyOfNpc(npcCode) is { } family ? FamilyRules.SellPrice(cents, s.MoodOf(family)) : cents;
+
+    /// <summary>Pago de un contrato según el ánimo de quien paga.</summary>
+    private static long Pay(EconomySnapshot s, ContractTemplate t) =>
+        FamilyRules.FamilyOfNpc(t.Payer) is { } family ? FamilyRules.ContractPay(t.RewardCents, s.MoodOf(family)) : t.RewardCents;
+
+    private static NpcOption CoffeeBagOption(EconomySnapshot s) =>
+        new($"buy:{EconomyCatalog.CoffeeBagItem}", $"Comprar una bolsa de café ({EconomyCatalog.FormatMoney(Price(s, EconomyCatalog.DepositNpc, EconomyCatalog.CoffeeBagPriceCents))})");
 
     private static (string, List<NpcOption>) DepositDialog(EconomySnapshot s)
     {
@@ -90,7 +100,7 @@ public static class NpcInteractionRules
         if (s.ActiveContract(urgent.Code) is null)
         {
             options.Add(new NpcOption($"accept:{urgent.Code}",
-                $"Aceptar: {urgent.Title} (paga {EconomyCatalog.FormatMoney(urgent.RewardCents)}, {urgent.TimeLimitSeconds / 60} minutos)"));
+                $"Aceptar: {urgent.Title} (paga {EconomyCatalog.FormatMoney(Pay(s, urgent))}, {urgent.TimeLimitSeconds / 60} minutos)"));
             text += $"\n\nTambién tengo un pedido urgente: {urgent.Quantity} bolsas de café para la Oficina Valenti, " +
                     $"en menos de {urgent.TimeLimitSeconds / 60} minutos. Si llegás tarde, quedo mal y me lo voy a acordar.";
         }
@@ -98,9 +108,9 @@ public static class NpcInteractionRules
         {
             text += $"\n\n¡Apurate con el pedido! Llevá {urgent.Quantity} bolsas de café a la Oficina Valenti.";
         }
-        options.Add(CoffeeBagOption());
+        options.Add(CoffeeBagOption(s));
         options.Add(new($"buy:{EconomyCatalog.DrinksCrateItem}",
-            $"Comprar un cajón de bebidas ({EconomyCatalog.FormatMoney(EconomyCatalog.JazzClub.ItemPriceCents)})"));
+            $"Comprar un cajón de bebidas ({EconomyCatalog.FormatMoney(Price(s, EconomyCatalog.DepositNpc, EconomyCatalog.JazzClub.ItemPriceCents))})"));
         return (text, options);
     }
 
@@ -112,7 +122,7 @@ public static class NpcInteractionRules
         {
             if (s.BusinessOf(type.Code) is not null)
                 continue;
-            var license = EconomyCatalog.FormatMoney(type.LicenseCents);
+            var license = EconomyCatalog.FormatMoney(Price(s, EconomyCatalog.ValentiOfficeNpc, type.LicenseCents));
             offers.Add($"{type.Name.ToLowerInvariant()} sale {license} y {EconomyCatalog.FormatMoney(type.RentCents)} de alquiler por ciclo con ventas");
             options.Add(new($"license:{type.Code}", $"Comprar licencia de {type.Name.ToLowerInvariant()} ({license})"));
         }
@@ -127,7 +137,7 @@ public static class NpcInteractionRules
             if (s.QuantityOf(urgent.ItemCode) >= urgent.Quantity)
             {
                 options.Add(new NpcOption($"deliver:{order.Id}",
-                    $"Entregar {urgent.Quantity} bolsas de café de los Moretti (cobrar {EconomyCatalog.FormatMoney(urgent.RewardCents)})"));
+                    $"Entregar {urgent.Quantity} bolsas de café de los Moretti (cobrar {EconomyCatalog.FormatMoney(Pay(s, urgent))})"));
                 text += "\n\n¿El café de los Moretti? Justo a tiempo.";
             }
             else
@@ -146,7 +156,7 @@ public static class NpcInteractionRules
         else if (s.ReputationWith(required.FamilyCode) >= required.Delta)
         {
             options.Add(new NpcOption($"accept:{collection.Code}",
-                $"Aceptar: {collection.Title} (paga {EconomyCatalog.FormatMoney(collection.RewardCents)} a repartir)"));
+                $"Aceptar: {collection.Title} (paga {EconomyCatalog.FormatMoney(Pay(s, collection))} a repartir)"));
             text += "\n\nLos Caruso nos deben dinero y a vos te conocen. Andá con alguien de tu cuadrilla y cobrales.";
         }
         else
@@ -190,8 +200,8 @@ public static class NpcInteractionRules
         var template = EconomyCatalog.SparePartsDelivery;
         var active = s.ActiveContract(template.Code);
         var carrying = s.QuantityOf(template.ItemCode);
-        var price = EconomyCatalog.FormatMoney(EconomyCatalog.SparePartsPriceCents);
-        var reward = EconomyCatalog.FormatMoney(template.RewardCents);
+        var price = EconomyCatalog.FormatMoney(Price(s, EconomyCatalog.DepositNpc, EconomyCatalog.SparePartsPriceCents));
+        var reward = EconomyCatalog.FormatMoney(Pay(s, template));
         var options = new List<NpcOption>();
 
         if (active is null)
@@ -224,7 +234,7 @@ public static class NpcInteractionRules
             text = "¿Y los repuestos? Conseguilos en el Almacén Moretti y volvé.";
         else
         {
-            options.Add(new NpcOption($"deliver:{active.Id}", $"Entregar la caja de repuestos (cobrar {EconomyCatalog.FormatMoney(template.RewardCents)})"));
+            options.Add(new NpcOption($"deliver:{active.Id}", $"Entregar la caja de repuestos (cobrar {EconomyCatalog.FormatMoney(Pay(s, template))})"));
             text = "¡Justo lo que necesitaba! ¿Me la dejás?";
         }
 
@@ -232,7 +242,7 @@ public static class NpcInteractionRules
         if (s.ActiveContract(collection.Code) is { } debt)
         {
             options.Add(new NpcOption($"deliver:{debt.Id}",
-                $"Cobrar la deuda de los Valenti ({EconomyCatalog.FormatMoney(collection.RewardCents)}, con tu cuadrilla cerca)"));
+                $"Cobrar la deuda de los Valenti ({EconomyCatalog.FormatMoney(Pay(s, collection))}, con tu cuadrilla cerca)"));
             text += "\n\n¿Vienen de parte de los Valenti? …Está bien, está bien. Pero no vengas solo.";
         }
         return (text, options);

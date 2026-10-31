@@ -18,6 +18,9 @@ public partial class MapPanel : Control
     private GameNetwork _network = null!;
     private MapNetwork _map = null!;
 
+    /// <summary>Ánimo de las familias para mostrar al pie del mapa (lo trae la economía del jugador).</summary>
+    public Func<Distrito.Shared.Economy.EconomySnapshot?>? Economy { get; set; }
+
     public void Initialize(GameNetwork network, MapNetwork map)
     {
         _network = network;
@@ -28,7 +31,7 @@ public partial class MapPanel : Control
     public override void _Ready()
     {
         Visible = false;
-        CustomMinimumSize = new Vector2(SizePx, SizePx + 24);
+        CustomMinimumSize = new Vector2(SizePx, SizePx + 48);
         MouseFilter = MouseFilterEnum.Ignore;
     }
 
@@ -51,7 +54,12 @@ public partial class MapPanel : Control
     public override void _Draw()
     {
         var font = ThemeDB.FallbackFont;
-        DrawRect(new Rect2(0, 0, SizePx, SizePx + 24), Paper);
+        DrawRect(new Rect2(0, 0, SizePx, SizePx + 48), Paper);
+        if (Economy?.Invoke()?.Families is { } families)
+        {
+            var line = string.Join("   ", families.Select(f => $"{f.Name.Replace("Familia ", "")}: {Distrito.Shared.Economy.FamilyRules.Display(f.Mood).Split(' ')[0]}"));
+            DrawString(ThemeDB.FallbackFont, new Vector2(8, SizePx + 41), line, HorizontalAlignment.Left, SizePx - 16, 13, Brass);
+        }
         DrawRect(new Rect2(0, 24, SizePx, SizePx), Brass, filled: false, width: 2);
         DrawString(font, new Vector2(8, 17), $"BELLMONT — {_map.Markers.Count} conectado(s) · [M] cerrar",
             HorizontalAlignment.Left, -1, 14, Brass);

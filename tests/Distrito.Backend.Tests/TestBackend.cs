@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Distrito.Shared.Api;
 using Microsoft.AspNetCore.Hosting;
@@ -30,10 +31,18 @@ public static class TestBackend
         }
     }
 
+    /// <summary>Reloj fijo para pruebas que necesitan una ventana de tiempo propia (sin datos de otras pruebas).</summary>
+    public sealed class FixedClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
     public static WebApplicationFactory<Program> Create(
-        string? connectionString = null, bool migrate = true, string? serverKey = ServerKey) =>
+        string? connectionString = null, bool migrate = true, string? serverKey = ServerKey, TimeProvider? clock = null) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
+            if (clock is not null)
+                builder.ConfigureServices(services => services.AddSingleton(clock));
             builder.UseSetting("ConnectionStrings:Distrito", connectionString ?? ConnectionString);
             builder.UseSetting("Database:MigrateOnStartup", migrate.ToString());
             builder.UseSetting("Database:MigrationsPath", MigrationsPath);

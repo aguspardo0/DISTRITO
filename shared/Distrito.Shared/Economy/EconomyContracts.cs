@@ -50,8 +50,11 @@ public sealed record EconomySnapshot(
     List<ReputationView>? Reputation = null,
     BusinessView? Business = null,
     ProgressView? Progress = null,
-    List<BusinessView>? Businesses = null)
+    List<BusinessView>? Businesses = null,
+    List<FamilyMoodView>? Families = null)
 {
+    public string MoodOf(string familyCode) => Families?.FirstOrDefault(f => f.FamilyCode == familyCode)?.Mood ?? FamilyRules.Neutral;
+
     /// <summary>El negocio propio de ese tipo (el puesto de café también está en <see cref="Business"/>).</summary>
     public BusinessView? BusinessOf(string kind) =>
         Businesses?.FirstOrDefault(b => b.Kind == kind) ?? (Business?.Kind == kind ? Business : null);
