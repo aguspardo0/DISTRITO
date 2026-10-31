@@ -1,0 +1,10 @@
+<Project>
+  <!-- Opciones comunes a todos los proyectos .NET del repositorio (incluido el de Godot). -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <!-- Central Package Management: las versiones se fijan en Directory.Packages.props -->
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>

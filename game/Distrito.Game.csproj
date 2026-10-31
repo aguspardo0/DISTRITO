@@ -1,0 +1,13 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+  <PropertyGroup>
+    <!-- Godot 4.7 carga ensamblados net8.0 -->
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>Distrito.Game</RootNamespace>
+    <!-- El SDK de Godot agrega sus propias referencias con versión; queda fuera de Central Package Management. -->
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\shared\Distrito.Shared\Distrito.Shared.csproj" />
+  </ItemGroup>
+</Project>

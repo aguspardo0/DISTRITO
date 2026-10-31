@@ -1,0 +1,18 @@
+; Engine configuration file.
+; Godot 4.7.2 .NET — ver docs/Decisions/ADR-001-TECHNOLOGY.md
+
+config_version=5
+
+[application]
+
+config/name="DISTRITO"
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+
+[dotnet]
+
+project/assembly_name="Distrito.Game"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"

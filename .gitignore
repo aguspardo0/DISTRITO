@@ -1,0 +1,23 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+*.DotSettings.user
+TestResults/
+
+# Godot
+.godot/
+*.translation
+export_presets.cfg
+/build/
+
+# Secretos y configuración local
+.env
+appsettings.Local.json
+
+# Sistema
+.DS_Store
+Thumbs.db

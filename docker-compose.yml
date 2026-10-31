@@ -1,0 +1,22 @@
+# PostgreSQL para desarrollo local. Uso: docker compose up -d
+services:
+  postgres:
+    image: postgres:16
+    container_name: distrito-postgres
+    environment:
+      POSTGRES_USER: distrito
+      POSTGRES_PASSWORD: distrito_dev   # solo desarrollo local
+      POSTGRES_DB: distrito
+    ports:
+      - "5432:5432"
+    volumes:
+      - distrito-pgdata:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U distrito -d distrito"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  distrito-pgdata:
