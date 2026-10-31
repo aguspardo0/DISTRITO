@@ -41,9 +41,9 @@ Deuda conocida del prototipo: sin predicción del lado del cliente (con latencia
 - [x] Reputación por familia (0–1000) con historial auditable
 - [x] Predicción de movimiento del jugador local
 - [x] Dirección de arte v0.1 (`docs/Design/ART_DIRECTION.md`)
-- [ ] Pequeña actividad económica administrada por el jugador (objetivo verificable del documento)
+- [x] Pequeña actividad económica administrada por el jugador: puesto de café (ADR-005)
 - [ ] Tres contratos (MVP del documento)
-- [ ] Decidir: requisitos de cuadrilla (nivel/integrantes) y sucesión por inactividad + votación
+- [x] Cuadrilla progresiva (formada con 3, cupo 5) y sucesión por inactividad (14 días)
 
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.
