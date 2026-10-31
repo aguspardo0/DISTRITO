@@ -37,15 +37,6 @@ jobs:
             8.0.x
             10.0.x
 
-      - name: Aplicar esquema de base de datos
-        env:
-          PGPASSWORD: distrito_dev
-        run: |
-          for f in database/init/*.sql; do
-            echo "Aplicando $f"
-            psql -h localhost -U distrito -d distrito -v ON_ERROR_STOP=1 -f "$f"
-          done
-
       - name: Restaurar
         run: .github/scripts/run-annotated.sh dotnet restore Distrito.sln
 

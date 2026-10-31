@@ -1,7 +1,10 @@
 # Migraciones
 
-Archivos SQL numerados (`0002_accounts.sql`, `0003_...`). Cada uno inserta su fila en `distrito.schema_migrations`.
+Archivos SQL numerados: `NNNN_descripcion.sql`. Los aplica el backend al arrancar (`MigrationRunner`), en orden, cada uno en su propia transacción, y los registra en `distrito.schema_migrations`.
 
-`database/init/0001_schema.sql` es la migración base; Docker la ejecuta al crear el contenedor por primera vez.
+Reglas:
+- **Nunca** modificar una migración ya aplicada en algún entorno. Para cambiar algo, crear una nueva.
+- No insertar en `schema_migrations` desde el SQL: lo hace el runner.
+- Un candado de PostgreSQL (`pg_advisory_lock`) evita que dos backends migren a la vez.
 
-**Pendiente (ADR-001):** cómo se aplican las migraciones siguientes de forma automática. Se decide antes de crear las tablas del hito 1.
+Ver ADR-002.

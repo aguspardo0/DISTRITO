@@ -10,4 +10,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\shared\Distrito.Shared\Distrito.Shared.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Las migraciones viajan con el backend: bin/.../migrations/*.sql -->
+    <None Include="..\..\database\migrations\*.sql" LinkBase="migrations" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

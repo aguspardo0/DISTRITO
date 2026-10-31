@@ -1,3 +1,6 @@
+using Distrito.Backend.Accounts;
+using Distrito.Backend.Api;
+using Distrito.Backend.Characters;
 using Distrito.Backend.Persistence;
 using Npgsql;
 
@@ -10,9 +13,21 @@ builder.Services.AddSingleton(sp =>
         ?? throw new InvalidOperationException("Falta la cadena de conexión 'ConnectionStrings:Distrito'.");
     return NpgsqlDataSource.Create(connectionString);
 });
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(sp => new PasswordHasher(
+    sp.GetRequiredService<IConfiguration>().GetValue("Auth:PasswordIterations", PasswordHasher.DefaultIterations)));
 builder.Services.AddSingleton<DatabaseStatus>();
+builder.Services.AddSingleton<MigrationRunner>();
+builder.Services.AddSingleton<AccountStore>();
+builder.Services.AddSingleton<CharacterStore>();
 
 var app = builder.Build();
+
+if (app.Configuration.GetValue("Database:MigrateOnStartup", true))
+{
+    var path = app.Configuration["Database:MigrationsPath"] ?? Path.Combine(AppContext.BaseDirectory, "migrations");
+    await app.Services.GetRequiredService<MigrationRunner>().MigrateAsync(path);
+}
 
 // Vivo: el proceso responde. No toca la base.
 app.MapGet("/health/live", () => Results.Ok(new { status = "ok" }));
@@ -25,6 +40,8 @@ app.MapGet("/health/ready", async (DatabaseStatus db, CancellationToken ct) =>
         ? Results.Ok(new { status = "ok", database = "ok", schemaVersion = result.SchemaVersion })
         : Results.Json(new { status = "unavailable", database = "unreachable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
 });
+
+app.MapDistritoApi();
 
 app.Run();
 
