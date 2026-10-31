@@ -23,6 +23,7 @@ builder.Services.AddSingleton<MigrationRunner>();
 builder.Services.AddSingleton<AccountStore>();
 builder.Services.AddSingleton<CharacterStore>();
 builder.Services.AddSingleton<EconomyService>();
+builder.Services.AddHostedService<BusinessCycleWorker>();
 builder.Services.AddSingleton<CrewService>();
 
 var app = builder.Build();

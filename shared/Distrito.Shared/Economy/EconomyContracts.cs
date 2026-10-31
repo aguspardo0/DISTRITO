@@ -10,12 +10,33 @@ public sealed record ContractView(Guid Id, string TemplateCode, string Status);
 
 public sealed record ReputationView(string FamilyCode, string FamilyName, int Value);
 
+/// <summary>
+/// Estado de un negocio. No confundir: facturación (lo vendido), costos, ganancia (facturación − costos),
+/// caja/liquidez (dinero disponible en la cuenta del negocio) y patrimonio (caja + mercadería en stock).
+/// </summary>
+public sealed record BusinessView(
+    Guid Id,
+    string Name,
+    int Stock,
+    long CashCents,
+    long RevenueCents,
+    long RentCents,
+    int UnitsSold,
+    int LastCycleUnits)
+{
+    public long CostOfGoodsCents => UnitsSold * EconomyCatalog.CoffeeBagPriceCents;
+    public long ProfitCents => RevenueCents - RentCents - CostOfGoodsCents;
+    public long StockValueCents => Stock * EconomyCatalog.CoffeeBagPriceCents;
+    public long EquityCents => CashCents + StockValueCents;
+}
+
 public sealed record EconomySnapshot(
     long BalanceCents,
     List<InventoryItem> Inventory,
     List<ContractView> ActiveContracts,
     int CompletedContracts,
-    List<ReputationView>? Reputation = null)
+    List<ReputationView>? Reputation = null,
+    BusinessView? Business = null)
 {
     public int ReputationWith(string familyCode) => Reputation?.FirstOrDefault(r => r.FamilyCode == familyCode)?.Value ?? 0;
 
@@ -36,6 +57,9 @@ public sealed record AcceptContractRequest(Guid CharacterId, string TemplateCode
 public sealed record BuyItemRequest(Guid CharacterId, string NpcCode, string ItemCode, int Quantity, string RequestId);
 
 public sealed record DeliverContractRequest(Guid CharacterId, Guid ContractId, string RequestId);
+
+/// <summary>Comprar licencia, reponer o retirar ganancias del negocio propio.</summary>
+public sealed record BusinessActionRequest(Guid CharacterId, string RequestId);
 
 // ---------- Catálogo provisional del barrio de prueba ----------
 
@@ -71,6 +95,19 @@ public static class EconomyCatalog
 
     public const string SparePartsItem = "caja-repuestos";
     public const long SparePartsPriceCents = 800;
+
+    // --- Puesto de café (primer negocio; valores provisionales, ver ADR-005) ---
+    public const string ValentiOfficeNpc = "npc:oficina-valenti";
+    public const string CoffeeCornerNpc = "npc:esquina-cafe"; // punto de interacción, sin cuenta económica
+    public const string PopulationAccount = "system:poblacion";
+    public const string CoffeeBagItem = "bolsa-cafe";
+    public const long CoffeeBagPriceCents = 300;
+    public const long CoffeeStandLicenseCents = 1_500;
+    public const long CoffeeSalePriceCents = 500;
+    public const int CoffeeDemandPerCycle = 2;
+    public const long CoffeeStandRentCents = 100;
+    public const string CoffeeStandLocation = "puesto-cafe";
+    public const int MaxCatchUpCycles = 288;
 
     /// <summary>Ubicación de las mercancías que lleva encima un personaje.</summary>
     public const string CarriedLocation = "encima";

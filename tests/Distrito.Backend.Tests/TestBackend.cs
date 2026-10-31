@@ -38,6 +38,7 @@ public static class TestBackend
             builder.UseSetting("Database:MigrationsPath", MigrationsPath);
             builder.UseSetting("Auth:PasswordIterations", "1000"); // rápido en tests; producción usa 600.000
             builder.UseSetting("Internal:ServerKey", serverKey ?? "");
+            builder.UseSetting("Economy:BusinessWorkerEnabled", "false"); // los tests corren los ciclos a mano
         });
 
     public static DistritoApiClient Api(WebApplicationFactory<Program> factory) => new(factory.CreateClient());

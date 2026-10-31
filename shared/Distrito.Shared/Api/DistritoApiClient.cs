@@ -62,6 +62,9 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<EconomyActionResult>> DeliverAsync(string serverKey, DeliverContractRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/economy/deliver", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<EconomyActionResult>> BusinessActionAsync(string serverKey, string action, BusinessActionRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, $"internal/economy/business/{action}", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     // --- Cuadrillas (API interna) ---
 
     public Task<ApiResult<CrewStatus>> GetCrewStatusAsync(string serverKey, Guid characterId, CancellationToken ct = default) =>
