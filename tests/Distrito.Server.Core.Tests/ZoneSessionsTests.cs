@@ -63,3 +63,74 @@ public class ZoneSessionsTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new ZoneSessions(0));
     }
 }
+
+public class ZoneSessionsCharacterTests
+{
+    [Fact]
+    public void Un_personaje_no_puede_estar_conectado_dos_veces()
+    {
+        var zone = new ZoneSessions(capacity: 4);
+        var character = Guid.NewGuid();
+
+        Assert.NotNull(zone.TryJoin(1, character, out _));
+        Assert.Null(zone.TryJoin(2, character, out var rejection));
+        Assert.Equal(JoinRejection.CharacterAlreadyOnline, rejection);
+    }
+
+    [Fact]
+    public void Al_salir_el_personaje_puede_volver_a_entrar()
+    {
+        var zone = new ZoneSessions(capacity: 4);
+        var character = Guid.NewGuid();
+        zone.TryJoin(1, character, out _);
+        zone.Leave(1);
+
+        Assert.NotNull(zone.TryJoin(2, character, out var rejection));
+        Assert.Equal(JoinRejection.None, rejection);
+    }
+
+    [Fact]
+    public void Varios_invitados_pueden_entrar_a_la_vez()
+    {
+        var zone = new ZoneSessions(capacity: 4);
+        Assert.NotNull(zone.TryJoin(1, null, out _));
+        Assert.NotNull(zone.TryJoin(2, null, out _));
+    }
+
+    [Fact]
+    public void Informa_zona_llena()
+    {
+        var zone = new ZoneSessions(capacity: 1);
+        zone.TryJoin(1, null, out _);
+        zone.TryJoin(2, null, out var rejection);
+        Assert.Equal(JoinRejection.ZoneFull, rejection);
+    }
+}
+
+public class PendingConnectionsTests
+{
+    [Fact]
+    public void Vencen_las_conexiones_que_no_se_autentican_a_tiempo()
+    {
+        var pending = new PendingConnections();
+        pending.Add(1, nowSeconds: 0);
+        pending.Add(2, nowSeconds: 5);
+
+        var expired = pending.TakeExpired(PendingConnections.Timeout.TotalSeconds + 1);
+
+        Assert.Equal(new long[] { 1 }, expired);
+        Assert.False(pending.Contains(1));
+        Assert.True(pending.Contains(2));
+    }
+
+    [Fact]
+    public void Autenticarse_saca_de_la_lista_una_sola_vez()
+    {
+        var pending = new PendingConnections();
+        pending.Add(7, 0);
+
+        Assert.True(pending.TryTake(7));
+        Assert.False(pending.TryTake(7));
+        Assert.Empty(pending.TakeExpired(1000));
+    }
+}

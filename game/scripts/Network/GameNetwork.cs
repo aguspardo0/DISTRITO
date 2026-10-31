@@ -1,28 +1,51 @@
 using Distrito.Game.Player;
 using Distrito.Server.Core.Sessions;
+using Distrito.Shared.Api;
 using Distrito.Shared.Networking;
 using Godot;
 
 namespace Distrito.Game.Network;
 
+/// <summary>Credenciales con las que un cliente pide entrar. Invitado = sin token.</summary>
+public sealed record ClientCredentials(string Token, Guid CharacterId)
+{
+    public static ClientCredentials Guest { get; } = new("", Guid.Empty);
+    public bool IsGuest => Token.Length == 0;
+}
+
+/// <summary>Configuración del bot de pruebas del jugador local.</summary>
+public sealed record BotSettings(bool Enabled, double StopAfterSeconds)
+{
+    public static BotSettings Off { get; } = new(false, 0);
+}
+
 /// <summary>
-/// Conexión de red de la zona: crea el servidor ENet, el anfitrión o el cliente,
-/// y (en el servidor) crea y elimina los personajes de los jugadores.
-/// La replicación a los clientes la hacen MultiplayerSpawner y MultiplayerSynchronizer.
+/// Conexión de red de la zona.
+/// Servidor: acepta conexiones, exige autenticación (o acepta invitados si no hay backend),
+/// crea/elimina personajes y guarda su posición.
+/// Cliente: se conecta, se autentica y recibe los personajes replicados.
 /// </summary>
 public partial class GameNetwork : Node
 {
     private const string PlayerScenePath = "res://scenes/Player.tscn";
+    private const double SaveIntervalSeconds = 15;
 
     private readonly ZoneSessions _sessions = new(NetworkDefaults.MaxPlayersPerZone);
+    private readonly PendingConnections _pending = new();
+    private readonly Dictionary<long, ResolvedSession> _authenticated = new();
     private PackedScene _playerScene = null!;
     private Node3D _players = null!;
+    private BotSettings _bot = BotSettings.Off;
+    private ClientCredentials _credentials = ClientCredentials.Guest;
     private bool _hasLocalPlayer;
-    private bool _botLocalPlayer;
+    private double _clock;
+    private double _nextSave = SaveIntervalSeconds;
 
-    /// <summary>Mensajes de estado para la interfaz y los logs.</summary>
+    // Solo en el servidor con cuentas:
+    private DistritoApiClient? _backend;
+    private string _serverKey = "";
+
     public event Action<string>? StatusChanged;
-
     public event Action? Connected;
 
     public int PlayerCount => _players.GetChildCount();
@@ -30,10 +53,10 @@ public partial class GameNetwork : Node
     public PlayerCharacter? LocalPlayer =>
         _players.GetNodeOrNull<PlayerCharacter>(Multiplayer.GetUniqueId().ToString());
 
-    public void Initialize(Node3D players, MultiplayerSpawner spawner, bool botLocalPlayer)
+    public void Initialize(Node3D players, MultiplayerSpawner spawner, BotSettings bot)
     {
         _players = players;
-        _botLocalPlayer = botLocalPlayer;
+        _bot = bot;
         _playerScene = GD.Load<PackedScene>(PlayerScenePath);
 
         spawner.SpawnPath = spawner.GetPathTo(players);
@@ -47,16 +70,20 @@ public partial class GameNetwork : Node
         Multiplayer.ServerDisconnected += OnServerDisconnected;
     }
 
-    /// <summary>Servidor dedicado: sin jugador local.</summary>
-    public Error StartDedicatedServer(int port)
+    // ---------- Arranque ----------
+
+    /// <summary>Servidor dedicado. Con backend exige cuenta; sin backend acepta invitados.</summary>
+    public Error StartDedicatedServer(int port, DistritoApiClient? backend, string serverKey)
     {
+        _backend = backend;
+        _serverKey = serverKey;
         var error = CreateServerPeer(port);
         if (error == Error.Ok)
-            Report($"Servidor dedicado escuchando en el puerto {port}.");
+            Report($"Servidor dedicado escuchando en el puerto {port} ({(backend is null ? "modo invitado" : "con cuentas")}).");
         return error;
     }
 
-    /// <summary>Anfitrión: este proceso es el servidor y además juega (id de red 1).</summary>
+    /// <summary>Anfitrión: este proceso es el servidor y además juega (id de red 1). Siempre modo invitado.</summary>
     public Error StartHost(int port)
     {
         var error = CreateServerPeer(port);
@@ -65,21 +92,22 @@ public partial class GameNetwork : Node
 
         _hasLocalPlayer = true;
         Report($"Partida creada en el puerto {port}. Esperando jugadores…");
-        SpawnPlayer(Multiplayer.GetUniqueId());
+        SpawnPlayer(Multiplayer.GetUniqueId(), null);
         Connected?.Invoke();
         return Error.Ok;
     }
 
-    public Error ConnectTo(string host, int port)
+    public Error ConnectTo(string host, int port, ClientCredentials credentials)
     {
         var peer = new ENetMultiplayerPeer();
         var error = peer.CreateClient(host, port);
         if (error != Error.Ok)
         {
-            Report($"Error al crear el cliente: {error}.");
+            Report($"No se pudo crear el cliente: {error}.");
             return error;
         }
 
+        _credentials = credentials;
         _hasLocalPlayer = true;
         Multiplayer.MultiplayerPeer = peer;
         Report($"Conectando a {host}:{port}…");
@@ -100,19 +128,34 @@ public partial class GameNetwork : Node
         return Error.Ok;
     }
 
+    // ---------- Servidor ----------
+
+    public override void _Process(double delta)
+    {
+        if (!IsServerActive())
+            return;
+
+        _clock += delta;
+
+        foreach (var peer in _pending.TakeExpired(_clock))
+            Reject(peer, "No se recibió la autenticación a tiempo.");
+
+        if (_backend is not null && _clock >= _nextSave)
+        {
+            _nextSave = _clock + SaveIntervalSeconds;
+            foreach (var peerId in _authenticated.Keys.ToList())
+                _ = SaveAsync(peerId);
+        }
+    }
+
+    private bool IsServerActive() =>
+        Multiplayer.MultiplayerPeer is ENetMultiplayerPeer && Multiplayer.IsServer();
+
     private void OnPeerConnected(long id)
     {
         if (!Multiplayer.IsServer())
             return;
-
-        if (!SpawnPlayer(id))
-        {
-            Report($"Zona llena: se rechaza al peer {id}.");
-            Multiplayer.MultiplayerPeer.DisconnectPeer((int)id);
-            return;
-        }
-
-        Report($"Jugador {id} conectado. Jugadores en la zona: {_sessions.Count}.");
+        _pending.Add(id, _clock);
     }
 
     private void OnPeerDisconnected(long id)
@@ -120,31 +163,152 @@ public partial class GameNetwork : Node
         if (!Multiplayer.IsServer())
             return;
 
-        _sessions.Leave(id);
-        _players.GetNodeOrNull(id.ToString())?.QueueFree();
-        Report($"Jugador {id} desconectado. Jugadores en la zona: {_sessions.Count}.");
+        _pending.TryTake(id);
+        if (_authenticated.ContainsKey(id))
+            _ = SaveAsync(id, removeAfter: true); // guarda con la última posición antes de borrar el nodo
+        else
+            RemovePlayer(id);
     }
 
-    private bool SpawnPlayer(long peerId)
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void Authenticate(string token, string characterId)
     {
-        var session = _sessions.TryJoin(peerId);
-        if (session is null)
+        if (!Multiplayer.IsServer())
+            return;
+
+        var peer = (long)Multiplayer.GetRemoteSenderId();
+        if (!_pending.TryTake(peer))
+            return; // ya autenticado o desconocido: se ignora
+
+        _ = AuthenticateAsync(peer, token, characterId);
+    }
+
+    private async Task AuthenticateAsync(long peer, string token, string characterIdText)
+    {
+        if (_backend is null)
+        {
+            Admit(peer, null);
+            return;
+        }
+
+        if (string.IsNullOrEmpty(token) || !Guid.TryParse(characterIdText, out var characterId))
+        {
+            Reject(peer, "Este servidor requiere iniciar sesión con una cuenta.");
+            return;
+        }
+
+        var result = await _backend.ResolveSessionAsync(_serverKey, token, characterId);
+
+        if (!Multiplayer.GetPeers().Contains((int)peer))
+            return; // se desconectó mientras se validaba
+
+        if (!result.IsSuccess)
+        {
+            Reject(peer, result.Error!.Message);
+            return;
+        }
+
+        Admit(peer, result.Value);
+    }
+
+    private void Admit(long peer, ResolvedSession? session)
+    {
+        if (!SpawnPlayer(peer, session, out var rejection))
+        {
+            Reject(peer, rejection switch
+            {
+                JoinRejection.CharacterAlreadyOnline => "Ese personaje ya está conectado.",
+                JoinRejection.ZoneFull => "El barrio está lleno.",
+                _ => "No se pudo entrar a la zona.",
+            });
+            return;
+        }
+
+        if (session is not null)
+            _authenticated[peer] = session;
+
+        Report($"{(session?.CharacterName ?? $"Invitado {peer}")} entró. Jugadores en la zona: {_sessions.Count}.");
+    }
+
+    private void Reject(long peer, string reason)
+    {
+        Report($"Conexión {peer} rechazada: {reason}");
+        RpcId(peer, MethodName.AuthRejected, reason);
+        // Se espera un instante para que el mensaje llegue antes de cortar.
+        GetTree().CreateTimer(0.5).Timeout += () =>
+        {
+            if (Multiplayer.GetPeers().Contains((int)peer))
+                Multiplayer.MultiplayerPeer.DisconnectPeer((int)peer);
+        };
+    }
+
+    private bool SpawnPlayer(long peerId, ResolvedSession? session) => SpawnPlayer(peerId, session, out _);
+
+    private bool SpawnPlayer(long peerId, ResolvedSession? session, out JoinRejection rejection)
+    {
+        var zoneSession = _sessions.TryJoin(peerId, session?.CharacterId, out rejection);
+        if (zoneSession is null)
             return false;
 
-        var spawn = new Vector3(session.SpawnPoint.X, session.SpawnPoint.Y, session.SpawnPoint.Z);
+        var position = session is null
+            ? new Vector3(zoneSession.SpawnPoint.X, zoneSession.SpawnPoint.Y, zoneSession.SpawnPoint.Z)
+            : new Vector3((float)session.State.X, (float)session.State.Y, (float)session.State.Z);
+
         var player = _playerScene.Instantiate<PlayerCharacter>();
         player.Name = peerId.ToString();
-        player.SpawnPoint = spawn;
-        player.Position = spawn;
+        player.DisplayName = session?.CharacterName ?? $"Invitado {peerId}";
+        player.SpawnPoint = new Vector3(zoneSession.SpawnPoint.X, zoneSession.SpawnPoint.Y, zoneSession.SpawnPoint.Z);
+        player.Position = position;
+        player.Rotation = new Vector3(0, (float)(session?.State.Yaw ?? 0), 0);
         _players.AddChild(player, forceReadableName: true);
         return true;
     }
 
+    private void RemovePlayer(long peerId)
+    {
+        _sessions.Leave(peerId);
+        _authenticated.Remove(peerId);
+        _players.GetNodeOrNull(peerId.ToString())?.QueueFree();
+        Report($"Jugador {peerId} salió. Jugadores en la zona: {_sessions.Count}.");
+    }
+
+    private async Task SaveAsync(long peerId, bool removeAfter = false)
+    {
+        if (_backend is null || !_authenticated.TryGetValue(peerId, out var session))
+        {
+            if (removeAfter) RemovePlayer(peerId);
+            return;
+        }
+
+        var node = _players.GetNodeOrNull<PlayerCharacter>(peerId.ToString());
+        if (node is null)
+        {
+            if (removeAfter) RemovePlayer(peerId);
+            return;
+        }
+
+        var p = node.GlobalPosition;
+        var state = new CharacterState(p.X, p.Y, p.Z, node.Rotation.Y);
+        if (removeAfter)
+            RemovePlayer(peerId); // el lugar se libera ya; el guardado sigue en segundo plano
+
+        var result = await _backend.SaveCharacterStateAsync(_serverKey, session.CharacterId, state);
+        if (result.IsSuccess)
+            GD.Print($"[DISTRITO] Guardado {session.CharacterName}: ({state.X:0.00}, {state.Y:0.00}, {state.Z:0.00})");
+        else
+            GD.PushError($"[DISTRITO] No se pudo guardar {session.CharacterName}: {result.Error!.Message}");
+    }
+
+    // ---------- Cliente ----------
+
     private void OnConnectedToServer()
     {
-        Report($"Conectado. Sos el jugador {Multiplayer.GetUniqueId()}.");
-        Connected?.Invoke();
+        Report("Conectado. Entrando al barrio…");
+        RpcId(1, MethodName.Authenticate, _credentials.Token, _credentials.IsGuest ? "" : _credentials.CharacterId.ToString());
     }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void AuthRejected(string reason) => Report($"No se pudo entrar: {reason}");
 
     private void OnServerDisconnected()
     {
@@ -165,9 +329,13 @@ public partial class GameNetwork : Node
         player.CallDeferred(Node.MethodName.AddChild, new LocalPlayerController
         {
             Name = "LocalController",
-            UseBot = _botLocalPlayer,
+            Bot = _bot,
         });
+        Connected?.Invoke();
+        CallDeferred(MethodName.ReportEntered, player);
     }
+
+    public void ReportEntered(PlayerCharacter player) => Report($"Estás en el barrio como {player.DisplayName}.");
 
     private void Report(string message)
     {

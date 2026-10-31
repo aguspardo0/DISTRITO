@@ -3,10 +3,20 @@ using System.Numerics;
 namespace Distrito.Server.Core.Sessions;
 
 /// <summary>Jugador conectado a una zona (barrio). Datos temporales de sesión, no persistentes.</summary>
-public sealed record ZoneSession(long PeerId, int Slot, Vector3 SpawnPoint);
+/// <param name="CharacterId">Personaje persistente; null para invitados.</param>
+public sealed record ZoneSession(long PeerId, int Slot, Vector3 SpawnPoint, Guid? CharacterId);
+
+public enum JoinRejection
+{
+    None,
+    ZoneFull,
+    AlreadyInZone,
+    CharacterAlreadyOnline,
+}
 
 /// <summary>
-/// Registro de jugadores conectados a una zona: capacidad, asignación de lugar y punto de aparición.
+/// Registro de jugadores conectados a una zona: capacidad, asignación de lugar, punto de aparición
+/// y regla de "un personaje no puede estar conectado dos veces".
 /// </summary>
 public sealed class ZoneSessions(int capacity)
 {
@@ -23,17 +33,26 @@ public sealed class ZoneSessions(int capacity)
 
     public IEnumerable<ZoneSession> All => _byPeer.Values;
 
-    /// <summary>Registra un jugador. Devuelve null si la zona está llena o el jugador ya estaba.</summary>
-    public ZoneSession? TryJoin(long peerId)
+    /// <summary>Registra un jugador. Devuelve null y el motivo si no puede entrar.</summary>
+    public ZoneSession? TryJoin(long peerId, Guid? characterId, out JoinRejection rejection)
     {
-        if (_byPeer.ContainsKey(peerId) || _byPeer.Count >= Capacity)
+        rejection =
+            _byPeer.ContainsKey(peerId) ? JoinRejection.AlreadyInZone :
+            _byPeer.Count >= Capacity ? JoinRejection.ZoneFull :
+            characterId is not null && _byPeer.Values.Any(s => s.CharacterId == characterId) ? JoinRejection.CharacterAlreadyOnline :
+            JoinRejection.None;
+
+        if (rejection != JoinRejection.None)
             return null;
 
         var slot = LowestFreeSlot();
-        var session = new ZoneSession(peerId, slot, SpawnPointFor(slot));
+        var session = new ZoneSession(peerId, slot, SpawnPointFor(slot), characterId);
         _byPeer.Add(peerId, session);
         return session;
     }
+
+    /// <summary>Atajo para invitados.</summary>
+    public ZoneSession? TryJoin(long peerId) => TryJoin(peerId, null, out _);
 
     public bool Leave(long peerId) => _byPeer.Remove(peerId);
 

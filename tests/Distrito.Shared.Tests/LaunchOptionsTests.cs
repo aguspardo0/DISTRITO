@@ -88,3 +88,43 @@ public class LaunchOptionsTests
         Assert.Throws<ArgumentException>(() => LaunchOptions.Parse(["--modo-dios"]));
     }
 }
+
+public class LaunchOptionsAccountTests
+{
+    [Fact]
+    public void Interpreta_cuenta_de_bot_y_backend()
+    {
+        var options = LaunchOptions.Parse([
+            "--client", "--backend", "http://localhost:5080/", "--account", "bot1",
+            "--password", "secreta123", "--character", "Bot Uno", "--expect-spawn", "4.5,-2"]);
+
+        Assert.Equal("http://localhost:5080/", options.BackendUrl);
+        Assert.Equal("bot1", options.Account);
+        Assert.Equal("secreta123", options.Password);
+        Assert.Equal("Bot Uno", options.Character);
+        Assert.Equal((4.5f, -2f), options.ExpectSpawn);
+    }
+
+    [Fact]
+    public void Cuenta_sin_el_resto_de_datos_es_invalida()
+    {
+        Assert.Throws<ArgumentException>(() => LaunchOptions.Parse(["--account", "bot1"]));
+    }
+
+    [Theory]
+    [InlineData("localhost:5080")]
+    [InlineData("ftp://servidor")]
+    public void Rechaza_urls_de_backend_invalidas(string url)
+    {
+        Assert.Throws<ArgumentException>(() => LaunchOptions.Parse(["--backend", url]));
+    }
+
+    [Theory]
+    [InlineData("1")]
+    [InlineData("a,b")]
+    [InlineData("1,2,3")]
+    public void Rechaza_puntos_invalidos(string point)
+    {
+        Assert.Throws<ArgumentException>(() => LaunchOptions.Parse(["--expect-spawn", point]));
+    }
+}

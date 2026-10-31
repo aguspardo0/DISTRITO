@@ -1,3 +1,4 @@
+using System.Globalization;
 using Distrito.Shared.Networking;
 
 namespace Distrito.Shared.Launch;
@@ -18,6 +19,11 @@ public enum LaunchMode
 /// <param name="Bot">El cliente se mueve solo (sin teclado). Para pruebas de red.</param>
 /// <param name="TestSeconds">Si es mayor que 0, el cliente verifica la conexión después de ese tiempo y sale.</param>
 /// <param name="ExpectPlayers">Cantidad de jugadores que la prueba espera ver.</param>
+/// <param name="BackendUrl">Servidor de cuentas. En el servidor de juego activa la autenticación; null = modo invitado.</param>
+/// <param name="Account">Usuario para iniciar sesión automáticamente (bots de prueba).</param>
+/// <param name="Password">Contraseña de <paramref name="Account"/>.</param>
+/// <param name="Character">Personaje a usar (se crea si no existe).</param>
+/// <param name="ExpectSpawn">La prueba verifica que el personaje aparezca cerca de este punto (X, Z).</param>
 public sealed record LaunchOptions(
     LaunchMode Mode,
     string Host,
@@ -26,7 +32,12 @@ public sealed record LaunchOptions(
     bool SmokeTest,
     bool Bot,
     int TestSeconds,
-    int ExpectPlayers)
+    int ExpectPlayers,
+    string? BackendUrl = null,
+    string? Account = null,
+    string? Password = null,
+    string? Character = null,
+    (float X, float Z)? ExpectSpawn = null)
 {
     public static LaunchOptions Default { get; } = new(
         LaunchMode.Client,
@@ -74,12 +85,48 @@ public sealed record LaunchOptions(
                 case "--expect-players":
                     options = options with { ExpectPlayers = ParseInt(RequireValue(args, ref i), args[i - 1], 1, NetworkDefaults.MaxPlayersPerZone) };
                     break;
+                case "--backend":
+                    options = options with { BackendUrl = ParseUrl(RequireValue(args, ref i)) };
+                    break;
+                case "--account":
+                    options = options with { Account = RequireValue(args, ref i) };
+                    break;
+                case "--password":
+                    options = options with { Password = RequireValue(args, ref i) };
+                    break;
+                case "--character":
+                    options = options with { Character = RequireValue(args, ref i) };
+                    break;
+                case "--expect-spawn":
+                    options = options with { ExpectSpawn = ParsePoint(RequireValue(args, ref i)) };
+                    break;
                 default:
                     throw new ArgumentException($"Argumento desconocido: '{args[i]}'.");
             }
         }
 
+        if (options.Account is not null && (options.Password is null || options.Character is null || options.BackendUrl is null))
+            throw new ArgumentException("'--account' requiere también '--password', '--character' y '--backend'.");
+
         return options;
+    }
+
+    private static string ParseUrl(string value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            throw new ArgumentException($"URL de backend inválida: '{value}'.");
+        return value;
+    }
+
+    private static (float X, float Z) ParsePoint(string value)
+    {
+        var parts = value.Split(',');
+        if (parts.Length == 2
+            && float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
+            && float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var z)
+            && float.IsFinite(x) && float.IsFinite(z))
+            return (x, z);
+        throw new ArgumentException($"Punto inválido: '{value}'. Formato: X,Z (por ejemplo 3.5,-2).");
     }
 
     private static string RequireValue(IReadOnlyList<string> args, ref int i)

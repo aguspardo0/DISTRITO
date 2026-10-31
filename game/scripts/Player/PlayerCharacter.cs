@@ -21,6 +21,10 @@ public partial class PlayerCharacter : CharacterBody3D
 
     public long PeerId => long.Parse(Name.ToString());
 
+    /// <summary>Nombre visible. Lo fija el servidor y se replica una vez al aparecer.</summary>
+    [Export]
+    public string DisplayName { get; set; } = "";
+
     /// <summary>Punto de aparición asignado por el servidor (solo se usa en el servidor).</summary>
     public Vector3 SpawnPoint { get; set; }
 
@@ -35,7 +39,7 @@ public partial class PlayerCharacter : CharacterBody3D
         _visual.GlobalTransform = GlobalTransform;
 
         GetNode<MeshInstance3D>("Visual/Body").MaterialOverride = new StandardMaterial3D { AlbedoColor = ColorFor(PeerId) };
-        GetNode<Label3D>("Visual/NameTag").Text = $"Jugador {PeerId}";
+        GetNode<Label3D>("Visual/NameTag").Text = DisplayName.Length > 0 ? DisplayName : $"Jugador {PeerId}";
     }
 
     public override void _Process(double delta)

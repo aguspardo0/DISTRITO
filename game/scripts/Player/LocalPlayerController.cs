@@ -1,3 +1,4 @@
+using Distrito.Game.Network;
 using Godot;
 
 namespace Distrito.Game.Player;
@@ -19,8 +20,10 @@ public partial class LocalPlayerController : Node
     private Node3D _pitch = null!;
     private double _botClock;
 
-    /// <summary>Si es verdadero, el personaje camina en círculos solo. Para pruebas automáticas.</summary>
-    public bool UseBot { get; init; }
+    /// <summary>Bot de pruebas: camina en círculos solo y se detiene al final para que la posición final sea estable.</summary>
+    public BotSettings Bot { get; init; } = BotSettings.Off;
+
+    private bool UseBot => Bot.Enabled;
 
     private static bool IsHeadless => DisplayServer.GetName() == "headless";
 
@@ -99,6 +102,8 @@ public partial class LocalPlayerController : Node
     private (Vector2 Direction, bool Jump) BotInput(double delta)
     {
         _botClock += delta;
+        if (_botClock >= Bot.StopAfterSeconds)
+            return (Vector2.Zero, false);
         return (new Vector2(Mathf.Cos((float)_botClock), Mathf.Sin((float)_botClock)), false);
     }
 

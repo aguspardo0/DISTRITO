@@ -59,8 +59,22 @@ jobs:
           done
 
   godot:
-    name: Godot — arranque y prueba de red (servidor + 2 clientes)
+    name: Godot — arranque, red y persistencia de punta a punta
     runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: distrito
+          POSTGRES_PASSWORD: distrito_dev
+          POSTGRES_DB: distrito
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U distrito -d distrito"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DISTRITO_TEST_DB: Host=localhost;Port=5432;Database=distrito;Username=distrito;Password=distrito_dev;Timeout=5
     steps:
       - uses: actions/checkout@v5
 
@@ -73,8 +87,10 @@ jobs:
       - name: Descargar Godot ${{ env.GODOT_VERSION }} .NET
         run: .github/scripts/install-godot.sh
 
-      - name: Compilar C# del juego
-        run: .github/scripts/run-annotated.sh dotnet build game/Distrito.Game.csproj -c Debug
+      - name: Compilar C# del juego y el backend
+        run: |
+          .github/scripts/run-annotated.sh dotnet build game/Distrito.Game.csproj -c Debug
+          .github/scripts/run-annotated.sh dotnet build backend/Distrito.Backend/Distrito.Backend.csproj -c Debug
 
       - name: Importar proyecto
         run: timeout 300 "$GODOT" --headless --path game --import
@@ -94,10 +110,13 @@ jobs:
       - name: Prueba de red — servidor dedicado + 2 clientes bot
         run: .github/scripts/network-test.sh
 
-      - name: Logs de la prueba de red
+      - name: Prueba de persistencia — cuentas, guardado y regreso
+        run: .github/scripts/persistence-test.sh
+
+      - name: Logs de las pruebas de red
         if: always()
         run: |
-          for f in net-*.log; do echo "===== $f"; grep -E "DISTRITO|ERROR|error|Exception" "$f" | head -40 || true; done
+          for f in net-*.log persist-*.log; do echo "===== $f"; grep -E "DISTRITO|ERROR|error|Exception" "$f" | head -40 || true; done
 
   export-windows:
     name: Exportar Windows y publicar prototipo

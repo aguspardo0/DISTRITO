@@ -1,29 +1,36 @@
+using System.Globalization;
 using Distrito.Game.Network;
 using Godot;
 
 namespace Distrito.Game.Diagnostics;
 
 /// <summary>
-/// Prueba automática del cliente (CI): después de N segundos verifica que está conectado,
-/// que ve a la cantidad esperada de jugadores y que su personaje se movió por orden del servidor.
-/// Imprime NET_TEST_OK o NET_TEST_FAIL y cierra el proceso.
+/// Prueba automática del cliente (CI). Después de N segundos verifica:
+/// conectado, ve a los jugadores esperados, el servidor movió al personaje,
+/// y (opcional) apareció donde se había guardado.
+/// Imprime NET_TEST_OK / NET_TEST_FAIL con la posición final (pos=X,Z) y cierra el proceso.
 /// </summary>
 public partial class NetworkSelfTest : Node
 {
     private const float MinimumDisplacement = 1.0f;
+    private const float SpawnTolerance = 0.5f;
 
     private GameNetwork _network = null!;
     private int _expectedPlayers;
+    private bool _expectMovement;
+    private (float X, float Z)? _expectedSpawn;
     private double _remaining;
     private Vector3? _firstPosition;
     private float _maxDisplacement;
     private int _maxPlayersSeen;
 
-    public void Configure(GameNetwork network, int seconds, int expectedPlayers)
+    public void Configure(GameNetwork network, int seconds, int expectedPlayers, bool expectMovement, (float X, float Z)? expectedSpawn)
     {
         _network = network;
         _remaining = seconds;
         _expectedPlayers = expectedPlayers;
+        _expectMovement = expectMovement;
+        _expectedSpawn = expectedSpawn;
     }
 
     public override void _Process(double delta)
@@ -34,7 +41,6 @@ public partial class NetworkSelfTest : Node
             _firstPosition ??= local.GlobalPosition;
             _maxDisplacement = Mathf.Max(_maxDisplacement, FlatDistance(_firstPosition.Value, local.GlobalPosition));
         }
-
         _maxPlayersSeen = Math.Max(_maxPlayersSeen, _network.PlayerCount);
 
         _remaining -= delta;
@@ -48,16 +54,21 @@ public partial class NetworkSelfTest : Node
     private void Finish(Player.PlayerCharacter? local)
     {
         var connected = Multiplayer.MultiplayerPeer?.GetConnectionStatus() == MultiplayerPeer.ConnectionStatus.Connected;
-        // Se usa el máximo visto: otro cliente de la prueba puede terminar y desconectarse antes.
-        var players = _maxPlayersSeen;
-        var summary = $"id={Multiplayer.GetUniqueId()} conectado={connected} jugadores_max={players}/{_expectedPlayers} " +
-                      $"desplazamiento={_maxDisplacement:0.00}m";
+        var final = local?.GlobalPosition ?? Vector3.Zero;
+        var first = _firstPosition ?? Vector3.Zero;
+        var spawnError = _expectedSpawn is { } e ? new Vector2(first.X - e.X, first.Z - e.Z).Length() : 0f;
+
+        var summary = string.Create(CultureInfo.InvariantCulture,
+            $"id={Multiplayer.GetUniqueId()} nombre=\"{local?.DisplayName}\" conectado={connected} " +
+            $"jugadores_max={_maxPlayersSeen}/{_expectedPlayers} desplazamiento={_maxDisplacement:0.00}m " +
+            $"aparicion={first.X:0.00},{first.Z:0.00} pos={final.X:0.00},{final.Z:0.00}");
 
         string? failure =
             !connected ? "no está conectado" :
             local is null ? "no apareció el personaje propio" :
-            players < _expectedPlayers ? "no ve a todos los jugadores" :
-            _maxDisplacement < MinimumDisplacement ? "el servidor no movió al personaje" :
+            _maxPlayersSeen < _expectedPlayers ? "no ve a todos los jugadores" :
+            _expectMovement && _maxDisplacement < MinimumDisplacement ? "el servidor no movió al personaje" :
+            spawnError > SpawnTolerance ? $"apareció a {spawnError:0.00}m del lugar guardado" :
             null;
 
         if (failure is null)
