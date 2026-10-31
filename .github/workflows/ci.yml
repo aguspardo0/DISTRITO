@@ -29,9 +29,9 @@ jobs:
     env:
       DISTRITO_TEST_DB: Host=localhost;Port=5432;Database=distrito;Username=distrito;Password=distrito_dev;Timeout=5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
             8.0.x
@@ -71,9 +71,9 @@ jobs:
     name: Godot — importar y arrancar headless
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
             8.0.x
