@@ -48,6 +48,17 @@ public partial class GameNetwork : Node
     public event Action<string>? StatusChanged;
     public event Action? Connected;
 
+    /// <summary>Servidor: un jugador con cuenta entró a la zona.</summary>
+    public event Action<long, ResolvedSession>? PlayerAdmitted;
+
+    public DistritoApiClient? Backend => _backend;
+    public string ServerKey => _serverKey;
+
+    public bool TryGetSession(long peerId, out ResolvedSession session) =>
+        _authenticated.TryGetValue(peerId, out session!);
+
+    public PlayerCharacter? GetPlayer(long peerId) => _players.GetNodeOrNull<PlayerCharacter>(peerId.ToString());
+
     public int PlayerCount => _players.GetChildCount();
 
     public PlayerCharacter? LocalPlayer =>
@@ -225,7 +236,10 @@ public partial class GameNetwork : Node
         }
 
         if (session is not null)
+        {
             _authenticated[peer] = session;
+            PlayerAdmitted?.Invoke(peer, session);
+        }
 
         Report($"{(session?.CharacterName ?? $"Invitado {peer}")} entró. Jugadores en la zona: {_sessions.Count}.");
     }

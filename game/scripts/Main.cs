@@ -1,5 +1,7 @@
 using Distrito.Game.Backend;
 using Distrito.Game.Diagnostics;
+using Distrito.Game.Economy;
+using Distrito.Server.Core.Npcs;
 using Distrito.Game.Network;
 using Distrito.Game.UI;
 using Distrito.Shared.Api;
@@ -15,9 +17,10 @@ namespace Distrito.Game;
 public partial class Main : Node3D
 {
     private const string ControlsHelp =
-        "WASD: moverse   Mouse: cámara   Espacio: saltar   Esc: soltar el mouse (clic para volver)   F3: métricas";
+        "WASD: moverse   Mouse: cámara   Espacio: saltar   E: hablar   Esc: soltar el mouse (clic para volver)   F3: métricas";
 
     private GameNetwork _network = null!;
+    private EconomyNetwork _economy = null!;
     private AccountSession? _account;
     private ConnectMenu? _menu;
     private Label? _hud;
@@ -54,6 +57,11 @@ public partial class Main : Node3D
         AddChild(_network);
         _network.Initialize(GetNode<Node3D>("Players"), GetNode<MultiplayerSpawner>("PlayerSpawner"), bot);
 
+        _economy = new EconomyNetwork { Name = "Economy" };
+        AddChild(_economy);
+        _economy.Initialize(_network);
+        SpawnNpcs();
+
         if (Options.Mode == LaunchMode.Server)
         {
             StartDedicatedServer();
@@ -66,6 +74,15 @@ public partial class Main : Node3D
             _ = AutoConnectAsync();
         else
             ShowMenu();
+    }
+
+    /// <summary>NPCs fijos del barrio: se crean igual en servidor y clientes.</summary>
+    private void SpawnNpcs()
+    {
+        var npcs = new Node3D { Name = "Npcs" };
+        AddChild(npcs);
+        npcs.AddChild(NpcActor.Create(NpcInteractionRules.Deposit, new Color(0.55f, 0.42f, 0.3f)));
+        npcs.AddChild(NpcActor.Create(NpcInteractionRules.Workshop, new Color(0.3f, 0.38f, 0.5f)));
     }
 
     private void StartDedicatedServer()
@@ -98,6 +115,14 @@ public partial class Main : Node3D
             test.Configure(_network, Options.TestSeconds, Options.ExpectPlayers,
                 expectMovement: Options.Bot && Options.ExpectSpawn is null, Options.ExpectSpawn);
             AddChild(test);
+
+            if (Options.BotContract)
+            {
+                var contractBot = new ContractBot { Name = "ContractBot" };
+                AddChild(contractBot);
+                contractBot.Initialize(_network, _economy);
+                test.ExpectContract(contractBot);
+            }
         }
 
         var credentials = ClientCredentials.Guest;
@@ -130,6 +155,10 @@ public partial class Main : Node3D
         _hud.AddThemeColorOverride("font_shadow_color", Colors.Black);
         layer.AddChild(_hud);
         layer.AddChild(new MetricsOverlay { Name = "Metrics", PlayerCount = () => _network.PlayerCount });
+
+        var interaction = new NpcInteractionController { Name = "NpcInteraction" };
+        AddChild(interaction);
+        interaction.Initialize(_network, _economy, layer);
 
         _network.StatusChanged += message =>
         {

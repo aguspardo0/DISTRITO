@@ -128,3 +128,14 @@ public class LaunchOptionsAccountTests
         Assert.Throws<ArgumentException>(() => LaunchOptions.Parse(["--expect-spawn", point]));
     }
 }
+
+public class LaunchOptionsContractBotTests
+{
+    [Fact]
+    public void Bot_de_contrato_activa_tambien_el_bot()
+    {
+        var options = LaunchOptions.Parse(["--bot-contract"]);
+        Assert.True(options.Bot);
+        Assert.True(options.BotContract);
+    }
+}

@@ -23,6 +23,11 @@ public partial class NetworkSelfTest : Node
     private Vector3? _firstPosition;
     private float _maxDisplacement;
     private int _maxPlayersSeen;
+    private ContractBot? _contractBot;
+    private double _graceAfterContract = 1.0;
+
+    /// <summary>Si se asigna, la prueba exige que el bot cumpla el contrato y cobre lo correcto.</summary>
+    public void ExpectContract(ContractBot bot) => _contractBot = bot;
 
     public void Configure(GameNetwork network, int seconds, int expectedPlayers, bool expectMovement, (float X, float Z)? expectedSpawn)
     {
@@ -44,7 +49,9 @@ public partial class NetworkSelfTest : Node
         _maxPlayersSeen = Math.Max(_maxPlayersSeen, _network.PlayerCount);
 
         _remaining -= delta;
-        if (_remaining > 0)
+        if (_contractBot is { Completed: true })
+            _graceAfterContract -= delta;
+        if (_remaining > 0 && _graceAfterContract > 0)
             return;
 
         SetProcess(false);
@@ -61,7 +68,11 @@ public partial class NetworkSelfTest : Node
         var summary = string.Create(CultureInfo.InvariantCulture,
             $"id={Multiplayer.GetUniqueId()} nombre=\"{local?.DisplayName}\" conectado={connected} " +
             $"jugadores_max={_maxPlayersSeen}/{_expectedPlayers} desplazamiento={_maxDisplacement:0.00}m " +
-            $"aparicion={first.X:0.00},{first.Z:0.00} pos={final.X:0.00},{final.Z:0.00}");
+            $"aparicion={first.X:0.00},{first.Z:0.00} pos={final.X:0.00},{final.Z:0.00}" +
+            (_contractBot is null ? "" : $" contrato={_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance}"));
+
+        var expectedGain = Distrito.Shared.Economy.EconomyCatalog.SparePartsDelivery.RewardCents
+                           - Distrito.Shared.Economy.EconomyCatalog.SparePartsPriceCents;
 
         string? failure =
             !connected ? "no está conectado" :
@@ -69,6 +80,9 @@ public partial class NetworkSelfTest : Node
             _maxPlayersSeen < _expectedPlayers ? "no ve a todos los jugadores" :
             _expectMovement && _maxDisplacement < MinimumDisplacement ? "el servidor no movió al personaje" :
             spawnError > SpawnTolerance ? $"apareció a {spawnError:0.00}m del lugar guardado" :
+            _contractBot is { Completed: false } ? $"el contrato no se completó (quedó en {_contractBot.StepName})" :
+            _contractBot is not null && _contractBot.FinalBalance - _contractBot.StartBalance != expectedGain
+                ? $"el saldo cambió {_contractBot.FinalBalance - _contractBot.StartBalance} y se esperaba {expectedGain}" :
             null;
 
         if (failure is null)

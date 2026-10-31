@@ -25,6 +25,9 @@ public partial class LocalPlayerController : Node
 
     private bool UseBot => Bot.Enabled;
 
+    /// <summary>Dirección impuesta por un bot con guion (por ejemplo, el bot de contrato). Tiene prioridad.</summary>
+    public Vector2? ScriptedDirection { get; set; }
+
     private static bool IsHeadless => DisplayServer.GetName() == "headless";
 
     public override void _Ready()
@@ -101,6 +104,9 @@ public partial class LocalPlayerController : Node
 
     private (Vector2 Direction, bool Jump) BotInput(double delta)
     {
+        if (ScriptedDirection is { } scripted)
+            return (scripted, false);
+
         _botClock += delta;
         if (_botClock >= Bot.StopAfterSeconds)
             return (Vector2.Zero, false);

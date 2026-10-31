@@ -79,6 +79,31 @@ else
   error "Ronda 2" "no se obtuvo la posición final de la ronda 1"
 fi
 
+# --- Contrato completo: el bot camina al depósito, acepta, compra, camina al taller y entrega ---
+timeout 120 "$GODOT" --headless --path game -- \
+  --client --host 127.0.0.1 --port "$PORT" --backend "$BACKEND_URL" \
+  --account bot_contrato --password "clave-de-bot-123" --character "Bot Changarin" \
+  --bot-contract --test-seconds 60 --expect-players 1 > persist-contract.log 2>&1
+line=$(result_line persist-contract.log)
+if grep -q NET_TEST_OK persist-contract.log; then
+  note "Contrato" "${line#*\] }"
+else
+  grep "bot-contrato" persist-contract.log | tail -8
+  error "Contrato" "${line:-sin resultado}"
+fi
+
+ledger=$(PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -At -F ' ' -c "
+  SELECT (SELECT count(*) FROM distrito.ledger_transactions),
+         (SELECT COALESCE(sum(balance_cents),0) FROM distrito.economic_accounts),
+         (SELECT count(*) FROM (SELECT transaction_id FROM distrito.ledger_entries GROUP BY transaction_id HAVING sum(amount_cents) <> 0) x),
+         (SELECT count(*) FROM distrito.item_movements)")
+read -r ntx total unbalanced moves <<< "$ledger"
+if [ "$total" = "0" ] && [ "$unbalanced" = "0" ]; then
+  note "Libro contable" "$ntx transacciones, $moves movimientos de mercadería, suma de saldos = 0, transacciones desbalanceadas = 0"
+else
+  error "Libro contable" "suma de saldos=$total, desbalanceadas=$unbalanced"
+fi
+
 # --- Cliente sin cuenta contra servidor con cuentas ---
 timeout 60 "$GODOT" --headless --path game -- --client --host 127.0.0.1 --port "$PORT" --test-seconds 4 > persist-guest.log 2>&1
 if grep -q "requiere iniciar sesión" persist-guest.log; then note "Invitado" "rechazado correctamente"; else error "Invitado" "el servidor con cuentas aceptó un cliente sin sesión"; fi
