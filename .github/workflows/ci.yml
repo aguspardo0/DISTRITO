@@ -249,9 +249,8 @@ jobs:
         run: |
           arch=x64
           if [ -n "$DEPLOY_HOST" ] && [ -n "$DEPLOY_SSH_KEY" ]; then
-            key="$RUNNER_TEMP/k"; printf '%s\n' "$DEPLOY_SSH_KEY" > "$key"; chmod 600 "$key"
-            tr -d '\r' < "$key" > "$key.n" && mv "$key.n" "$key" && chmod 600 "$key"
-            head -1 "$key" | grep -q "BEGIN" || echo "::warning title=Despliegue::la llave DEPLOY_SSH_KEY no empieza con -----BEGIN"
+            key="$RUNNER_TEMP/k"
+            .github/scripts/prepare-key.sh "$key" || exit 1
             machine=""
             for attempt in 1 2 3; do
               machine=$(ssh -i "$key" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -o BatchMode=yes \
