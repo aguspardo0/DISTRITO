@@ -64,7 +64,7 @@ public partial class GameUpdater : Node
 
     public override void _Process(double delta)
     {
-        if (_http is null || _http.GetHttpClientStatus() != HttpClient.Status.Body || _http.GetBodySize() <= 0)
+        if (_http is null || _http.GetHttpClientStatus() != Godot.HttpClient.Status.Body || _http.GetBodySize() <= 0)
             return;
         var pct = 100L * _http.GetDownloadedBytes() / _http.GetBodySize();
         Status?.Invoke($"Descargando la versión nueva ({_latest})… {pct} %");
