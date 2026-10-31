@@ -328,6 +328,10 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
             SELECT cr.id, cr.name, inviter.name FROM distrito.crew_invitations i
               JOIN distrito.crews cr ON cr.id = i.crew_id JOIN distrito.characters inviter ON inviter.id = i.invited_by
              WHERE i.character_id = @c AND i.expires_at > @now ORDER BY i.created_at;
+            SELECT e.created_at, e.kind, ch.name, e.detail FROM distrito.crew_events e
+              LEFT JOIN distrito.characters ch ON ch.id = e.character_id
+             WHERE e.crew_id = (SELECT crew_id FROM distrito.crew_members WHERE character_id = @c)
+             ORDER BY e.id DESC LIMIT 8;
             """, c, tx);
         cmd.Parameters.AddWithValue("c", characterId);
         cmd.Parameters.AddWithValue("now", clock.GetUtcNow());
@@ -345,7 +349,12 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
         await reader.NextResultAsync(ct);
         while (await reader.ReadAsync(ct))
             invitations.Add(new CrewInvitationView(reader.GetGuid(0), reader.GetString(1), reader.GetString(2)));
+        var history = new List<CrewEventView>();
+        await reader.NextResultAsync(ct);
+        while (await reader.ReadAsync(ct))
+            history.Add(new CrewEventView(reader.GetFieldValue<DateTimeOffset>(0), reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2), reader.GetString(3)));
 
-        return new CrewStatus(crewId, crewName, isLeader, members, invitations, level);
+        return new CrewStatus(crewId, crewName, isLeader, members, invitations, level, history);
     }
 }

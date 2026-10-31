@@ -169,7 +169,7 @@ public class CrewApiTests
         var leader = await NewCharacter(api);
         var created = (await api.CreateCrewAsync(Key, new CreateCrewRequest(leader, UniqueCrewName()))).Value!;
         Assert.False(created.Status.IsFormed);
-        Assert.Equal(5, created.Status.Capacity);
+        Assert.Equal(3, created.Status.Capacity); // hoja de ruta v0.2.1: capacidad inicial 3
         var crewId = created.Status.CrewId!.Value;
 
         CrewActionResult? last = null;
@@ -182,6 +182,16 @@ public class CrewApiTests
 
         Assert.True(last!.Status.IsFormed);
         Assert.Contains("formada", last.Message);
+
+        // Historial visible: fundación y dos altas, el más reciente primero.
+        var history = last.Status.History!;
+        Assert.Equal(3, history.Count);
+        Assert.Equal("joined", history[0].Kind);
+        Assert.Equal("founded", history[^1].Kind);
+
+        // Con 3 integrantes está llena: no se puede invitar a un cuarto.
+        var fourth = await NewCharacter(api);
+        Assert.Equal("crew_full", (await api.InviteToCrewAsync(Key, new InviteToCrewRequest(leader, fourth))).Value!.ErrorCode);
     }
 
     [Fact]
@@ -245,4 +255,12 @@ public class CrewApiTests
     [InlineData("Signos!!", false)]
     public void Validacion_de_nombre(string name, bool valid) =>
         Assert.Equal(valid, CrewRules.ValidateName(name) is null);
+
+    [Fact]
+    public void Capacidad_progresiva_3_4_5()
+    {
+        Assert.Equal(3, CrewRules.CapacityForLevel(1));
+        Assert.Equal(4, CrewRules.CapacityForLevel(2));
+        Assert.Equal(5, CrewRules.CapacityForLevel(3));
+    }
 }

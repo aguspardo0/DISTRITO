@@ -100,7 +100,7 @@ public static class NpcInteractionRules
             return ("Acá se instalan los puestos de café. La licencia la da la Oficina Valenti.", new List<NpcOption>());
 
         var m = EconomyCatalog.FormatMoney;
-        var text = $"{b.Name}\n" +
+        var text = $"{b.Name} — {b.OperatingState}\n" +
                    $"Stock: {b.Stock} bolsa(s) · vende hasta {EconomyCatalog.CoffeeDemandPerCycle} por ciclo a {m(EconomyCatalog.CoffeeSalePriceCents)}\n" +
                    $"Caja: {m(b.CashCents)} · Patrimonio: {m(b.EquityCents)}\n" +
                    $"Vendidos: {b.UnitsSold} · Facturación: {m(b.RevenueCents)} · Alquiler: {m(b.RentCents)} · Ganancia: {m(b.ProfitCents)}";

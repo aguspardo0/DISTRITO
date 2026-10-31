@@ -28,6 +28,9 @@ public sealed record BusinessView(
     public long ProfitCents => RevenueCents - RentCents - CostOfGoodsCents;
     public long StockValueCents => Stock * EconomyCatalog.CoffeeBagPriceCents;
     public long EquityCents => CashCents + StockValueCents;
+
+    /// <summary>Estado operativo: sin mercadería el puesto no abre ni paga alquiler.</summary>
+    public string OperatingState => Stock > 0 ? "Abierto, vendiendo" : "Cerrado: sin mercadería";
 }
 
 public sealed record EconomySnapshot(

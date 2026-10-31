@@ -121,6 +121,13 @@ public partial class CrewPanel : PanelContainer
         }
 
         AddButton("Salir de la cuadrilla", () => _crews.Leave());
+
+        if (status.History is { Count: > 0 } history)
+        {
+            _content.AddChild(new Label { Text = "Historial:" });
+            foreach (var e in history.Take(5))
+                _content.AddChild(new Label { Text = $"  {e.When.ToLocalTime():dd/MM HH:mm} · {CrewRules.Describe(e)}" });
+        }
     }
 
     private void AddButton(string text, Action onPressed) => _content.AddChild(MakeButton(text, onPressed));

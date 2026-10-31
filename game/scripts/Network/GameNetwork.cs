@@ -38,6 +38,14 @@ public partial class GameNetwork : Node
     private BotSettings _bot = BotSettings.Off;
     private ClientCredentials _credentials = ClientCredentials.Guest;
     private bool _hasLocalPlayer;
+
+    // Reconexión automática (cliente)
+    private const int MaxReconnectAttempts = 10;
+    private const double ReconnectDelaySeconds = 2.0;
+    private string _lastHost = "";
+    private int _lastPort;
+    private int _reconnectAttempt;
+    private bool _rejected;
     private double _clock;
     private double _nextSave = SaveIntervalSeconds;
 
@@ -87,7 +95,7 @@ public partial class GameNetwork : Node
         Multiplayer.PeerConnected += OnPeerConnected;
         Multiplayer.PeerDisconnected += OnPeerDisconnected;
         Multiplayer.ConnectedToServer += OnConnectedToServer;
-        Multiplayer.ConnectionFailed += () => Report("No se pudo conectar al servidor.");
+        Multiplayer.ConnectionFailed += OnConnectionFailed;
         Multiplayer.ServerDisconnected += OnServerDisconnected;
     }
 
@@ -130,8 +138,12 @@ public partial class GameNetwork : Node
 
         _credentials = credentials;
         _hasLocalPlayer = true;
+        _lastHost = host;
+        _lastPort = port;
+        _rejected = false;
         Multiplayer.MultiplayerPeer = peer;
-        Report($"Conectando a {host}:{port}…");
+        if (_reconnectAttempt == 0)
+            Report($"Conectando a {host}:{port}…");
         return Error.Ok;
     }
 
@@ -274,9 +286,10 @@ public partial class GameNetwork : Node
         if (zoneSession is null)
             return false;
 
+        var spawnPoint = new Vector3(zoneSession.SpawnPoint.X, zoneSession.SpawnPoint.Y, zoneSession.SpawnPoint.Z);
         var position = session is null
-            ? new Vector3(zoneSession.SpawnPoint.X, zoneSession.SpawnPoint.Y, zoneSession.SpawnPoint.Z)
-            : new Vector3((float)session.State.X, (float)session.State.Y, (float)session.State.Z);
+            ? spawnPoint
+            : SafePosition(new Vector3((float)session.State.X, (float)session.State.Y, (float)session.State.Z), spawnPoint, session.CharacterName);
 
         var player = _playerScene.Instantiate<PlayerCharacter>();
         player.Name = peerId.ToString();
@@ -287,6 +300,35 @@ public partial class GameNetwork : Node
         Interest?.Register(player); // antes de entrar al árbol, así el primer envío ya respeta el filtro
         _players.AddChild(player, forceReadableName: true);
         return true;
+    }
+
+    /// <summary>
+    /// Ubicación segura: la posición guardada se usa solo si está dentro del barrio y no queda adentro de un edificio.
+    /// Si no, el personaje aparece en su punto de aparición.
+    /// </summary>
+    private Vector3 SafePosition(Vector3 saved, Vector3 fallback, string who)
+    {
+        if (!Distrito.Server.Core.World.SpawnSafety.IsWithinWorld(new System.Numerics.Vector3(saved.X, saved.Y, saved.Z)))
+        {
+            Report($"Posición guardada de {who} fuera del barrio ({saved.X:0.0}, {saved.Y:0.0}, {saved.Z:0.0}): aparece en un lugar seguro.");
+            return fallback;
+        }
+
+        var query = new PhysicsShapeQueryParameters3D
+        {
+            Shape = new CapsuleShape3D { Radius = 0.4f, Height = 1.8f },
+            Transform = new Transform3D(Basis.Identity, saved + new Vector3(0, 1.0f, 0)),
+            CollisionMask = 1,
+        };
+        foreach (var hit in _players.GetWorld3D().DirectSpaceState.IntersectShape(query, 8))
+        {
+            if (hit["collider"].AsGodotObject() is StaticBody3D)
+            {
+                Report($"Posición guardada de {who} dentro de un edificio: aparece en un lugar seguro.");
+                return fallback;
+            }
+        }
+        return saved;
     }
 
     private void RemovePlayer(long peerId)
@@ -328,19 +370,56 @@ public partial class GameNetwork : Node
 
     private void OnConnectedToServer()
     {
-        Report("Conectado. Entrando al barrio…");
+        Report(_reconnectAttempt > 0 ? "Reconectado. Volviendo al barrio…" : "Conectado. Entrando al barrio…");
+        _reconnectAttempt = 0;
         RpcId(1, MethodName.Authenticate, _credentials.Token, _credentials.IsGuest ? "" : _credentials.CharacterId.ToString());
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void AuthRejected(string reason) => Report($"No se pudo entrar: {reason}");
+    public void AuthRejected(string reason)
+    {
+        _rejected = true; // si el servidor nos rechazó, no tiene sentido reconectar solo
+        Report($"No se pudo entrar: {reason}");
+    }
 
     private void OnServerDisconnected()
     {
-        Report("Se perdió la conexión con el servidor.");
         Multiplayer.MultiplayerPeer = new OfflineMultiplayerPeer();
         foreach (var child in _players.GetChildren())
             child.QueueFree();
+
+        if (_rejected || _lastHost.Length == 0)
+        {
+            Report("Se perdió la conexión con el servidor.");
+            return;
+        }
+        ScheduleReconnect();
+    }
+
+    private void OnConnectionFailed()
+    {
+        if (_reconnectAttempt > 0)
+            ScheduleReconnect();
+        else
+            Report("No se pudo conectar al servidor.");
+    }
+
+    /// <summary>Reintenta con las mismas credenciales (el token de sesión sigue vigente) unas cuantas veces.</summary>
+    private void ScheduleReconnect()
+    {
+        if (_reconnectAttempt >= MaxReconnectAttempts)
+        {
+            _reconnectAttempt = 0;
+            Report("No se pudo reconectar con el servidor.");
+            return;
+        }
+        _reconnectAttempt++;
+        Report($"Conexión perdida. Reconectando ({_reconnectAttempt}/{MaxReconnectAttempts})…");
+        GetTree().CreateTimer(ReconnectDelaySeconds).Timeout += () =>
+        {
+            if (ConnectTo(_lastHost, _lastPort, _credentials) != Error.Ok)
+                ScheduleReconnect();
+        };
     }
 
     /// <summary>Cuando aparece el personaje propio, se le agrega el control local y la cámara.</summary>

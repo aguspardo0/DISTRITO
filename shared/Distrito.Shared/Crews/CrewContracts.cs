@@ -6,6 +6,9 @@ public sealed record CrewMemberView(Guid CharacterId, string Name, string Role);
 
 public sealed record CrewInvitationView(Guid CrewId, string CrewName, string InvitedBy);
 
+/// <summary>Entrada del historial de la cuadrilla (altas, bajas, cambios de mando).</summary>
+public sealed record CrewEventView(DateTimeOffset When, string Kind, string? Who, string Detail);
+
 /// <summary>Situación de un personaje respecto de las cuadrillas.</summary>
 public sealed record CrewStatus(
     Guid? CrewId,
@@ -13,7 +16,8 @@ public sealed record CrewStatus(
     bool IsLeader,
     List<CrewMemberView> Members,
     List<CrewInvitationView> Invitations,
-    int Level = 1)
+    int Level = 1,
+    List<CrewEventView>? History = null)
 {
     public static CrewStatus None { get; } = new(null, null, false, [], []);
     public bool InCrew => CrewId is not null;
@@ -50,11 +54,26 @@ public static partial class CrewRules
 
     public static readonly TimeSpan InvitationLifetime = TimeSpan.FromMinutes(10);
 
-    /// <summary>Cupo por nivel. Por ahora solo existe el nivel 1 (5 integrantes, según el documento de diseño).</summary>
+    /// <summary>
+    /// Cupo por nivel (Hoja de ruta v0.2.1): empieza en 3 y se amplía a 4 y luego a 5.
+    /// Los costos y requisitos de cada ampliación están pendientes de definición.
+    /// </summary>
     public static int CapacityForLevel(int level) => level switch
     {
-        <= 1 => 5,
-        _ => 5, // niveles superiores: pendiente de diseño (progresión colectiva)
+        <= 1 => 3,
+        2 => 4,
+        _ => 5,
+    };
+
+    /// <summary>Texto legible de un evento del historial.</summary>
+    public static string Describe(CrewEventView e) => e.Kind switch
+    {
+        "founded" => $"{e.Who} fundó la cuadrilla",
+        "joined" => $"{e.Who} se unió",
+        "left" => $"{e.Who} se fue",
+        "leadership_leader_left" => "El jefe se fue: manda el miembro más antiguo",
+        "leadership_inactivity" => $"{e.Who} quedó a cargo por inactividad del jefe",
+        _ => $"{e.Kind} {e.Who} {e.Detail}".Trim(),
     };
 
     public static string? ValidateName(string? name) =>

@@ -89,7 +89,7 @@ public partial class NpcInteractionController : Node
         _status.Text = $"Dinero: {EconomyCatalog.FormatMoney(s.BalanceCents)}\nLlevás: {carried}\nContrato: {contract}\n" +
                        $"Contratos cumplidos: {s.CompletedContracts}\nReputación: {reputation}" +
                        (s.Business is { } b
-                           ? $"\nPuesto de café: stock {b.Stock} · caja {EconomyCatalog.FormatMoney(b.CashCents)} · ganancia {EconomyCatalog.FormatMoney(b.ProfitCents)}"
+                           ? $"\nPuesto de café ({b.OperatingState}): stock {b.Stock} · caja {EconomyCatalog.FormatMoney(b.CashCents)} · ganancia {EconomyCatalog.FormatMoney(b.ProfitCents)}"
                            : "");
     }
 }

@@ -80,6 +80,39 @@ else
   error "Ronda 2" "no se obtuvo la posición final de la ronda 1"
 fi
 
+# --- Ubicación segura: posiciones guardadas corruptas (fuera del barrio / dentro de un edificio) ---
+PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -q -c "
+  UPDATE distrito.characters SET pos_x = 500, pos_y = 1, pos_z = 500 WHERE name = 'Bot Alfa';
+  UPDATE distrito.characters SET pos_x = -14, pos_y = 0, pos_z = -14 WHERE name = 'Bot Beta';"
+for who in "bot_alfa:Bot Alfa:fuera del barrio" "bot_beta:Bot Beta:dentro de un edificio"; do
+  IFS=: read -r acc name why <<< "$who"
+  timeout 60 "$GODOT" --headless --path game -- \
+    --client --host 127.0.0.1 --port "$PORT" --backend "$BACKEND_URL" \
+    --account "$acc" --password "clave-de-bot-123" --character "$name" \
+    --test-seconds 6 --expect-players 1 --expect-spawn 3,0 > "persist-safe-$acc.log" 2>&1
+  line=$(result_line "persist-safe-$acc.log")
+  if grep -q NET_TEST_OK "persist-safe-$acc.log"; then note "Ubicación segura ($why)" "${line#*\] }"; else error "Ubicación segura ($why)" "${line:-sin resultado}"; fi
+done
+
+# --- Reconexión: se corta el servidor en plena partida y el cliente vuelve solo ---
+timeout 90 "$GODOT" --headless --path game -- \
+  --client --host 127.0.0.1 --port "$PORT" --backend "$BACKEND_URL" \
+  --account bot_reconecta --password "clave-de-bot-123" --character "Bot Reconecta" \
+  --test-seconds 35 --expect-players 1 > persist-reconnect.log 2>&1 & rc=$!
+sleep 10
+kill "$server_pid" 2>/dev/null; wait "$server_pid" 2>/dev/null
+sleep 3
+"$GODOT" --headless --path game -- --server --port "$PORT" --backend "$BACKEND_URL" > persist-server-2.log 2>&1 &
+server_pid=$!
+wait $rc
+line=$(result_line persist-reconnect.log)
+if grep -q NET_TEST_OK persist-reconnect.log && grep -q "Reconectado" persist-reconnect.log; then
+  note "Reconexión" "el servidor se reinició y el cliente volvió solo — ${line#*\] }"
+else
+  grep -E "Reconect|perdida|No se pudo" persist-reconnect.log | tail -4
+  error "Reconexión" "${line:-sin resultado}"
+fi
+
 # --- Contrato completo: el bot camina al depósito, acepta, compra, camina al taller y entrega ---
 timeout 120 "$GODOT" --headless --path game -- \
   --client --host 127.0.0.1 --port "$PORT" --backend "$BACKEND_URL" \

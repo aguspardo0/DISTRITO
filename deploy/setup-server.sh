@@ -112,7 +112,7 @@ Wants=distrito-backend.service
 User=distrito
 EnvironmentFile=$ENV_FILE
 WorkingDirectory=$APP/current/server
-ExecStart=$APP/current/server/DistritoServer --headless -- --server --port 7777 --backend http://127.0.0.1:5080
+ExecStart=$APP/current/server/DistritoServer --headless -- --server --port 7777 --backend http://127.0.0.1:5080 --metrics-interval 60
 Restart=always
 RestartSec=3
 
