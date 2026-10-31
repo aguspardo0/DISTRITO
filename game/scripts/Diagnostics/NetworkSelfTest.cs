@@ -86,7 +86,7 @@ public partial class NetworkSelfTest : Node
         var rttInfo = _rttSamples == 0 ? "" : $" ping_ms_prom={_rttSum / _rttSamples:0} ping_ms_max={_rttMax:0}";
         var contractInfo = rttInfo + $" visibles_al_final={visibleNow}" + (_contractBot is null
             ? ""
-            : $" contrato={_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance}")
+            : $" contrato={_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance} reputacion_caruso={_contractBot.ReputationCaruso}")
             + (_crewBot is null ? "" : $" cuadrilla=\"{_crewBot.State}\"");
         var summary = string.Create(CultureInfo.InvariantCulture,
             $"id={Multiplayer.GetUniqueId()} nombre=\"{local?.DisplayName}\" conectado={connected} " +

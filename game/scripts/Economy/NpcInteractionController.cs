@@ -83,6 +83,10 @@ public partial class NpcInteractionController : Node
             ? "ninguno"
             : string.Join(", ", s.ActiveContracts.Select(c =>
                 EconomyCatalog.Templates.TryGetValue(c.TemplateCode, out var t) ? t.Title : c.TemplateCode));
-        _status.Text = $"Dinero: {EconomyCatalog.FormatMoney(s.BalanceCents)}\nLlevás: {carried}\nContrato: {contract}\nContratos cumplidos: {s.CompletedContracts}";
+        var reputation = s.Reputation is { Count: > 0 }
+            ? string.Join(" · ", s.Reputation.Select(r => $"{r.FamilyName.Replace("Familia ", "")} {r.Value}"))
+            : "—";
+        _status.Text = $"Dinero: {EconomyCatalog.FormatMoney(s.BalanceCents)}\nLlevás: {carried}\nContrato: {contract}\n" +
+                       $"Contratos cumplidos: {s.CompletedContracts}\nReputación: {reputation}";
     }
 }

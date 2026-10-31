@@ -8,12 +8,17 @@ public sealed record InventoryItem(string ItemCode, string Name, int Quantity);
 
 public sealed record ContractView(Guid Id, string TemplateCode, string Status);
 
+public sealed record ReputationView(string FamilyCode, string FamilyName, int Value);
+
 public sealed record EconomySnapshot(
     long BalanceCents,
     List<InventoryItem> Inventory,
     List<ContractView> ActiveContracts,
-    int CompletedContracts)
+    int CompletedContracts,
+    List<ReputationView>? Reputation = null)
 {
+    public int ReputationWith(string familyCode) => Reputation?.FirstOrDefault(r => r.FamilyCode == familyCode)?.Value ?? 0;
+
     public int QuantityOf(string itemCode) => Inventory.Where(i => i.ItemCode == itemCode).Sum(i => i.Quantity);
 
     public ContractView? ActiveContract(string templateCode) =>
@@ -34,6 +39,8 @@ public sealed record DeliverContractRequest(Guid CharacterId, Guid ContractId, s
 
 // ---------- Catálogo provisional del barrio de prueba ----------
 
+public sealed record ReputationReward(string FamilyCode, int Delta);
+
 public sealed record ContractTemplate(
     string Code,
     string Title,
@@ -42,7 +49,8 @@ public sealed record ContractTemplate(
     string SourceNpc,
     string DestinationNpc,
     string DestinationLocation,
-    long RewardCents);
+    long RewardCents,
+    IReadOnlyList<ReputationReward> Reputation);
 
 /// <summary>
 /// Valores de prueba para el primer contrato. No son diseño de juego definitivo (ver ADR-003).
@@ -51,6 +59,12 @@ public sealed record ContractTemplate(
 public static class EconomyCatalog
 {
     public const long StartingFundsCents = 2_000;
+
+    public const string City = "Bellmont";
+    public const string Moretti = "moretti";
+    public const string Valenti = "valenti";
+    public const string Caruso = "caruso";
+    public const int MaxReputation = 1000;
 
     public const string DepositNpc = "npc:deposito-delgado";
     public const string WorkshopNpc = "npc:taller-moreno";
@@ -63,13 +77,14 @@ public static class EconomyCatalog
 
     public static readonly ContractTemplate SparePartsDelivery = new(
         Code: "entrega-repuestos",
-        Title: "Llevar una caja de repuestos al Taller Moreno",
+        Title: "Llevar una caja de repuestos al Taller Caruso",
         ItemCode: SparePartsItem,
         Quantity: 1,
         SourceNpc: DepositNpc,
         DestinationNpc: WorkshopNpc,
         DestinationLocation: "taller-moreno",
-        RewardCents: 1_500);
+        RewardCents: 1_500,
+        Reputation: [new ReputationReward(Caruso, 5), new ReputationReward(Moretti, 2)]);
 
     public static readonly IReadOnlyDictionary<string, ContractTemplate> Templates =
         new Dictionary<string, ContractTemplate> { [SparePartsDelivery.Code] = SparePartsDelivery };

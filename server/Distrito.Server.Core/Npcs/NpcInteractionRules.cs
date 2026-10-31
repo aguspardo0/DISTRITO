@@ -24,8 +24,8 @@ public static class NpcInteractionRules
     /// <summary>Distancia máxima (metros) entre el jugador y el NPC para interactuar. La verifica el servidor.</summary>
     public const float InteractionRange = 3.5f;
 
-    public static readonly NpcDefinition Deposit = new(EconomyCatalog.DepositNpc, "Depósito Delgado", new Vector3(-8.5f, 0, -8.5f));
-    public static readonly NpcDefinition Workshop = new(EconomyCatalog.WorkshopNpc, "Taller Moreno", new Vector3(10f, 0, 3f));
+    public static readonly NpcDefinition Deposit = new(EconomyCatalog.DepositNpc, "Almacén Moretti", new Vector3(-8.5f, 0, -8.5f));
+    public static readonly NpcDefinition Workshop = new(EconomyCatalog.WorkshopNpc, "Taller Caruso", new Vector3(10f, 0, 3f));
 
     public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop];
 
@@ -80,7 +80,7 @@ public static class NpcInteractionRules
             options.Add(new NpcOption($"accept:{template.Code}", $"Aceptar: {template.Title} (paga {reward})"));
             if (carrying == 0)
                 options.Add(new NpcOption($"buy:{template.ItemCode}", $"Comprar una caja de repuestos ({price})"));
-            return ($"El Taller Moreno necesita repuestos. Si se los llevás, te pagan {reward}. La caja te la vendo a {price}.", options);
+            return ($"El Taller Caruso necesita repuestos. Si se los llevás, te pagan {reward}. La caja te la vendo a {price}.", options);
         }
 
         if (carrying < template.Quantity)
@@ -89,7 +89,7 @@ public static class NpcInteractionRules
             return ("Para cumplir el contrato vas a necesitar una caja. ¿Te la llevás?", options);
         }
 
-        return ("Ya tenés la caja. Llevásela al Taller Moreno, del otro lado de la calle.", options);
+        return ("Ya tenés la caja. Llevásela al Taller Caruso, del otro lado de la calle.", options);
     }
 
     private static (string, List<NpcOption>) WorkshopDialog(EconomySnapshot s)
@@ -99,10 +99,10 @@ public static class NpcInteractionRules
         var options = new List<NpcOption>();
 
         if (active is null)
-            return ("Estamos cortos de repuestos. Hablá con el Depósito Delgado si querés hacer una changa.", options);
+            return ("Estamos cortos de repuestos. Hablá con el Almacén Moretti si querés hacer una changa.", options);
 
         if (s.QuantityOf(template.ItemCode) < template.Quantity)
-            return ("¿Y los repuestos? Conseguilos en el Depósito Delgado y volvé.", options);
+            return ("¿Y los repuestos? Conseguilos en el Almacén Moretti y volvé.", options);
 
         options.Add(new NpcOption($"deliver:{active.Id}", $"Entregar la caja de repuestos (cobrar {EconomyCatalog.FormatMoney(template.RewardCents)})"));
         return ("¡Justo lo que necesitaba! ¿Me la dejás?", options);

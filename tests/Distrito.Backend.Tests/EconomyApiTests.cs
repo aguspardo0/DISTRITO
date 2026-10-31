@@ -61,6 +61,34 @@ public class EconomyApiTests
         Assert.Equal(0, delivered.Value.Snapshot.QuantityOf(EconomyCatalog.SparePartsItem));
         Assert.Empty(delivered.Value.Snapshot.ActiveContracts);
         Assert.Equal(1, delivered.Value.Snapshot.CompletedContracts);
+
+        // Reputación ganada con las familias del contrato; las demás quedan en 0.
+        foreach (var reward in Contract.Reputation)
+            Assert.Equal(reward.Delta, delivered.Value.Snapshot.ReputationWith(reward.FamilyCode));
+        Assert.Equal(0, delivered.Value.Snapshot.ReputationWith(EconomyCatalog.Valenti));
+        Assert.Equal(3, delivered.Value.Snapshot.Reputation!.Count);
+    }
+
+    [Fact]
+    public async Task La_reputacion_queda_registrada_y_no_supera_el_maximo()
+    {
+        await using var factory = TestBackend.Create();
+        var (api, id) = await NewCharacter(TestBackend.Api(factory));
+        var contract = (await api.AcceptContractAsync(Key, new AcceptContractRequest(id, Contract.Code, Req()))).Value!.Snapshot.ActiveContracts[0];
+        await api.BuyAsync(Key, Buy(id));
+        await api.DeliverAsync(Key, new DeliverContractRequest(id, contract.Id, Req()));
+
+        await using var db = NpgsqlDataSource.Create(TestBackend.ConnectionString);
+        await using (var events = db.CreateCommand("SELECT count(*) FROM distrito.reputation_events WHERE character_id = @c AND transaction_id IS NOT NULL"))
+        {
+            events.Parameters.AddWithValue("c", id);
+            Assert.Equal((long)Contract.Reputation.Count, (long)(await events.ExecuteScalarAsync())!);
+        }
+
+        // El CHECK de la base impide pasar de 1000 aunque alguien intente escribir de más.
+        await using var overflow = db.CreateCommand("UPDATE distrito.character_reputation SET value = 1001 WHERE character_id = @c");
+        overflow.Parameters.AddWithValue("c", id);
+        await Assert.ThrowsAsync<PostgresException>(() => overflow.ExecuteNonQueryAsync());
     }
 
     [Fact]

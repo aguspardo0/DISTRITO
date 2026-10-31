@@ -125,7 +125,11 @@ public sealed class EconomyService(NpgsqlDataSource db)
                 await complete.ExecuteNonQueryAsync(ct);
             }
 
-            return $"Contrato cumplido. Cobraste {EconomyCatalog.FormatMoney(template.RewardCents)}.";
+            foreach (var reward in template.Reputation)
+                await GrantReputationAsync(c, tx, request.CharacterId, reward, $"contrato {templateCode}", txId, ct);
+
+            var reputationText = string.Join(", ", template.Reputation.Select(r => $"+{r.Delta} con los {char.ToUpperInvariant(r.FamilyCode[0])}{r.FamilyCode[1..]}"));
+            return $"Contrato cumplido. Cobraste {EconomyCatalog.FormatMoney(template.RewardCents)} y ganaste reputación ({reputationText}).";
         });
 
     // ---------- Infraestructura de la transacción ----------
@@ -347,12 +351,34 @@ public sealed class EconomyService(NpgsqlDataSource db)
         await give.ExecuteNonQueryAsync(ct);
     }
 
+    /// <summary>Suma reputación (tope 1000) y registra el evento. Dentro de la misma transacción que lo causa.</summary>
+    private static async Task GrantReputationAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId,
+        ReputationReward reward, string reason, Guid? transactionId, CancellationToken ct)
+    {
+        await using var cmd = new NpgsqlCommand("""
+            INSERT INTO distrito.character_reputation (character_id, family_code, value)
+            VALUES (@c, @f, LEAST(@max, GREATEST(0, @d)))
+            ON CONFLICT (character_id, family_code)
+            DO UPDATE SET value = LEAST(@max, GREATEST(0, distrito.character_reputation.value + @d));
+            INSERT INTO distrito.reputation_events (character_id, family_code, delta, reason, transaction_id)
+            VALUES (@c, @f, @d, @reason, @tx);
+            """, c, tx);
+        cmd.Parameters.AddWithValue("c", characterId);
+        cmd.Parameters.AddWithValue("f", reward.FamilyCode);
+        cmd.Parameters.AddWithValue("d", reward.Delta);
+        cmd.Parameters.AddWithValue("max", EconomyCatalog.MaxReputation);
+        cmd.Parameters.AddWithValue("reason", reason);
+        cmd.Parameters.AddWithValue("tx", (object?)transactionId ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private static async Task<EconomySnapshot> LoadSnapshotAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, CancellationToken ct)
     {
         long balance = 0;
         var inventory = new List<InventoryItem>();
         var active = new List<ContractView>();
         var completed = 0;
+        var reputation = new List<ReputationView>();
 
         await using (var cmd = new NpgsqlCommand("""
             SELECT a.balance_cents FROM distrito.economic_accounts a WHERE a.character_id = @c;
@@ -364,6 +390,10 @@ public sealed class EconomyService(NpgsqlDataSource db)
              ORDER BY d.name;
             SELECT id, template_code, status FROM distrito.contracts WHERE character_id = @c AND status = 'active' ORDER BY accepted_at;
             SELECT count(*) FROM distrito.contracts WHERE character_id = @c AND status = 'completed';
+            SELECT f.code, f.name, COALESCE(r.value, 0)
+              FROM distrito.families f
+              LEFT JOIN distrito.character_reputation r ON r.family_code = f.code AND r.character_id = @c
+             ORDER BY f.code;
             """, c, tx))
         {
             cmd.Parameters.AddWithValue("c", characterId);
@@ -376,8 +406,10 @@ public sealed class EconomyService(NpgsqlDataSource db)
             while (await reader.ReadAsync(ct)) active.Add(new ContractView(reader.GetGuid(0), reader.GetString(1), reader.GetString(2)));
             await reader.NextResultAsync(ct);
             if (await reader.ReadAsync(ct)) completed = (int)reader.GetInt64(0);
+            await reader.NextResultAsync(ct);
+            while (await reader.ReadAsync(ct)) reputation.Add(new ReputationView(reader.GetString(0), reader.GetString(1), reader.GetInt32(2)));
         }
 
-        return new EconomySnapshot(balance, inventory, active, completed);
+        return new EconomySnapshot(balance, inventory, active, completed, reputation);
     }
 }

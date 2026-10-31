@@ -26,6 +26,7 @@ public partial class ContractBot : Node
     public long? StartBalance { get; private set; }
     public long? FinalBalance { get; private set; }
     public bool Completed => _step == Step.Done;
+    public int ReputationCaruso { get; private set; }
     public string StepName => _step.ToString();
 
     public void Initialize(GameNetwork network, EconomyNetwork economy)
@@ -114,7 +115,8 @@ public partial class ContractBot : Node
             return;
         FinalBalance = snapshot.BalanceCents;
         _step = Step.Done;
-        Log($"contrato cumplido: saldo {EconomyCatalog.FormatMoney(snapshot.BalanceCents)}");
+        Log($"contrato cumplido: saldo {EconomyCatalog.FormatMoney(snapshot.BalanceCents)}, reputación Caruso {snapshot.ReputationWith(EconomyCatalog.Caruso)} / Moretti {snapshot.ReputationWith(EconomyCatalog.Moretti)}");
+        ReputationCaruso = snapshot.ReputationWith(EconomyCatalog.Caruso);
     }
 
     private static void Log(string message) => GD.Print($"[DISTRITO] [bot-contrato] {message}");
