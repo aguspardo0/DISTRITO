@@ -139,3 +139,17 @@ public class LaunchOptionsContractBotTests
         Assert.True(options.BotContract);
     }
 }
+
+public class LaunchOptionsCrewBotTests
+{
+    [Fact]
+    public void Bots_de_cuadrilla()
+    {
+        var creator = LaunchOptions.Parse(["--bot-crew-create", "Los Pibes"]);
+        Assert.Equal("Los Pibes", creator.BotCrewCreate);
+        Assert.True(creator.Bot);
+
+        var joiner = LaunchOptions.Parse(["--bot-crew-join"]);
+        Assert.True(joiner.BotCrewJoin);
+    }
+}

@@ -104,6 +104,27 @@ else
   error "Libro contable" "suma de saldos=$total, desbalanceadas=$unbalanced"
 fi
 
+# --- Cuadrilla: un bot funda e invita, el otro acepta ---
+crew_bot() { # log cuenta personaje modo...
+  local log=$1 account=$2 character=$3; shift 3
+  timeout 120 "$GODOT" --headless --path game -- \
+    --client --host 127.0.0.1 --port "$PORT" --backend "$BACKEND_URL" \
+    --account "$account" --password "clave-de-bot-123" --character "$character" \
+    --test-seconds 60 --expect-players 2 "$@" > "$log" 2>&1
+}
+crew_bot persist-crew-jefe.log bot_jefe "Bot Jefe" --bot-crew-create "Los Del Barrio" & a=$!
+crew_bot persist-crew-recluta.log bot_recluta "Bot Recluta" --bot-crew-join & b=$!
+wait $a; wait $b
+for x in jefe recluta; do
+  line=$(result_line "persist-crew-$x.log")
+  if grep -q NET_TEST_OK "persist-crew-$x.log"; then note "Cuadrilla ($x)" "${line#*\] }"; else grep "bot-cuadrilla" "persist-crew-$x.log" | tail -5; error "Cuadrilla ($x)" "${line:-sin resultado}"; fi
+done
+crew_db=$(PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -At -F ' ' -c "
+  SELECT cr.name, count(m.*), string_agg(ch.name || ':' || m.role, ', ' ORDER BY m.joined_at)
+  FROM distrito.crews cr JOIN distrito.crew_members m ON m.crew_id = cr.id JOIN distrito.characters ch ON ch.id = m.character_id
+  WHERE cr.name = 'Los Del Barrio' GROUP BY cr.name")
+if echo "$crew_db" | grep -q " 2 "; then note "Cuadrilla en la base" "$crew_db"; else error "Cuadrilla en la base" "${crew_db:-no existe}"; fi
+
 # --- Cliente sin cuenta contra servidor con cuentas ---
 timeout 60 "$GODOT" --headless --path game -- --client --host 127.0.0.1 --port "$PORT" --test-seconds 4 > persist-guest.log 2>&1
 if grep -q "requiere iniciar sesión" persist-guest.log; then note "Invitado" "rechazado correctamente"; else error "Invitado" "el servidor con cuentas aceptó un cliente sin sesión"; fi

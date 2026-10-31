@@ -57,6 +57,13 @@ public partial class GameNetwork : Node
     public bool TryGetSession(long peerId, out ResolvedSession session) =>
         _authenticated.TryGetValue(peerId, out session!);
 
+    /// <summary>Servidor: jugadores con cuenta conectados ahora.</summary>
+    public IEnumerable<(long Peer, ResolvedSession Session)> AuthenticatedPlayers =>
+        _authenticated.Select(kv => (kv.Key, kv.Value));
+
+    public long? PeerOfCharacter(Guid characterId) =>
+        _authenticated.Where(kv => kv.Value.CharacterId == characterId).Select(kv => (long?)kv.Key).FirstOrDefault();
+
     public PlayerCharacter? GetPlayer(long peerId) => _players.GetNodeOrNull<PlayerCharacter>(peerId.ToString());
 
     public int PlayerCount => _players.GetChildCount();

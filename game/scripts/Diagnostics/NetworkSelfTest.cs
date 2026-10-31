@@ -26,6 +26,11 @@ public partial class NetworkSelfTest : Node
     private ContractBot? _contractBot;
     private double _graceAfterContract = 1.0;
 
+    private CrewBot? _crewBot;
+
+    /// <summary>Si se asigna, la prueba exige que el bot termine en una cuadrilla de 2.</summary>
+    public void ExpectCrew(CrewBot bot) => _crewBot = bot;
+
     /// <summary>Si se asigna, la prueba exige que el bot cumpla el contrato y cobre lo correcto.</summary>
     public void ExpectContract(ContractBot bot) => _contractBot = bot;
 
@@ -49,7 +54,10 @@ public partial class NetworkSelfTest : Node
         _maxPlayersSeen = Math.Max(_maxPlayersSeen, _network.PlayerCount);
 
         _remaining -= delta;
-        if (_contractBot is { Completed: true })
+        var scriptedDone = (_contractBot ?? (object?)_crewBot) is not null
+                           && (_contractBot is null || _contractBot.Completed)
+                           && (_crewBot is null || _crewBot.Completed);
+        if (scriptedDone)
             _graceAfterContract -= delta;
         if (_remaining > 0 && _graceAfterContract > 0)
             return;
@@ -65,9 +73,10 @@ public partial class NetworkSelfTest : Node
         var first = _firstPosition ?? Vector3.Zero;
         var spawnError = _expectedSpawn is { } e ? new Vector2(first.X - e.X, first.Z - e.Z).Length() : 0f;
 
-        var contractInfo = _contractBot is null
+        var contractInfo = (_contractBot is null
             ? ""
-            : $" contrato={_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance}";
+            : $" contrato={_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance}")
+            + (_crewBot is null ? "" : $" cuadrilla=\"{_crewBot.State}\"");
         var summary = string.Create(CultureInfo.InvariantCulture,
             $"id={Multiplayer.GetUniqueId()} nombre=\"{local?.DisplayName}\" conectado={connected} " +
             $"jugadores_max={_maxPlayersSeen}/{_expectedPlayers} desplazamiento={_maxDisplacement:0.00}m " +
@@ -82,6 +91,7 @@ public partial class NetworkSelfTest : Node
             _maxPlayersSeen < _expectedPlayers ? "no ve a todos los jugadores" :
             _expectMovement && _maxDisplacement < MinimumDisplacement ? "el servidor no movió al personaje" :
             spawnError > SpawnTolerance ? $"apareció a {spawnError:0.00}m del lugar guardado" :
+            _crewBot is { Completed: false } ? $"la cuadrilla no se formó (quedó: {_crewBot.State})" :
             _contractBot is { Completed: false } ? $"el contrato no se completó (quedó en {_contractBot.StepName})" :
             _contractBot is not null && _contractBot.FinalBalance - _contractBot.StartBalance != expectedGain
                 ? $"el saldo cambió {_contractBot.FinalBalance - _contractBot.StartBalance} y se esperaba {expectedGain}" :

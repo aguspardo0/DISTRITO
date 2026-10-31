@@ -1,4 +1,5 @@
 using Distrito.Game.Backend;
+using Distrito.Game.Crews;
 using Distrito.Game.Diagnostics;
 using Distrito.Game.Economy;
 using Distrito.Server.Core.Npcs;
@@ -17,10 +18,12 @@ namespace Distrito.Game;
 public partial class Main : Node3D
 {
     private const string ControlsHelp =
-        "WASD: moverse   Mouse: cámara   Espacio: saltar   E: hablar   Esc: soltar el mouse (clic para volver)   F3: métricas";
+        "WASD: moverse   Mouse: cámara   Espacio: saltar   E: hablar   C: cuadrilla   Esc: soltar el mouse (clic para volver)   F3: métricas";
 
     private GameNetwork _network = null!;
     private EconomyNetwork _economy = null!;
+    private CrewNetwork _crews = null!;
+    private CrewPanel? _crewPanel;
     private AccountSession? _account;
     private ConnectMenu? _menu;
     private Label? _hud;
@@ -60,6 +63,10 @@ public partial class Main : Node3D
         _economy = new EconomyNetwork { Name = "Economy" };
         AddChild(_economy);
         _economy.Initialize(_network);
+
+        _crews = new CrewNetwork { Name = "Crews" };
+        AddChild(_crews);
+        _crews.Initialize(_network);
         SpawnNpcs();
 
         if (Options.Mode == LaunchMode.Server)
@@ -116,6 +123,14 @@ public partial class Main : Node3D
                 expectMovement: Options.Bot && Options.ExpectSpawn is null, Options.ExpectSpawn);
             AddChild(test);
 
+            if (Options.BotCrewCreate is not null || Options.BotCrewJoin)
+            {
+                var crewBot = new CrewBot { Name = "CrewBot" };
+                AddChild(crewBot);
+                crewBot.Initialize(_network, _crews, Options.BotCrewCreate);
+                test.ExpectCrew(crewBot);
+            }
+
             if (Options.BotContract)
             {
                 var contractBot = new ContractBot { Name = "ContractBot" };
@@ -159,6 +174,15 @@ public partial class Main : Node3D
         var interaction = new NpcInteractionController { Name = "NpcInteraction" };
         AddChild(interaction);
         interaction.Initialize(_network, _economy, layer);
+
+        _crewPanel = new CrewPanel { Name = "CrewPanel" };
+        layer.AddChild(_crewPanel);
+        _crewPanel.Initialize(_crews);
+        _crews.MessageReceived += text =>
+        {
+            if (_hud is not null)
+                _hud.Text = $"{text}\n{ControlsHelp}";
+        };
 
         _network.StatusChanged += message =>
         {
@@ -256,6 +280,12 @@ public partial class Main : Node3D
         }
         menu.ShowLoggedIn(_account.Characters, character);
         menu.ShowStatus($"Personaje {character.Name} creado.");
+    }
+
+    public override void _UnhandledKeyInput(InputEvent @event)
+    {
+        if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.C } && _network.LocalPlayer is not null)
+            _crewPanel?.Toggle();
     }
 
     public override void _ExitTree() => _account?.Dispose();

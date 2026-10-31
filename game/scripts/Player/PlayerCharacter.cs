@@ -25,6 +25,13 @@ public partial class PlayerCharacter : CharacterBody3D
     [Export]
     public string DisplayName { get; set; } = "";
 
+    /// <summary>Nombre de la cuadrilla (vacío si no tiene). Lo fija el servidor y se replica cuando cambia.</summary>
+    [Export]
+    public string CrewName { get; set; } = "";
+
+    private Label3D _nameTag = null!;
+    private string _shownTag = "";
+
     /// <summary>Punto de aparición asignado por el servidor (solo se usa en el servidor).</summary>
     public Vector3 SpawnPoint { get; set; }
 
@@ -39,11 +46,23 @@ public partial class PlayerCharacter : CharacterBody3D
         _visual.GlobalTransform = GlobalTransform;
 
         GetNode<MeshInstance3D>("Visual/Body").MaterialOverride = new StandardMaterial3D { AlbedoColor = ColorFor(PeerId) };
-        GetNode<Label3D>("Visual/NameTag").Text = DisplayName.Length > 0 ? DisplayName : $"Jugador {PeerId}";
+        _nameTag = GetNode<Label3D>("Visual/NameTag");
+        RefreshNameTag();
+    }
+
+    private void RefreshNameTag()
+    {
+        var name = DisplayName.Length > 0 ? DisplayName : $"Jugador {PeerId}";
+        var tag = CrewName.Length > 0 ? $"{name}\n«{CrewName}»" : name;
+        if (tag == _shownTag)
+            return;
+        _shownTag = tag;
+        _nameTag.Text = tag;
     }
 
     public override void _Process(double delta)
     {
+        RefreshNameTag();
         var weight = 1f - Mathf.Exp(-VisualSmoothing * (float)delta);
         _visual.GlobalPosition = _visual.GlobalPosition.Lerp(GlobalPosition, weight);
         _visual.GlobalRotation = new Vector3(0, Mathf.LerpAngle(_visual.GlobalRotation.Y, GlobalRotation.Y, weight), 0);

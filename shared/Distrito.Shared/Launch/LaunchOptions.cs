@@ -24,6 +24,8 @@ public enum LaunchMode
 /// <param name="Password">Contraseña de <paramref name="Account"/>.</param>
 /// <param name="Character">Personaje a usar (se crea si no existe).</param>
 /// <param name="ExpectSpawn">La prueba verifica que el personaje aparezca cerca de este punto (X, Z).</param>
+/// <param name="BotCrewCreate">El bot funda una cuadrilla con este nombre e invita al otro jugador.</param>
+/// <param name="BotCrewJoin">El bot espera una invitación a cuadrilla y la acepta.</param>
 /// <param name="BotContract">El bot cumple el contrato de prueba (depósito → taller) y la prueba verifica el cobro.</param>
 public sealed record LaunchOptions(
     LaunchMode Mode,
@@ -39,7 +41,9 @@ public sealed record LaunchOptions(
     string? Password = null,
     string? Character = null,
     (float X, float Z)? ExpectSpawn = null,
-    bool BotContract = false)
+    bool BotContract = false,
+    string? BotCrewCreate = null,
+    bool BotCrewJoin = false)
 {
     public static LaunchOptions Default { get; } = new(
         LaunchMode.Client,
@@ -74,6 +78,12 @@ public sealed record LaunchOptions(
                     break;
                 case "--bot":
                     options = options with { Bot = true };
+                    break;
+                case "--bot-crew-create":
+                    options = options with { Bot = true, BotCrewCreate = RequireValue(args, ref i) };
+                    break;
+                case "--bot-crew-join":
+                    options = options with { Bot = true, BotCrewJoin = true };
                     break;
                 case "--bot-contract":
                     options = options with { Bot = true, BotContract = true };
