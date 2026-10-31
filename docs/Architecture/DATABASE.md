@@ -23,6 +23,8 @@ Implementado (migración 0002):
 | `sessions` | Sesiones de login: SHA-256 del token + vencimiento |
 | `characters` | Personaje: cuenta dueña, nombre único global, zona y posición |
 
+Implementado (migración 0003, ver ADR-003): `economic_accounts`, `ledger_transactions`, `ledger_entries`, `item_definitions`, `item_stacks`, `item_movements`, `contracts`.
+
 Pendiente para el resto del hito 1:
 
 | Tabla | Propósito |

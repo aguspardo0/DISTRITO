@@ -22,9 +22,9 @@ Deuda conocida del prototipo: sin predicción del lado del cliente (con latencia
 ## Etapa 2 — Hito jugable 1
 - [x] Cuentas y login (backend)
 - [x] Crear / cargar personaje
-- [ ] Un NPC con interacción
-- [ ] Un contrato simple: conseguir y entregar una mercancía
-- [ ] Pago y transferencia validados por el servidor, con ledger
+- [x] Un NPC con interacción
+- [x] Un contrato simple: conseguir y entregar una mercancía
+- [x] Pago y transferencia validados por el servidor, con ledger
 - [ ] Formar una cuadrilla
 - [x] Guardado y recarga correcta de la posición (probado en CI: salir, volver, aparecer en el mismo lugar)
 - [ ] Servidor en internet (backend + base + servidor de juego) para probar con cuentas entre casas
