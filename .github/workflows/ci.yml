@@ -292,7 +292,21 @@ jobs:
       - name: Prueba contra el servidor real
         if: (env.TARGET_HOST != '' || env.DEPLOY_HOST != '') && env.DEPLOY_SSH_KEY != ''
         run: |
-          curl -fsS "https://$DEPLOY_DOMAIN/health/ready"; echo
+          # El certificado HTTPS se emite en el primer arranque de Caddy: se reintenta hasta 3 minutos.
+          ok=0
+          for i in $(seq 1 36); do
+            if curl -fsS -m 10 "https://$DEPLOY_DOMAIN/health/ready"; then ok=1; echo; break; fi
+            sleep 5
+          done
+          if [ "$ok" != 1 ]; then
+            key="$RUNNER_TEMP/k2"; .github/scripts/prepare-key.sh "$key" >/dev/null
+            ssh -i "$key" -o StrictHostKeyChecking=accept-new -o BatchMode=yes "${TARGET_USER:-root}@${TARGET_HOST:-$DEPLOY_HOST}" \
+              "systemctl is-active caddy distrito-backend distrito-gameserver; ufw status | head -8; journalctl -u caddy -n 25 --no-pager" > diag.txt 2>&1 || true
+            cat diag.txt
+            grep -iE "error|fail|denied|refused|inactive|timeout" diag.txt | tail -6 | while IFS= read -r l; do echo "::error title=Servidor real (diagnóstico)::${l:0:500}"; done
+            echo "::error title=Servidor real::https://$DEPLOY_DOMAIN no respondió"
+            exit 1
+          fi
           # cuenta de CI estable; la contraseña deriva de un secreto, no está en el repo
           pass=$(printf '%s' "$DEPLOY_SSH_KEY-ci" | sha256sum | cut -c1-32)
           timeout 90 "$GODOT" --headless --path game -- \
