@@ -61,6 +61,8 @@ jobs:
   godot:
     name: Godot — arranque, red y persistencia de punta a punta
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write # publicar las capturas de la prueba visual en la rama ui-capturas
     services:
       postgres:
         image: postgres:16
@@ -127,6 +129,16 @@ jobs:
               echo "::warning title=Capturas ($name)::no se pudieron sacar: $(grep -iE 'error|fail' "ui-$name.log" | head -2 | tr '\n' ' ')"
             fi
           done
+
+      - name: Publicar capturas en la rama ui-capturas
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          [ -d ui-shots ] || exit 0
+          cd ui-shots
+          git init -q -b ui-capturas
+          git config user.name "distrito-ci"; git config user.email "ci@distrito.invalid"
+          git add -A && git commit -qm "Capturas de ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" ui-capturas
 
       - uses: actions/upload-artifact@v4
         if: always()
