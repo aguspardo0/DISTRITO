@@ -144,7 +144,13 @@ public partial class Main : Node3D
     {
         var layer = new CanvasLayer { Name = "MenuLayer", Layer = 10 };
         AddChild(layer);
-        var menu = new ConnectMenu { Name = "ConnectMenu", InitialBackendUrl = Options.BackendUrl ?? "" };
+        var defaults = ServerDefaults.Load();
+        var menu = new ConnectMenu
+        {
+            Name = "ConnectMenu",
+            InitialBackendUrl = Options.BackendUrl ?? defaults.BackendUrl,
+            InitialGameHost = defaults.GameHost,
+        };
         _menu = menu;
         layer.AddChild(menu);
 

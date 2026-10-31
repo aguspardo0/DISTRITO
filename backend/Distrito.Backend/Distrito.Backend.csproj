@@ -12,6 +12,6 @@
   </ItemGroup>
   <ItemGroup>
     <!-- Las migraciones viajan con el backend: bin/.../migrations/*.sql -->
-    <None Include="..\..\database\migrations\*.sql" LinkBase="migrations" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\database\migrations\*.sql" LinkBase="migrations" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -26,6 +26,7 @@ public partial class ConnectMenu : Control
     private List<CharacterSummary> _characters = [];
 
     public string InitialBackendUrl { get; init; } = "";
+    public string InitialGameHost { get; init; } = "";
 
     public event Action<string, string, string>? LoginRequested;      // url, usuario, contraseña
     public event Action<string, string, string>? RegisterRequested;
@@ -81,7 +82,8 @@ public partial class ConnectMenu : Control
 
         // 3. Partida
         box.AddChild(Header("Partida"));
-        _host = Field(box, "Dirección del servidor de juego", NetworkDefaults.DefaultHost, "127.0.0.1");
+        _host = Field(box, "Dirección del servidor de juego",
+            InitialGameHost.Length > 0 ? InitialGameHost : NetworkDefaults.DefaultHost, "127.0.0.1");
         box.AddChild(new Label { Text = "Puerto" });
         _port = new SpinBox { MinValue = 1, MaxValue = 65535, Value = NetworkDefaults.DefaultPort, Rounded = true };
         box.AddChild(_port);

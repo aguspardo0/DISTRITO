@@ -125,6 +125,8 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
     steps:
       - uses: actions/checkout@v5
 
@@ -157,6 +159,13 @@ jobs:
       - name: Importar proyecto
         run: timeout 300 "$GODOT" --headless --path game --import
 
+      - name: Apuntar el cliente al servidor oficial
+        if: env.DEPLOY_HOST != ''
+        run: |
+          domain="$(echo "$DEPLOY_HOST" | tr . -).sslip.io"
+          printf '{"backendUrl":"https://%s","gameHost":"%s"}\n' "$domain" "$DEPLOY_HOST" > game/server_defaults.json
+          cat game/server_defaults.json
+
       - name: Exportar
         run: |
           mkdir -p build/windows
@@ -177,3 +186,81 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Prototipo (último build de main)" \
             --notes "Build automático del commit ${GITHUB_SHA::7}. Descargá DISTRITO-windows.zip, descomprimilo y abrí DISTRITO.exe. Instrucciones en LEEME.txt."
+
+  deploy:
+    name: Desplegar al servidor y probarlo
+    needs: [dotnet, godot]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    concurrency: deploy-production
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+    steps:
+      - name: Verificar configuración
+        run: |
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_SSH_KEY" ]; then
+            echo "::notice title=Despliegue::Sin servidor configurado (faltan los secretos DEPLOY_HOST / DEPLOY_SSH_KEY). Se arma el release pero no se despliega."
+          fi
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Descargar Godot ${{ env.GODOT_VERSION }} .NET
+        run: .github/scripts/install-godot.sh
+
+      - name: Cache de plantillas de exportación
+        id: templates-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-mono-${{ env.GODOT_VERSION }}
+
+      - name: Descargar plantillas de exportación
+        if: steps.templates-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_mono_export_templates.tpz"
+          dest="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable.mono"
+          mkdir -p "$dest"
+          unzip -q templates.tpz -d tpl
+          mv tpl/templates/* "$dest/"
+
+      - name: Armar release (backend + servidor de juego, Linux ARM64)
+        run: |
+          .github/scripts/run-annotated.sh dotnet publish backend/Distrito.Backend/Distrito.Backend.csproj \
+            -c Release -r linux-arm64 --self-contained true -o build/release/backend
+          timeout 300 "$GODOT" --headless --path game --import
+          mkdir -p build/server
+          timeout 600 "$GODOT" --headless --path game --export-release "Linux Server ARM64" ../build/server/DistritoServer.arm64 2>&1 | tail -20
+          test -f build/server/DistritoServer.arm64
+          mv build/server build/release/server
+          ls build/release/backend/migrations build/release/server
+          echo "::notice title=Release ARM64::backend $(du -sh build/release/backend | cut -f1), servidor $(du -sh build/release/server | cut -f1)"
+
+      - name: Desplegar
+        if: env.DEPLOY_HOST != ''
+        run: .github/scripts/deploy.sh
+
+      - name: Prueba contra el servidor real
+        if: env.DEPLOY_HOST != ''
+        run: |
+          curl -fsS "https://$DEPLOY_DOMAIN/health/ready"; echo
+          # cuenta de CI estable; la contraseña deriva de un secreto, no está en el repo
+          pass=$(printf '%s' "$DEPLOY_SSH_KEY-ci" | sha256sum | cut -c1-32)
+          timeout 90 "$GODOT" --headless --path game -- \
+            --client --host "$DEPLOY_HOST" --port 7777 --backend "https://$DEPLOY_DOMAIN" \
+            --account ci_bot --password "$pass" --character "Bot Despliegue" \
+            --bot --test-seconds 12 --expect-players 1 > prod-test.log 2>&1 || true
+          line=$(grep -h "NET_TEST_" prod-test.log | tail -1)
+          if grep -q NET_TEST_OK prod-test.log; then
+            echo "::notice title=Servidor real::https://$DEPLOY_DOMAIN — ${line#*\] }"
+          else
+            grep -E "DISTRITO|rror" prod-test.log | tail -15
+            echo "::error title=Servidor real::${line:-sin resultado}"
+            exit 1
+          fi

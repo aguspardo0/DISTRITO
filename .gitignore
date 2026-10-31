@@ -20,3 +20,4 @@ appsettings.Local.json
 # Sistema
 .DS_Store
 Thumbs.db
+game/server_defaults.json
