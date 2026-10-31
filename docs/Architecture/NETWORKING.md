@@ -66,8 +66,10 @@ Todos los jugadores dentro del radio de interés (peor caso: todos ven a todos).
 
 | Jugadores | Física máx. por tick | RAM servidor | Envío servidor | Por jugador |
 |---|---|---|---|---|
-| 10 | 1,98 ms | 184 MB | 377 kbps | 38 kbps |
-| 20 | 5,89 ms | 190 MB | 1.546 kbps | 77 kbps |
+| 10 | 2,0–2,8 ms | 184 MB | 377–440 kbps | 38–44 kbps |
+| 20 | 5,9–6,3 ms | 190 MB | 1.546–2.040 kbps | 77–102 kbps |
+
+(Rango de dos corridas. Ping de los clientes locales: promedio ~30 ms, máximo ~36 ms, dominado por la carga de la máquina compartida.)
 
 Lectura:
 - **CPU:** holgada. Un tick a 60 Hz tiene 16,6 ms; con 20 jugadores se usa ~6 ms.
