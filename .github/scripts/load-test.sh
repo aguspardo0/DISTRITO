@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Pruebas de escala (modo invitado, sin backend):
 #   1. Interés de red: dos bots se alejan y al final cada uno solo se ve a sí mismo.
-#   2. Carga: servidor dedicado + N bots que caminan, con métricas del servidor y ping de cada cliente.
+#   2. Red mala: latencia, variación y pérdida simuladas con netem.
+#   3. Carga: servidor dedicado + N bots que caminan, con métricas del servidor y ping de cada cliente.
 # Uso: load-test.sh 10 20
 set -uo pipefail
 fail=0
@@ -28,7 +29,31 @@ for x in a b; do
   if grep -q NET_TEST_OK "interest-$x.log"; then note "Interés de red ($x)" "${line#*\] }"; else error "Interés de red ($x)" "${line:-sin resultado}"; fi
 done
 
-# ---------- 2. Carga ----------
+# ---------- 2. Red mala: latencia, variación y pérdida de paquetes ----------
+# netem sobre la interfaz local: 60 ms ± 20 ms por sentido (≈120 ms de ida y vuelta) y 3 % de pérdida.
+# Dos bots caminan; se exige que sigan conectados, se vean y que la predicción local converja con el servidor.
+PORT=7802
+if sudo tc qdisc add dev lo root netem delay 60ms 20ms distribution normal loss 3% 2>tc.err; then
+  "$GODOT" --headless --path game -- --server --port $PORT --metrics-interval 5 > lag-server.log 2>&1 &
+  srv=$!
+  sleep 4
+  client lag-a.log $PORT --bot --test-seconds 30 --expect-players 2 & a=$!
+  client lag-b.log $PORT --bot --test-seconds 30 --expect-players 2 & b=$!
+  wait $a; wait $b
+  kill $srv 2>/dev/null; wait $srv 2>/dev/null
+  sudo tc qdisc del dev lo root
+  for x in a b; do
+    line=$(grep -h NET_TEST_ "lag-$x.log" | tail -1)
+    if grep -q NET_TEST_OK "lag-$x.log"; then note "Red mala ($x): 120 ms y 3 % de pérdida" "${line#*\] }"
+    else error "Red mala ($x): 120 ms y 3 % de pérdida" "${line:-sin resultado}"; fi
+  done
+  disc=$(grep METRICS lag-server.log | num desconexiones | sort -n | tail -1)
+  note "Red mala: servidor" "$(grep METRICS lag-server.log | tail -1 | sed 's/.*METRICS //') (desconexiones en la prueba: ${disc:-?})"
+else
+  echo "::warning title=Red mala::no se pudo simular la red ($(cat tc.err)); prueba omitida"
+fi
+
+# ---------- 3. Carga ----------
 for n in "$@"; do
   PORT=$((7810 + n))
   "$GODOT" --headless --path game -- --server --port $PORT --metrics-interval 5 > "load-server-$n.log" 2>&1 &
@@ -49,10 +74,12 @@ for n in "$@"; do
   full=$(grep "METRICS jugadores=$n " "load-server-$n.log")
   phys=$(echo "$full" | num fisica_ms_max | sort -n | tail -1)
   ram=$(echo "$full" | num ram_mb | sort -n | tail -1)
+  cpu=$(echo "$full" | num cpu_pct | sort -n | tail -1)
+  disc=$(grep METRICS "load-server-$n.log" | num desconexiones | sort -n | tail -1)
   sent=$(echo "$full" | num enviado_kbps | sort -n | tail -1)
   recv=$(echo "$full" | num recibido_kbps | sort -n | tail -1)
   per=$(awk -v s="${sent:-0}" -v n="$n" 'BEGIN {printf "%.1f", s/n}')
-  summary="clientes OK ${ok}/${n} · ping prom ${pavg} ms, máx ${pmax:-?} ms · servidor: física máx ${phys:-?} ms/tick, RAM ${ram:-?} MB, envía ${sent:-?} kbps (${per} por jugador), recibe ${recv:-?} kbps"
+  summary="clientes OK ${ok}/${n} · ping prom ${pavg} ms, máx ${pmax:-?} ms · servidor: física máx ${phys:-?} ms/tick, CPU máx ${cpu:-?} %, RAM ${ram:-?} MB, envía ${sent:-?} kbps (${per} por jugador), recibe ${recv:-?} kbps, desconexiones ${disc:-?}"
   if [ "$ok" -eq "$n" ]; then note "Carga ${n} jugadores" "$summary"; else
     grep -h NET_TEST_FAIL load-$n-*.log | head -2 | while IFS= read -r l; do echo "::warning title=Carga ${n}::${l#*\] }"; done
     error "Carga ${n} jugadores" "$summary"
