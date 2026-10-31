@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Distrito.Shared.Economy;
 
 namespace Distrito.Shared.Api;
 
@@ -45,6 +46,20 @@ public sealed class DistritoApiClient(HttpClient http)
             r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
         return result.IsSuccess ? ApiResult<bool>.Ok(true, result.Status) : ApiResult<bool>.Fail(result.Status, result.Error!);
     }
+
+    // --- Economía (API interna) ---
+
+    public Task<ApiResult<EconomySnapshot>> GetEconomyAsync(string serverKey, Guid characterId, CancellationToken ct = default) =>
+        SendAsync<EconomySnapshot>(HttpMethod.Get, $"internal/economy/{characterId}", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> AcceptContractAsync(string serverKey, AcceptContractRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/economy/contracts/accept", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> BuyAsync(string serverKey, BuyItemRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/economy/buy", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> DeliverAsync(string serverKey, DeliverContractRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/economy/deliver", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
     private static void Bearer(HttpRequestMessage request, string token) =>
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);

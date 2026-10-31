@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using System.Text;
 using Distrito.Backend.Accounts;
 using Distrito.Backend.Characters;
+using Distrito.Backend.Economy;
+using Distrito.Shared.Economy;
 using Distrito.Shared.Api;
 
 namespace Distrito.Backend.Api;
@@ -21,6 +23,11 @@ public static class Endpoints
         var internalApi = app.MapGroup("/internal").AddEndpointFilter(RequireServerKey);
         internalApi.MapPost("/sessions/resolve", ResolveSession);
         internalApi.MapPut("/characters/{id:guid}/state", SaveCharacterState);
+        internalApi.MapGet("/economy/{characterId:guid}", async (Guid characterId, EconomyService economy, CancellationToken ct) =>
+            Results.Ok(await economy.GetSnapshotAsync(characterId, ct)));
+        internalApi.MapPost("/economy/contracts/accept", (AcceptContractRequest r, EconomyService e, CancellationToken ct) => e.AcceptContractAsync(r, ct));
+        internalApi.MapPost("/economy/buy", (BuyItemRequest r, EconomyService e, CancellationToken ct) => e.BuyAsync(r, ct));
+        internalApi.MapPost("/economy/deliver", (DeliverContractRequest r, EconomyService e, CancellationToken ct) => e.DeliverAsync(r, ct));
     }
 
     private static IResult Error(int status, string code, string message) =>

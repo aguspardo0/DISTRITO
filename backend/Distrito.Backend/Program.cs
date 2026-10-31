@@ -1,6 +1,7 @@
 using Distrito.Backend.Accounts;
 using Distrito.Backend.Api;
 using Distrito.Backend.Characters;
+using Distrito.Backend.Economy;
 using Distrito.Backend.Persistence;
 using Npgsql;
 
@@ -20,6 +21,7 @@ builder.Services.AddSingleton<DatabaseStatus>();
 builder.Services.AddSingleton<MigrationRunner>();
 builder.Services.AddSingleton<AccountStore>();
 builder.Services.AddSingleton<CharacterStore>();
+builder.Services.AddSingleton<EconomyService>();
 
 var app = builder.Build();
 
