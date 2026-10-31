@@ -17,3 +17,11 @@ Común a todos los jugadores; se calcula con las 24 h anteriores al comienzo de 
 - Cooperación: 10+ contratos cumplidos que paga la familia → sus contratos pagan +10 %.
 - Rivalidad: 10+ puntos de reputación perdidos con la familia → contratos −10 %, precios de venta y licencias +10 %. Gana sobre cooperación.
 - Neutral en otro caso. Expansión y recuperación quedan para cuando haya territorio.
+
+# Caja de la cuadrilla (aprobado el 2026-10-31)
+
+- Cuenta propia en el libro (kind `crew`), creada al primer uso. Depositar: cualquier integrante ($1, $5, $10 o todo).
+- Retirar: el jefe; el segundo solo si el jefe lo permite (arranca en no).
+- Invitar: jefe siempre; segundo si el jefe lo permite (arranca en sí); miembros si el jefe lo permite (arranca en no).
+- Aporte automático: 0–20 % de cada cobro de contrato de cada integrante va a la caja (arranca en 0 %).
+- Todo movimiento queda en el historial de la cuadrilla.

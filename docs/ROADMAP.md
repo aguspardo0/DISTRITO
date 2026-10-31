@@ -68,7 +68,8 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Menú de opciones en partida (Esc) y arreglos de ventana/pantalla completa (pedido del equipo)
 - [x] Segundo negocio con proveedor: club de jazz (cajones de bebidas del Almacén Moretti, músico opcional, +1 de noche)
 - [x] Familias NPC con estados: neutral, cooperación y rivalidad según las últimas 24 h (ver `FamilyRules`)
-- [ ] Herramientas de la cuadrilla (caja común, permisos por rol)
+- [x] Herramientas de la cuadrilla: caja común, permisos por rol configurables por el jefe y aporte automático de contratos (0–20 %)
+- [ ] Prueba manual del equipo de la Etapa D (progresión, club de jazz, ánimo de las familias, caja de la cuadrilla)
 
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.
