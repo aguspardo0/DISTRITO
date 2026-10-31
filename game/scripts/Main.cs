@@ -18,7 +18,7 @@ namespace Distrito.Game;
 public partial class Main : Node3D
 {
     private const string ControlsHelp =
-        "WASD: moverse   Mouse: cámara   Espacio: saltar   E: hablar   C: cuadrilla   M: mapa   Esc: soltar el mouse (clic para volver)   F3: métricas";
+        "WASD: moverse   Mouse: cámara   Espacio: saltar   E: hablar   C: cuadrilla   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
 
     private GameNetwork _network = null!;
     private EconomyNetwork _economy = null!;
@@ -26,6 +26,7 @@ public partial class Main : Node3D
     private CrewPanel? _crewPanel;
     private Distrito.Game.Map.MapNetwork _map = null!;
     private Distrito.Game.Map.MapPanel? _mapPanel;
+    private PauseMenu? _pause;
     private AccountSession? _account;
     private ConnectMenu? _menu;
     private Label? _hud;
@@ -91,6 +92,7 @@ public partial class Main : Node3D
             return;
         }
 
+        GameSettings.Load();
         CreateHud();
 
         if (Options.AutoConnect)
@@ -228,6 +230,10 @@ public partial class Main : Node3D
         layer.AddChild(_mapPanel);
         _mapPanel.Initialize(_network, _map);
 
+        _pause = new PauseMenu { Name = "PauseMenu" };
+        layer.AddChild(_pause);
+        _pause.LeaveRequested += LeaveMatch;
+
         _crewPanel = new CrewPanel { Name = "CrewPanel" };
         layer.AddChild(_crewPanel);
         _crewPanel.Initialize(_crews);
@@ -335,8 +341,53 @@ public partial class Main : Node3D
         menu.ShowStatus($"Personaje {character.Name} creado.");
     }
 
+    /// <summary>Salir de la partida sin cerrar el juego: se guarda (el servidor guarda al desconectar) y vuelve al menú.</summary>
+    private void LeaveMatch()
+    {
+        if (_crewPanel is { IsOpen: true }) _crewPanel.Toggle();
+        if (_mapPanel is { Visible: true }) _mapPanel.Toggle();
+        GetNodeOrNull<NpcDialogPanel>("Hud/NpcDialog")?.Close();
+        _network.Leave();
+        GetNode<Camera3D>("OverviewCamera").Current = true;
+        Input.MouseMode = Input.MouseModeEnum.Visible;
+
+        if (_menu is null)
+            ShowMenu();
+        else
+        {
+            _menu.SetBusy(false);
+            if (_account is { Token: not null } account)
+                _menu.ShowLoggedIn(account.Characters);
+            _menu.Show();
+        }
+        _menu?.ShowStatus("Saliste de la partida. Tu progreso quedó guardado.");
+    }
+
     public override void _UnhandledKeyInput(InputEvent @event)
     {
+        if (@event is InputEventKey { Pressed: true, Echo: false } key &&
+            (key.PhysicalKeycode == Key.F11 || (key.PhysicalKeycode == Key.Enter && key.AltPressed)))
+        {
+            GameSettings.ToggleFullscreen();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Escape } && _network.LocalPlayer is not null && _pause is not null)
+        {
+            // Esc cierra primero lo que esté abierto; si no hay nada, abre o cierra las opciones.
+            if (GetNodeOrNull<NpcDialogPanel>("Hud/NpcDialog") is { IsOpen: true })
+                return; // el diálogo se cierra solo con Esc
+            if (_crewPanel is { IsOpen: true }) _crewPanel.Toggle();
+            else if (_mapPanel is { Visible: true }) _mapPanel.Toggle();
+            else if (_pause.IsOpen) _pause.Close();
+            else _pause.Open();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+        if (_pause is { IsOpen: true })
+            return; // con las opciones abiertas no se abren otros paneles
+
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.C } && _network.LocalPlayer is not null)
             _crewPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.M } && _network.LocalPlayer is not null)

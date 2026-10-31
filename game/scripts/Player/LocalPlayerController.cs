@@ -9,7 +9,7 @@ namespace Distrito.Game.Player;
 /// </summary>
 public partial class LocalPlayerController : Node
 {
-    private const float MouseSensitivity = 0.003f;
+    private static float MouseSensitivity => Distrito.Game.UI.GameSettings.MouseSensitivity;
     private const float MinPitch = -1.2f;
     private const float MaxPitch = 0.3f;
     private const float CameraDistance = 4.5f;
@@ -70,10 +70,6 @@ public partial class LocalPlayerController : Node
             _yaw.RotateY(-motion.Relative.X * MouseSensitivity);
             var pitch = Mathf.Clamp(_pitch.Rotation.X - motion.Relative.Y * MouseSensitivity, MinPitch, MaxPitch);
             _pitch.Rotation = new Vector3(pitch, 0, 0);
-        }
-        else if (@event.IsActionPressed("ui_cancel"))
-        {
-            Input.MouseMode = Input.MouseModeEnum.Visible;
         }
         else if (@event is InputEventMouseButton { Pressed: true } && !IsHeadless)
         {

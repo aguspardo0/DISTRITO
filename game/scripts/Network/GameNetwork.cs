@@ -149,6 +149,23 @@ public partial class GameNetwork : Node
         return Error.Ok;
     }
 
+    /// <summary>
+    /// Cliente: salir de la partida a propósito. Cierra la conexión (el servidor detecta la salida y guarda),
+    /// borra los personajes de la escena y no intenta reconectar.
+    /// </summary>
+    public void Leave()
+    {
+        _rejected = true;
+        _lastHost = "";
+        _reconnectAttempt = 0;
+        _hasLocalPlayer = false;
+        Multiplayer.MultiplayerPeer?.Close();
+        Multiplayer.MultiplayerPeer = new OfflineMultiplayerPeer();
+        foreach (var child in _players.GetChildren())
+            child.QueueFree();
+        Report("Saliste de la partida.");
+    }
+
     private Error CreateServerPeer(int port)
     {
         var peer = new ENetMultiplayerPeer();
@@ -430,6 +447,8 @@ public partial class GameNetwork : Node
         Report($"Conexión perdida. Reconectando ({_reconnectAttempt}/{MaxReconnectAttempts})…");
         GetTree().CreateTimer(ReconnectDelaySeconds).Timeout += () =>
         {
+            if (_lastHost.Length == 0)
+                return; // el jugador salió de la partida mientras esperaba
             if (ConnectTo(_lastHost, _lastPort, _credentials) != Error.Ok)
                 ScheduleReconnect();
         };
