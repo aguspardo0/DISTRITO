@@ -31,6 +31,7 @@ public partial class NetworkSelfTest : Node
     private double _rttSum;
     private int _rttSamples;
     private double _rttMax;
+    private double _connectedSeconds;
 
     /// <summary>Si se asigna, la prueba exige ver exactamente esta cantidad de jugadores al terminar.</summary>
     public void ExpectVisibleAtEnd(int count) => _expectVisibleAtEnd = count;
@@ -125,7 +126,11 @@ public partial class NetworkSelfTest : Node
         if (Multiplayer.MultiplayerPeer is not ENetMultiplayerPeer enet || Multiplayer.IsServer())
             return;
         var server = enet.GetPeer(1);
-        if (server is null)
+        if (server is null || enet.GetConnectionStatus() != MultiplayerPeer.ConnectionStatus.Connected)
+            return;
+        // ENet arranca con un RTT supuesto de 500 ms hasta medir de verdad: se descartan los primeros segundos.
+        _connectedSeconds += GetProcessDeltaTime();
+        if (_connectedSeconds < 3)
             return;
         var rtt = server.GetStatistic(ENetPacketPeer.PeerStatistic.RoundTripTime);
         if (rtt <= 0)

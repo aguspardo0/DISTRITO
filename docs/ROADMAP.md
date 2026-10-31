@@ -30,8 +30,10 @@ Deuda conocida del prototipo: sin predicción del lado del cliente (con latencia
 - [ ] Servidor en internet (backend + base + servidor de juego) para probar con cuentas entre casas
 
 ## Etapa 3 — Escala
-- [ ] Interés de red por grilla
-- [ ] Pruebas con 10 y 20 clientes automatizados, con métricas
+- [x] Interés de red por distancia (radio con histéresis), probado en CI
+- [x] Pruebas con 10 y 20 clientes automatizados, con métricas (ver NETWORKING.md)
+- [ ] Interés de red por grilla espacial (hoy compara todos contra todos: suficiente hasta ~60 jugadores por zona)
+- [ ] Reducir ancho de banda en zonas densas (frecuencia por distancia, serialización propia)
 - [ ] Decisión sobre el host del servidor
 
 ## Más adelante (sin orden fijado)
