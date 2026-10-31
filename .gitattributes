@@ -21,3 +21,6 @@
 *.ttf filter=lfs diff=lfs merge=lfs -text
 *.otf filter=lfs diff=lfs merge=lfs -text
 *.sln text eol=crlf
+
+# Retratos chicos del menú (decenas de KB): van en git normal, sin LFS.
+game/assets/portraits/*.jpg -filter -diff -merge binary

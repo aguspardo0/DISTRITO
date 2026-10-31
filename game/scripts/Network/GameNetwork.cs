@@ -318,6 +318,7 @@ public partial class GameNetwork : Node
         var player = _playerScene.Instantiate<PlayerCharacter>();
         player.Name = peerId.ToString();
         player.DisplayName = session?.CharacterName ?? $"Invitado {peerId}";
+        player.Look = session?.Look ?? "";
         player.SpawnPoint = new Vector3(zoneSession.SpawnPoint.X, zoneSession.SpawnPoint.Y, zoneSession.SpawnPoint.Z);
         player.Position = position;
         player.Rotation = new Vector3(0, (float)(session?.State.Yaw ?? 0), 0);

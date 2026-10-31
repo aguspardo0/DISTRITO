@@ -294,7 +294,7 @@ public partial class Main : Node3D
         menu.LoginRequested += (url, user, pass) => _ = AccountActionAsync(menu, url, s => s.LoginAsync(user, pass));
         menu.RegisterRequested += (url, user, pass) =>
             _ = AccountActionAsync(menu, url, s => s.RegisterAndLoginAsync(user, pass, acceptExisting: false));
-        menu.CreateCharacterRequested += name => _ = CreateCharacterAsync(menu, name);
+        menu.CreateCharacterRequested += (name, look) => _ = CreateCharacterAsync(menu, name, look);
 
         menu.HostRequested += port =>
         {
@@ -348,13 +348,13 @@ public partial class Main : Node3D
             : "Sesión iniciada. Elegí tu personaje y unite a una partida.");
     }
 
-    private async Task CreateCharacterAsync(ConnectMenu menu, string name)
+    private async Task CreateCharacterAsync(ConnectMenu menu, string name, string look)
     {
         if (_account?.Token is null)
             return;
 
         menu.SetBusy(true);
-        var (character, error) = await _account.CreateCharacterAsync(name);
+        var (character, error) = await _account.CreateCharacterAsync(name, look);
         menu.SetBusy(false);
 
         if (character is null)
@@ -373,6 +373,11 @@ public partial class Main : Node3D
         shot.Initialize(dir,
         [
             ("menu", () => { }),
+            ("menu-personaje", () => _menu?.ShowLoggedIn(
+            [
+                new CharacterSummary(Guid.NewGuid(), "Vito", "barrio", "ejecutivo"),
+                new CharacterSummary(Guid.NewGuid(), "Sal", "barrio", "operativo"),
+            ])),
             ("juego", () =>
             {
                 _menu?.Hide();
@@ -381,7 +386,21 @@ public partial class Main : Node3D
             ("dialogo", () => _interaction?.Dialog.ShowDialog(new NpcDialog(NpcInteractionRules.Deposit.Code, NpcInteractionRules.Deposit.Name,
                 "Texto de prueba del diálogo, con varias líneas para ver que el panel crezca y siga centrado abajo.",
                 [new NpcOption("a", "Primera opción"), new NpcOption("b", "Segunda opción")]))),
-            ("cuadrilla", () => { _interaction?.Dialog.Close(); _crewPanel?.Toggle(); }),
+            ("modelos", () =>
+            {
+                _interaction?.Dialog.Close();
+                if (_network.LocalPlayer is not { } me)
+                    return;
+                var i = 0;
+                foreach (var look in CharacterLooks.All)
+                {
+                    var model = Distrito.Game.Player.CharacterModel.Build(look);
+                    AddChild(model);
+                    model.GlobalPosition = me.GlobalPosition + new Vector3(-2.25f + 1.5f * i++, 0, -3.2f);
+                    model.RotationDegrees = new Vector3(0, 180, 0); // de frente a la cámara
+                }
+            }),
+            ("cuadrilla", () => { _crewPanel?.Toggle(); }),
             ("mapa", () => { _crewPanel?.Toggle(); _mapPanel?.Toggle(); }),
             ("opciones", () => { _mapPanel?.Toggle(); _pause?.Open(); }),
         ]);

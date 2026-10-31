@@ -49,9 +49,9 @@ public sealed class AccountSession : IDisposable
         return null;
     }
 
-    public async Task<(CharacterSummary? Character, string? Error)> CreateCharacterAsync(string name)
+    public async Task<(CharacterSummary? Character, string? Error)> CreateCharacterAsync(string name, string look = CharacterLooks.Default)
     {
-        var result = await Api.CreateCharacterAsync(Token ?? "", name);
+        var result = await Api.CreateCharacterAsync(Token ?? "", name, look);
         if (!result.IsSuccess)
             return (null, result.Error!.Message);
         Characters.Add(result.Value!);

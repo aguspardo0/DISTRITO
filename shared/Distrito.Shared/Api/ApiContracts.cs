@@ -10,9 +10,9 @@ public sealed record LoginRequest(string Username, string Password);
 
 public sealed record LoginResponse(string Token, DateTimeOffset ExpiresAt);
 
-public sealed record CreateCharacterRequest(string Name);
+public sealed record CreateCharacterRequest(string Name, string Look = CharacterLooks.Default);
 
-public sealed record CharacterSummary(Guid Id, string Name, string ZoneId);
+public sealed record CharacterSummary(Guid Id, string Name, string ZoneId, string Look = CharacterLooks.Default);
 
 public sealed record ApiError(string Code, string Message);
 
@@ -22,7 +22,7 @@ public sealed record ResolveSessionRequest(string Token, Guid CharacterId);
 
 public sealed record CharacterState(double X, double Y, double Z, double Yaw);
 
-public sealed record ResolvedSession(Guid AccountId, Guid CharacterId, string CharacterName, string ZoneId, CharacterState State);
+public sealed record ResolvedSession(Guid AccountId, Guid CharacterId, string CharacterName, string ZoneId, CharacterState State, string Look = CharacterLooks.Default);
 
 public static class ApiHeaders
 {

@@ -19,6 +19,8 @@ public partial class ConnectMenu : Control
     private VBoxContainer _characterSection = null!;
     private OptionButton _characterList = null!;
     private LineEdit _newCharacterName = null!;
+    private OptionButton _lookList = null!;
+    private TextureRect _portrait = null!;
     private LineEdit _host = null!;
     private SpinBox _port = null!;
     private Label _status = null!;
@@ -30,7 +32,7 @@ public partial class ConnectMenu : Control
 
     public event Action<string, string, string>? LoginRequested;      // url, usuario, contraseña
     public event Action<string, string, string>? RegisterRequested;
-    public event Action<string>? CreateCharacterRequested;
+    public event Action<string, string>? CreateCharacterRequested; // nombre, aspecto
     public event Action<int>? HostRequested;
     public event Action<string, int, CharacterSummary?>? JoinRequested; // personaje null = invitado
 
@@ -73,11 +75,30 @@ public partial class ConnectMenu : Control
         _characterSection.AddChild(Header("Personaje"));
         _characterList = new OptionButton();
         _characterSection.AddChild(_characterList);
-        var createRow = new HBoxContainer();
-        _newCharacterName = new LineEdit { PlaceholderText = "Nombre del personaje nuevo", SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        createRow.AddChild(_newCharacterName);
-        createRow.AddChild(MakeButton("Crear", () => CreateCharacterRequested?.Invoke(_newCharacterName.Text.Trim())));
-        _characterSection.AddChild(createRow);
+        // Personaje nuevo: nombre y aspecto (las cuatro láminas de diseño), con su retrato.
+        var newRow = new HBoxContainer();
+        newRow.AddThemeConstantOverride("separation", 10);
+        var newFields = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        newFields.AddChild(new Label { Text = "Personaje nuevo" });
+        _newCharacterName = new LineEdit { PlaceholderText = "Nombre", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        newFields.AddChild(_newCharacterName);
+        _lookList = new OptionButton();
+        foreach (var look in CharacterLooks.All)
+            _lookList.AddItem(look.Name);
+        _lookList.Select(CharacterLooks.All.ToList().FindIndex(l => l.Code == CharacterLooks.Default));
+        _lookList.ItemSelected += _ => ShowPortrait(SelectedLook().Code);
+        newFields.AddChild(_lookList);
+        newFields.AddChild(MakeButton("Crear", () => CreateCharacterRequested?.Invoke(_newCharacterName.Text.Trim(), SelectedLook().Code)));
+        newRow.AddChild(newFields);
+        _portrait = new TextureRect
+        {
+            CustomMinimumSize = new Vector2(52, 150),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+        };
+        newRow.AddChild(_portrait);
+        _characterSection.AddChild(newRow);
+        ShowPortrait(CharacterLooks.Default);
         box.AddChild(_characterSection);
 
         // 3. Partida
@@ -116,7 +137,7 @@ public partial class ConnectMenu : Control
         _characters = characters.ToList();
         _characterList.Clear();
         foreach (var c in _characters)
-            _characterList.AddItem(c.Name);
+            _characterList.AddItem($"{c.Name} — {CharacterLooks.Find(c.Look).Name}");
         if (_characters.Count > 0)
             _characterList.Select(select is null ? 0 : Math.Max(0, _characters.FindIndex(c => c.Id == select.Id)));
         _characterSection.Visible = true;
@@ -124,6 +145,14 @@ public partial class ConnectMenu : Control
     }
 
     public void ShowStatus(string message) => _status.Text = message;
+
+    private CharacterLook SelectedLook() => CharacterLooks.All[Math.Clamp(_lookList.Selected, 0, CharacterLooks.All.Count - 1)];
+
+    private void ShowPortrait(string look)
+    {
+        var path = $"res://assets/portraits/{look}.jpg";
+        _portrait.Texture = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+    }
 
     public void SetBusy(bool busy)
     {

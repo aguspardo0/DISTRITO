@@ -159,4 +159,23 @@ public class AccountsAndCharactersApiTests
         var response = await second.CreateClient().GetAsync("/health/ready");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
+
+    [Fact]
+    public async Task El_personaje_guarda_el_aspecto_elegido()
+    {
+        await using var factory = TestBackend.Create();
+        var api = TestBackend.Api(factory);
+        var user = TestBackend.UniqueUser();
+        await api.RegisterAsync(user, "contraseña-larga-1");
+        var token = (await api.LoginAsync(user, "contraseña-larga-1")).Value!.Token;
+
+        var created = await api.CreateCharacterAsync(token, TestBackend.UniqueCharacterName(), "ejecutivo");
+        Assert.True(created.IsSuccess);
+        Assert.Equal("ejecutivo", created.Value!.Look);
+        Assert.Equal("ejecutivo", (await api.ListCharactersAsync(token)).Value!.Single().Look);
+        Assert.Equal("ejecutivo", (await api.ResolveSessionAsync(TestBackend.ServerKey, token, created.Value.Id)).Value!.Look);
+
+        Assert.False((await api.CreateCharacterAsync(token, TestBackend.UniqueCharacterName(), "pirata")).IsSuccess);
+        Assert.Equal(Distrito.Shared.Api.CharacterLooks.Default, (await api.CreateCharacterAsync(token, TestBackend.UniqueCharacterName())).Value!.Look);
+    }
 }

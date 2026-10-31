@@ -103,7 +103,9 @@ public static class Endpoints
         if (invalid is not null)
             return Error(400, "invalid", invalid);
 
-        var (outcome, character) = await characters.CreateAsync(accountId.Value, request.Name, ct);
+        if (!CharacterLooks.IsValid(request.Look))
+            return Error(400, "invalid", "Ese aspecto de personaje no existe.");
+        var (outcome, character) = await characters.CreateAsync(accountId.Value, request.Name, ct, request.Look);
         return outcome switch
         {
             CreateCharacterOutcome.Created => Results.Created($"/api/characters/{character!.Id}", character),

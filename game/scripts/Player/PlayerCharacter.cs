@@ -1,3 +1,4 @@
+using Distrito.Shared.Api;
 using Distrito.Server.Core.Movement;
 using Godot;
 
@@ -29,6 +30,13 @@ public partial class PlayerCharacter : CharacterBody3D
     [Export]
     public string CrewName { get; set; } = "";
 
+    /// <summary>Aspecto (código de CharacterLooks). Lo fija el servidor y se replica al aparecer.</summary>
+    [Export]
+    public string Look { get; set; } = "";
+
+    private CharacterModel? _model;
+    private Vector3 _lastVisualPosition;
+
     private Label3D _nameTag = null!;
     private string _shownTag = "";
 
@@ -48,9 +56,22 @@ public partial class PlayerCharacter : CharacterBody3D
         _visual.TopLevel = true;
         _visual.GlobalTransform = GlobalTransform;
 
-        GetNode<MeshInstance3D>("Visual/Body").MaterialOverride = new StandardMaterial3D { AlbedoColor = ColorFor(PeerId) };
+        GetNode<MeshInstance3D>("Visual/Body").Visible = false;
+        GetNode<MeshInstance3D>("Visual/Facing").Visible = false;
+        RefreshModel();
+        _lastVisualPosition = _visual.GlobalPosition;
         _nameTag = GetNode<Label3D>("Visual/NameTag");
         RefreshNameTag();
+    }
+
+    private void RefreshModel()
+    {
+        var look = Look.Length > 0 ? CharacterLooks.Find(Look) : CharacterLooks.ForGuest(PeerId);
+        if (_model is not null && _model.LookCode == look.Code)
+            return;
+        _model?.QueueFree();
+        _model = CharacterModel.Build(look);
+        _visual.AddChild(_model);
     }
 
     private void RefreshNameTag()
@@ -66,6 +87,8 @@ public partial class PlayerCharacter : CharacterBody3D
     public override void _Process(double delta)
     {
         RefreshNameTag();
+        RefreshModel();
+        AnimateModel((float)delta);
         if (VisualOverride is { } predicted && IsInstanceValid(predicted))
         {
             // Personaje propio: se muestra la predicción local, sin demora.
@@ -135,9 +158,14 @@ public partial class PlayerCharacter : CharacterBody3D
         }
     }
 
-    private static Color ColorFor(long peerId)
+    /// <summary>La caminata sale de cuánto se movió el modelo visual (sirve igual para el propio y para los demás).</summary>
+    private void AnimateModel(float delta)
     {
-        var hue = (float)(peerId * 0.618033988749895 % 1.0);
-        return Color.FromHsv(hue, 0.65f, 0.9f);
+        if (_model is null || delta <= 0)
+            return;
+        var now = _visual.GlobalPosition;
+        var moved = new Vector2(now.X - _lastVisualPosition.X, now.Z - _lastVisualPosition.Z).Length();
+        _lastVisualPosition = now;
+        _model.Animate(moved / delta, delta);
     }
 }

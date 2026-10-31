@@ -11,17 +11,17 @@ public sealed class CharacterStore(NpgsqlDataSource db)
     public async Task<List<CharacterSummary>> ListAsync(Guid accountId, CancellationToken ct)
     {
         await using var cmd = db.CreateCommand(
-            "SELECT id, name, zone_id FROM distrito.characters WHERE account_id = @a ORDER BY created_at");
+            "SELECT id, name, zone_id, look FROM distrito.characters WHERE account_id = @a ORDER BY created_at");
         cmd.Parameters.AddWithValue("a", accountId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         var list = new List<CharacterSummary>();
         while (await reader.ReadAsync(ct))
-            list.Add(new CharacterSummary(reader.GetGuid(0), reader.GetString(1), reader.GetString(2)));
+            list.Add(new CharacterSummary(reader.GetGuid(0), reader.GetString(1), reader.GetString(2), reader.GetString(3)));
         return list;
     }
 
     public async Task<(CreateCharacterOutcome Outcome, CharacterSummary? Character)> CreateAsync(
-        Guid accountId, string name, CancellationToken ct)
+        Guid accountId, string name, CancellationToken ct, string look = CharacterLooks.Default)
     {
         await using var connection = await db.OpenConnectionAsync(ct);
         await using var tx = await connection.BeginTransactionAsync(ct);
@@ -44,8 +44,8 @@ public sealed class CharacterStore(NpgsqlDataSource db)
 
         var id = Guid.CreateVersion7();
         await using (var insert = new NpgsqlCommand("""
-            INSERT INTO distrito.characters (id, account_id, name, name_normalized, zone_id, pos_x, pos_y, pos_z)
-            VALUES (@id, @a, @name, @norm, @zone, @x, @y, @z)
+            INSERT INTO distrito.characters (id, account_id, name, name_normalized, zone_id, pos_x, pos_y, pos_z, look)
+            VALUES (@id, @a, @name, @norm, @zone, @x, @y, @z, @look)
             ON CONFLICT (name_normalized) DO NOTHING
             """, connection, tx))
         {
@@ -57,12 +57,13 @@ public sealed class CharacterStore(NpgsqlDataSource db)
             insert.Parameters.AddWithValue("x", ZoneIds.NewCharacterSpawn.X);
             insert.Parameters.AddWithValue("y", ZoneIds.NewCharacterSpawn.Y);
             insert.Parameters.AddWithValue("z", ZoneIds.NewCharacterSpawn.Z);
+            insert.Parameters.AddWithValue("look", look);
             if (await insert.ExecuteNonQueryAsync(ct) == 0)
                 return (CreateCharacterOutcome.NameTaken, null);
         }
 
         await tx.CommitAsync(ct);
-        return (CreateCharacterOutcome.Created, new CharacterSummary(id, name, ZoneIds.TestNeighborhood));
+        return (CreateCharacterOutcome.Created, new CharacterSummary(id, name, ZoneIds.TestNeighborhood, look));
     }
 
     /// <summary>Datos del personaje si pertenece a la cuenta.</summary>
@@ -72,7 +73,7 @@ public sealed class CharacterStore(NpgsqlDataSource db)
         await using var cmd = db.CreateCommand("""
             UPDATE distrito.characters SET last_seen_at = now()
             WHERE id = @c AND account_id = @a
-            RETURNING name, zone_id, pos_x, pos_y, pos_z, yaw
+            RETURNING name, zone_id, pos_x, pos_y, pos_z, yaw, look
             """);
         cmd.Parameters.AddWithValue("c", characterId);
         cmd.Parameters.AddWithValue("a", accountId);
@@ -81,7 +82,7 @@ public sealed class CharacterStore(NpgsqlDataSource db)
             return null;
 
         return new ResolvedSession(accountId, characterId, reader.GetString(0), reader.GetString(1),
-            new CharacterState(reader.GetDouble(2), reader.GetDouble(3), reader.GetDouble(4), reader.GetDouble(5)));
+            new CharacterState(reader.GetDouble(2), reader.GetDouble(3), reader.GetDouble(4), reader.GetDouble(5)), reader.GetString(6));
     }
 
     public async Task<bool> SaveStateAsync(Guid characterId, CharacterState state, CancellationToken ct)

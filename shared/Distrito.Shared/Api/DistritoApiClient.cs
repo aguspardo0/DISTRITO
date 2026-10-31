@@ -35,7 +35,10 @@ public sealed class DistritoApiClient(HttpClient http)
         SendAsync<List<CharacterSummary>>(HttpMethod.Get, "api/characters", null, r => Bearer(r, token), ct);
 
     public Task<ApiResult<CharacterSummary>> CreateCharacterAsync(string token, string name, CancellationToken ct = default) =>
-        SendAsync<CharacterSummary>(HttpMethod.Post, "api/characters", new CreateCharacterRequest(name), r => Bearer(r, token), ct);
+        CreateCharacterAsync(token, name, CharacterLooks.Default, ct);
+
+    public Task<ApiResult<CharacterSummary>> CreateCharacterAsync(string token, string name, string look, CancellationToken ct = default) =>
+        SendAsync<CharacterSummary>(HttpMethod.Post, "api/characters", new CreateCharacterRequest(name, look), r => Bearer(r, token), ct);
 
     public Task<ApiResult<ResolvedSession>> ResolveSessionAsync(string serverKey, string token, Guid characterId, CancellationToken ct = default) =>
         SendAsync<ResolvedSession>(HttpMethod.Post, "internal/sessions/resolve", new ResolveSessionRequest(token, characterId),
