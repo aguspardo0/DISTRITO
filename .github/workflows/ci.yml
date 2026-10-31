@@ -161,7 +161,8 @@ jobs:
 
       - name: Leer servidor de pruebas
         run: |
-          if [ -z "$DEPLOY_HOST" ] && [ -f deploy/target.env ]; then
+          # deploy/target.env manda: la IP y el usuario no son secretos y así no quedan desactualizados en GitHub.
+          if [ -f deploy/target.env ]; then
             grep -E '^DEPLOY_(HOST|USER)=' deploy/target.env >> "$GITHUB_ENV"
           fi
 
@@ -208,8 +209,8 @@ jobs:
 
       - name: Leer servidor de pruebas
         run: |
-          # Los secretos tienen prioridad; si no están, se usa deploy/target.env (IP y usuario no son secretos).
-          if [ -z "$DEPLOY_HOST" ] && [ -f deploy/target.env ]; then
+          # deploy/target.env manda: la IP y el usuario no son secretos y así no quedan desactualizados en GitHub.
+          if [ -f deploy/target.env ]; then
             grep -E '^DEPLOY_(HOST|USER)=' deploy/target.env >> "$GITHUB_ENV"
           fi
 
@@ -249,10 +250,21 @@ jobs:
           arch=x64
           if [ -n "$DEPLOY_HOST" ] && [ -n "$DEPLOY_SSH_KEY" ]; then
             key="$RUNNER_TEMP/k"; printf '%s\n' "$DEPLOY_SSH_KEY" > "$key"; chmod 600 "$key"
-            machine=$(ssh -i "$key" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 "${DEPLOY_USER:-ubuntu}@$DEPLOY_HOST" uname -m || echo "?")
+            tr -d '\r' < "$key" > "$key.n" && mv "$key.n" "$key" && chmod 600 "$key"
+            head -1 "$key" | grep -q "BEGIN" || echo "::warning title=Despliegue::la llave DEPLOY_SSH_KEY no empieza con -----BEGIN"
+            machine=""
+            for attempt in 1 2 3; do
+              machine=$(ssh -i "$key" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -o BatchMode=yes \
+                "${DEPLOY_USER:-ubuntu}@$DEPLOY_HOST" uname -m 2>ssh-err.txt) && break
+              sleep 15
+            done
             rm -f "$key"
             echo "Servidor: $machine"
-            case "$machine" in aarch64|arm64) arch=arm64 ;; x86_64) arch=x64 ;; *) echo "::error title=Despliegue::no se pudo conectar por SSH a ${DEPLOY_USER:-ubuntu}@$DEPLOY_HOST"; exit 1 ;; esac
+            case "$machine" in
+              aarch64|arm64) arch=arm64 ;;
+              x86_64) arch=x64 ;;
+              *) echo "::error title=Despliegue::no se pudo conectar por SSH a ${DEPLOY_USER:-ubuntu}@$DEPLOY_HOST — $(tail -2 ssh-err.txt | tr '\n' ' ')"; exit 1 ;;
+            esac
           fi
           echo "ARCH=$arch" >> "$GITHUB_ENV"
           if [ "$arch" = arm64 ]; then echo "PRESET=Linux Server ARM64" >> "$GITHUB_ENV"; else echo "PRESET=Linux Server x64" >> "$GITHUB_ENV"; fi

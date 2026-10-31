@@ -53,7 +53,7 @@ public partial class CrewNetwork : Node
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerCreate(string name) =>
-        Handle((api, me) => api.CreateCrewAsync(_network.ServerKey, new CreateCrewRequest(me, name.Trim())));
+        Handle(async (api, me) => (ApiResult<CrewActionResult>?)await api.CreateCrewAsync(_network.ServerKey, new CreateCrewRequest(me, name.Trim())));
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerInvite(long targetPeer) =>
@@ -72,13 +72,13 @@ public partial class CrewNetwork : Node
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerRespond(string crewId, bool accept) =>
-        Handle((api, me) => Guid.TryParse(crewId, out var id)
-            ? api.RespondCrewInvitationAsync(_network.ServerKey, new CrewInvitationResponse(me, id, accept))
-            : Task.FromResult<ApiResult<CrewActionResult>>(null!));
+        Handle(async (api, me) => Guid.TryParse(crewId, out var id)
+            ? await api.RespondCrewInvitationAsync(_network.ServerKey, new CrewInvitationResponse(me, id, accept))
+            : null);
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerLeave() =>
-        Handle((api, me) => api.LeaveCrewAsync(_network.ServerKey, new LeaveCrewRequest(me)));
+        Handle(async (api, me) => (ApiResult<CrewActionResult>?)await api.LeaveCrewAsync(_network.ServerKey, new LeaveCrewRequest(me)));
 
     // ================= Servidor =================
 

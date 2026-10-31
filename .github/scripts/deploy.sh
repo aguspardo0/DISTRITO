@@ -7,7 +7,7 @@ user="${DEPLOY_USER:-ubuntu}"
 domain="$(echo "$DEPLOY_HOST" | tr . -).sslip.io"
 key="$RUNNER_TEMP/deploy_key"
 
-printf '%s\n' "$DEPLOY_SSH_KEY" > "$key"
+printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > "$key"
 chmod 600 "$key"
 ssh_opts=(-i "$key" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -o ServerAliveInterval=15)
 
