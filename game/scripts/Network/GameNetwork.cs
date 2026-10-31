@@ -317,14 +317,16 @@ public partial class GameNetwork : Node
         var query = new PhysicsShapeQueryParameters3D
         {
             Shape = new CapsuleShape3D { Radius = 0.4f, Height = 1.8f },
-            Transform = new Transform3D(Basis.Identity, saved + new Vector3(0, 1.0f, 0)),
+            // Se eleva el volumen 0,3 m para no tocar el piso aunque el personaje haya quedado apenas hundido.
+            Transform = new Transform3D(Basis.Identity, saved + new Vector3(0, 1.2f, 0)),
             CollisionMask = 1,
         };
         foreach (var hit in _players.GetWorld3D().DirectSpaceState.IntersectShape(query, 8))
         {
-            if (hit["collider"].AsGodotObject() is StaticBody3D)
+            // El piso también es un cuerpo estático: solo cuentan edificios y objetos sólidos.
+            if (hit["collider"].AsGodotObject() is StaticBody3D body && body.Name != "Ground")
             {
-                Report($"Posición guardada de {who} dentro de un edificio: aparece en un lugar seguro.");
+                Report($"Posición guardada de {who} dentro de {body.Name} ({saved.X:0.0}, {saved.Y:0.0}, {saved.Z:0.0}): aparece en un lugar seguro.");
                 return fallback;
             }
         }

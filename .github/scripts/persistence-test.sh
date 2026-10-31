@@ -80,6 +80,8 @@ else
   error "Ronda 2" "no se obtuvo la posición final de la ronda 1"
 fi
 
+grep -h "Posición guardada" persist-server.log | while IFS= read -r l; do echo "::warning title=Servidor (ubicación)::${l#*\] }"; done
+
 # --- Ubicación segura: posiciones guardadas corruptas (fuera del barrio / dentro de un edificio) ---
 PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -q -c "
   UPDATE distrito.characters SET pos_x = 500, pos_y = 1, pos_z = 500 WHERE name = 'Bot Alfa';
