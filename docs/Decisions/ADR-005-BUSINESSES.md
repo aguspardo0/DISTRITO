@@ -27,3 +27,10 @@
 ## Pendiente
 
 Demanda variable (oferta y demanda, competencia entre puestos), empleados, otros tipos de negocio (restaurante, club, taller…), negocios de organizaciones, robo/riesgo, impuestos.
+
+## Actualización 2026-10-31 — tipos de negocio
+
+Los negocios son tipos configurables (`EconomyCatalog.BusinessTypes`): licencia, alquiler, mercadería y proveedor,
+precio de venta, demanda base, empleado opcional y bonus nocturno. Tipos: puesto de café y club de jazz
+(licencia $30, alquiler $2, cajón $4 → venta $7, 2 por ciclo, músico $2 → +1, +1 de 20 a 4 hs, hora de Argentina).
+Un personaje puede tener un negocio de cada tipo (migración 0010).
