@@ -307,6 +307,7 @@ jobs:
             echo "::error title=Servidor real::https://$DEPLOY_DOMAIN no respondió"
             exit 1
           fi
+          dotnet build game/Distrito.Game.csproj -c Debug -v q -nologo > /dev/null
           # cuenta de CI estable; la contraseña deriva de un secreto, no está en el repo
           pass=$(printf '%s' "$DEPLOY_SSH_KEY-ci" | sha256sum | cut -c1-32)
           timeout 90 "$GODOT" --headless --path game -- \
@@ -321,7 +322,7 @@ jobs:
             [ -s prod-test.log ] || echo "::error title=Bot contra servidor real::el log está vacío"
             key="$RUNNER_TEMP/k3"; .github/scripts/prepare-key.sh "$key" >/dev/null
             ssh -i "$key" -o StrictHostKeyChecking=accept-new -o BatchMode=yes "${TARGET_USER:-root}@${TARGET_HOST:-$DEPLOY_HOST}" \
-              "systemctl is-active distrito-gameserver; journalctl -u distrito-gameserver -n 40 --no-pager | grep DISTRITO | tail -2" 2>&1 | tail -3 | while IFS= read -r l; do echo "::error title=Servidor de juego::${l:0:400}"; done
+              "journalctl -u distrito-gameserver -n 60 --no-pager -o cat | grep -E '\\[DISTRITO\\]|ERROR' | grep -v PagedAllocator | tail -3" 2>&1 | tail -3 | while IFS= read -r l; do echo "::error title=Servidor de juego::${l:0:400}"; done
             echo "::error title=Servidor real::${line:-sin resultado}"
             exit 1
           fi
