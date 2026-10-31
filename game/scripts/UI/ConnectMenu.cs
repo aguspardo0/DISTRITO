@@ -20,6 +20,9 @@ public partial class ConnectMenu : Control
     private OptionButton _characterList = null!;
     private LineEdit _newCharacterName = null!;
     private OptionButton _lookList = null!;
+    private ScrollContainer _scroll = null!;
+    private VBoxContainer _accountSection = null!;
+    private Label _sessionLabel = null!;
     private TextureRect _portrait = null!;
     private LineEdit _host = null!;
     private SpinBox _port = null!;
@@ -45,12 +48,15 @@ public partial class ConnectMenu : Control
         center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(center);
 
-        var panel = new PanelContainer { CustomMinimumSize = new Vector2(420, 0) };
+        var panel = new PanelContainer { CustomMinimumSize = new Vector2(440, 0) };
         center.AddChild(panel);
-        var margin = new MarginContainer();
+        // Si la ventana es más baja que el menú, se desplaza con la rueda en vez de quedar cortado.
+        _scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        panel.AddChild(_scroll);
+        var margin = new MarginContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         foreach (var side in new[] { "left", "right", "top", "bottom" })
             margin.AddThemeConstantOverride($"margin_{side}", 18);
-        panel.AddChild(margin);
+        _scroll.AddChild(margin);
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 6);
         margin.AddChild(box);
@@ -59,16 +65,22 @@ public partial class ConnectMenu : Control
         title.AddThemeFontSizeOverride("font_size", 22);
         box.AddChild(title);
 
-        // 1. Cuenta
-        box.AddChild(Header("Cuenta (opcional)"));
-        _backendUrl = Field(box, "Servidor de cuentas (vacío = jugar sin cuenta)", InitialBackendUrl, "http://servidor:5080");
-        _username = Field(box, "Usuario", "", "");
-        _password = Field(box, "Contraseña", "", "");
+        // 1. Cuenta (se oculta al iniciar sesión)
+        _accountSection = new VBoxContainer();
+        _accountSection.AddThemeConstantOverride("separation", 6);
+        box.AddChild(_accountSection);
+        _accountSection.AddChild(Header("Cuenta (opcional)"));
+        _backendUrl = Field(_accountSection, "Servidor de cuentas (vacío = jugar sin cuenta)", InitialBackendUrl, "http://servidor:5080");
+        _username = Field(_accountSection, "Usuario", "", "");
+        _password = Field(_accountSection, "Contraseña", "", "");
         _password.Secret = true;
         var accountButtons = new HBoxContainer();
         accountButtons.AddChild(MakeButton("Ingresar", () => LoginRequested?.Invoke(_backendUrl.Text.Trim(), _username.Text.Trim(), _password.Text)));
         accountButtons.AddChild(MakeButton("Crear cuenta", () => RegisterRequested?.Invoke(_backendUrl.Text.Trim(), _username.Text.Trim(), _password.Text)));
-        box.AddChild(accountButtons);
+        _accountSection.AddChild(accountButtons);
+        _sessionLabel = new Label { Visible = false };
+        _sessionLabel.AddThemeColorOverride("font_color", new Color(0.75f, 0.9f, 0.75f));
+        box.AddChild(_sessionLabel);
 
         // 2. Personaje
         _characterSection = new VBoxContainer { Visible = false };
@@ -141,10 +153,23 @@ public partial class ConnectMenu : Control
         if (_characters.Count > 0)
             _characterList.Select(select is null ? 0 : Math.Max(0, _characters.FindIndex(c => c.Id == select.Id)));
         _characterSection.Visible = true;
+        _accountSection.Visible = false;
+        _sessionLabel.Text = _username.Text.Trim().Length > 0 ? $"Sesión iniciada: {_username.Text.Trim()}" : "Sesión iniciada";
+        _sessionLabel.Visible = true;
         _newCharacterName.Text = "";
     }
 
     public void ShowStatus(string message) => _status.Text = message;
+
+    public override void _Process(double delta)
+    {
+        // Alto del menú: el del contenido, pero nunca más que la ventana (menos un margen).
+        var content = _scroll.GetChild<Control>(0).GetCombinedMinimumSize().Y;
+        var max = GetViewportRect().Size.Y - 40;
+        var height = Mathf.Min(content, max);
+        if (!Mathf.IsEqualApprox(_scroll.CustomMinimumSize.Y, height))
+            _scroll.CustomMinimumSize = new Vector2(440, height);
+    }
 
     private CharacterLook SelectedLook() => CharacterLooks.All[Math.Clamp(_lookList.Selected, 0, CharacterLooks.All.Count - 1)];
 

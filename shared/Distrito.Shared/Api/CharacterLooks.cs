@@ -26,11 +26,11 @@ public static class CharacterLooks
     public const string Default = "trabajador";
 
     public static readonly CharacterLook Ejecutivo = new("ejecutivo", "El Ejecutivo",
-        Skin: "#c99a7a", Hair: "#1c1612", Shirt: "#e8dcc8", Pants: "#1d1d22", Top: "#26262c", Accent: "#6e1a24", Shoes: "#141210",
+        Skin: "#c99a7a", Hair: "#1c1612", Shirt: "#b9ae9c", Pants: "#1d1d22", Top: "#26262c", Accent: "#6e1a24", Shoes: "#141210",
         Hat: null, LongCoat: true, Vest: true);
 
     public static readonly CharacterLook Operativo = new("operativo", "El Operativo",
-        Skin: "#c08f6c", Hair: "#2a2018", Shirt: "#ddd2bf", Pants: "#2e2620", Top: "#2e2620", Accent: "#4a3022", Shoes: "#5a3a24",
+        Skin: "#c08f6c", Hair: "#2a2018", Shirt: "#b3a690", Pants: "#2e2620", Top: "#2e2620", Accent: "#4a3022", Shoes: "#5a3a24",
         Hat: "#4d463e", Suspenders: true);
 
     public static readonly CharacterLook Trabajador = new("trabajador", "El Trabajador",
@@ -38,7 +38,7 @@ public static class CharacterLooks
         Hat: "#5a4a3a", Jacket: true, Mustache: true);
 
     public static readonly CharacterLook Asociado = new("asociado", "El Asociado",
-        Skin: "#c49474", Hair: "#141010", Shirt: "#e2d6c2", Pants: "#3a2f26", Top: "#2a2826", Accent: "#4f5048", Shoes: "#1a1512",
+        Skin: "#c49474", Hair: "#141010", Shirt: "#b7aa95", Pants: "#3a2f26", Top: "#2a2826", Accent: "#4f5048", Shoes: "#1a1512",
         Hat: "#3c3a36", Vest: true);
 
     public static readonly IReadOnlyList<CharacterLook> All = [Ejecutivo, Operativo, Trabajador, Asociado];

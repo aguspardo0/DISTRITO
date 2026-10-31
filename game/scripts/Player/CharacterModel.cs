@@ -54,7 +54,7 @@ public partial class CharacterModel : Node3D
         if (look.Vest || look.LongCoat)
             Add(m, Box(0.05f, 0.26f, 0.01f), accent, new Vector3(0, 1.4f, -0.135f)); // corbata
         if (look.LongCoat)
-            Add(m, Box(0.07f, 0.04f, 0.01f), Mat("#e8dcc8"), new Vector3(0.15f, 1.44f, -0.16f)); // pañuelo
+            Add(m, Box(0.07f, 0.04f, 0.01f), Mat("#cfc4b0"), new Vector3(0.15f, 1.44f, -0.16f)); // pañuelo
         if (look.Suspenders)
         {
             foreach (var x in new[] { -0.11f, 0.11f })
