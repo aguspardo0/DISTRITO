@@ -29,7 +29,7 @@ public partial class CrewNetwork : Node
     public void Initialize(GameNetwork network)
     {
         _network = network;
-        _network.PlayerAdmitted += (peer, _) => _ = RefreshPeerAsync(peer);
+        _network.PlayerAdmitted += (peer, session) => _ = RefreshPeerAsync(peer);
     }
 
     // ================= Cliente → servidor =================
