@@ -280,6 +280,17 @@ public partial class Main : Node3D
         _menu = menu;
         layer.AddChild(menu);
 
+        // Actualización automática (solo el juego exportado de Windows, y no en pruebas automáticas).
+        if (Options.UiSnapshotDir is null && GameUpdater.Supported && defaults.Version.Length > 0)
+        {
+            var updater = new GameUpdater { Name = "Updater" };
+            AddChild(updater);
+            updater.Status += text => menu.ShowStatus(text);
+            updater.Busy += busy => menu.SetBusy(busy);
+            menu.ShowStatus($"Versión {defaults.Version}. Buscando actualizaciones…");
+            updater.Start(defaults.Version);
+        }
+
         menu.LoginRequested += (url, user, pass) => _ = AccountActionAsync(menu, url, s => s.LoginAsync(user, pass));
         menu.RegisterRequested += (url, user, pass) =>
             _ = AccountActionAsync(menu, url, s => s.RegisterAndLoginAsync(user, pass, acceptExisting: false));

@@ -7,11 +7,11 @@ namespace Distrito.Game.Backend;
 /// Dirección del servidor oficial, para que el menú venga completo.
 /// El archivo res://server_defaults.json lo genera la CI al exportar el cliente (no está en el repo).
 /// </summary>
-public sealed record ServerDefaults(string BackendUrl, string GameHost)
+public sealed record ServerDefaults(string BackendUrl, string GameHost, string Version = "")
 {
     private const string FilePath = "res://server_defaults.json";
 
-    public static ServerDefaults Empty { get; } = new("", "");
+    public static ServerDefaults Empty { get; } = new("", "", "");
 
     public static ServerDefaults Load()
     {

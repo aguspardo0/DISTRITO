@@ -227,12 +227,17 @@ jobs:
             grep -E '^DEPLOY_USER=' deploy/target.env | sed 's/^DEPLOY_USER=/TARGET_USER=/' >> "$GITHUB_ENV"
           fi
 
-      - name: Apuntar el cliente al servidor oficial
-        if: env.TARGET_HOST != '' || env.DEPLOY_HOST != ''
+      - name: Apuntar el cliente al servidor oficial y marcar la versión
         run: |
           host="${TARGET_HOST:-$DEPLOY_HOST}"
-          domain="$(echo "$host" | tr . -).sslip.io"
-          printf '{"backendUrl":"https://%s","gameHost":"%s"}\n' "$domain" "$host" > game/server_defaults.json
+          version="${GITHUB_SHA::7}"
+          if [ -n "$host" ]; then
+            domain="$(echo "$host" | tr . -).sslip.io"
+            printf '{"backendUrl":"https://%s","gameHost":"%s","version":"%s"}\n' "$domain" "$host" "$version" > game/server_defaults.json
+          else
+            printf '{"backendUrl":"","gameHost":"","version":"%s"}\n' "$version" > game/server_defaults.json
+          fi
+          echo "$version" > version.txt
           cat game/server_defaults.json
 
       - name: Exportar
@@ -250,7 +255,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete prototipo --yes --cleanup-tag || true
-          gh release create prototipo DISTRITO-windows.zip \
+          gh release create prototipo DISTRITO-windows.zip version.txt \
             --prerelease \
             --target "$GITHUB_SHA" \
             --title "Prototipo (último build de main)" \

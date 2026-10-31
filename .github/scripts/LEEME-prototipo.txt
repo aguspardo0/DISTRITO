@@ -23,3 +23,9 @@ AVISOS DE WINDOWS
   - SmartScreen puede decir "Windows protegió su PC": tocá "Más información" -> "Ejecutar de todas formas".
     Pasa porque el .exe no está firmado digitalmente.
   - El firewall puede pedir permiso de red al crear partida: aceptá.
+
+ACTUALIZACIONES
+Desde esta versión el juego se actualiza solo: al abrirlo busca si hay una versión nueva, la descarga,
+se cierra y se vuelve a abrir actualizado. No hace falta descargar el zip de nuevo.
+Si no puede (sin internet, o la carpeta está en un lugar protegido como "Archivos de programa"),
+sigue funcionando con la versión que tenés y te avisa en el menú.
