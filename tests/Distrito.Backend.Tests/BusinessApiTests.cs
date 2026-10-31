@@ -45,10 +45,10 @@ public class BusinessApiTests
 
         // Dos ciclos: vende 2 y después 1 (se queda sin stock). El dueño no hace nada: la economía sigue sola.
         var start = economy.CurrentCycle();
-        Assert.Equal(2, await economy.RunBusinessCyclesAsync(start + 1, default));
-        Assert.Equal(0, await economy.RunBusinessCyclesAsync(start + 1, default)); // repetir el mismo ciclo no vende de nuevo
-        Assert.Equal(1, await economy.RunBusinessCyclesAsync(start + 2, default));
-        Assert.Equal(0, await economy.RunBusinessCyclesAsync(start + 5, default)); // sin stock, nada
+        Assert.Equal(2, await economy.RunBusinessCyclesAsync(start + 1, default, id));
+        Assert.Equal(0, await economy.RunBusinessCyclesAsync(start + 1, default, id)); // repetir el mismo ciclo no vende de nuevo
+        Assert.Equal(1, await economy.RunBusinessCyclesAsync(start + 2, default, id));
+        Assert.Equal(0, await economy.RunBusinessCyclesAsync(start + 5, default, id)); // sin stock, nada
 
         var business = (await api.GetEconomyAsync(Key, id)).Value!.Business!;
         Assert.Equal(0, business.Stock);
@@ -96,7 +96,7 @@ public class BusinessApiTests
         await api.BusinessActionAsync(Key, "restock", Req(id));
 
         var cycle = economy.CurrentCycle() + 1;
-        var results = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => economy.RunBusinessCyclesAsync(cycle, default)));
+        var results = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => economy.RunBusinessCyclesAsync(cycle, default, id)));
         Assert.Equal(EconomyCatalog.CoffeeDemandPerCycle, results.Sum());
 
         await using var db = NpgsqlDataSource.Create(TestBackend.ConnectionString);

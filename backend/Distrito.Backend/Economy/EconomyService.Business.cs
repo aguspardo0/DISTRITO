@@ -88,12 +88,14 @@ public sealed partial class EconomyService
     /// Cada ciclo de cada negocio es idempotente (clave business-cycle:id:ciclo), así que puede correr
     /// en varios procesos o repetirse sin duplicar ventas. Devuelve cuántas unidades se vendieron en total.
     /// </summary>
-    public async Task<int> RunBusinessCyclesAsync(long currentCycle, CancellationToken ct)
+    public async Task<int> RunBusinessCyclesAsync(long currentCycle, CancellationToken ct, Guid? onlyBusinessOf = null)
     {
         var pending = new List<Guid>();
-        await using (var cmd = db.CreateCommand("SELECT id FROM distrito.businesses WHERE last_cycle < @cycle"))
+        await using (var cmd = db.CreateCommand(
+            "SELECT id FROM distrito.businesses WHERE last_cycle < @cycle AND (@owner::uuid IS NULL OR owner_character_id = @owner)"))
         {
             cmd.Parameters.AddWithValue("cycle", currentCycle);
+            cmd.Parameters.AddWithValue("owner", (object?)onlyBusinessOf ?? DBNull.Value);
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct)) pending.Add(reader.GetGuid(0));
         }
