@@ -71,9 +71,17 @@ public partial class MapPanel : Control
             DrawRect(new Rect2(corner, new Vector2(b.Width * scale, b.Depth * scale)), Building);
         }
 
+        var territory = Economy?.Invoke()?.Territory;
         foreach (var npc in NpcInteractionRules.All)
         {
             var at = ToMap(npc.Position.X, npc.Position.Z);
+            // Territorio: un aro de color si la zona del lugar tiene dueño, con el nombre de la cuadrilla.
+            if (Distrito.Shared.Economy.TerritoryRules.ZoneOfNpc(npc.Code) is { } zoneCode && territory?.Zone(zoneCode) is { ControllerCrew: { } owner })
+            {
+                var color = Color.FromHsv(owner.Sum(ch => ch) * 37 % 360 / 360f, 0.6f, 0.9f); // mismo color en todos los equipos
+                DrawArc(at, 22, 0, Mathf.Tau, 32, color, 3);
+                DrawString(font, at + new Vector2(-30, 36), $"«{owner}»", HorizontalAlignment.Left, -1, 11, color);
+            }
             DrawRect(new Rect2(at - new Vector2(4, 4), new Vector2(8, 8)), Brass);
             DrawString(font, at + new Vector2(7, 4), npc.Name, HorizontalAlignment.Left, -1, 11, Brass);
         }

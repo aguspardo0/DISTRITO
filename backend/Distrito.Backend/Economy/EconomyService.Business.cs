@@ -223,6 +223,8 @@ public sealed partial class EconomyService
             record.Parameters.AddWithValue("tx", txId);
             await record.ExecuteNonQueryAsync(ct);
             await GrantProgressAsync(c, tx, owner, ProgressionRules.XpPerSalesCycle, logistics: 0, negotiation: 0, administration: 1, ct);
+            if (await CrewOfCharacterAsync(c, tx, owner, ct) is { } ownerCrew && TerritoryRules.ZoneOfNpc(type.SiteNpc) is { } businessZone)
+                await GrantInfluenceAsync(c, tx, ownerCrew, businessZone, TerritoryRules.SalesCyclePoints, $"ventas de {type.Name.ToLowerInvariant()}", ct);
             totalSold += units;
         }
 
@@ -275,6 +277,8 @@ public sealed class BusinessCycleWorker(EconomyService economy, IConfiguration c
         {
             try
             {
+                if (await economy.CloseSeasonsAsync(stoppingToken) > 0)
+                    logger.LogInformation("Temporada de territorio cerrada");
                 var expired = await economy.ExpireContractsAsync(stoppingToken);
                 if (expired > 0)
                     logger.LogInformation("Contratos vencidos: {Expired}", expired);

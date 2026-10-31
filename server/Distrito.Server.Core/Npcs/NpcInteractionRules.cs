@@ -57,6 +57,10 @@ public static class NpcInteractionRules
         };
         var options = rawOptions;
         LevelContractsDialog(npc.Code, s, ref text, options);
+        if (TerritoryRules.ZoneOfNpc(npc.Code) is { } zoneCode && s.Territory?.Zone(zoneCode) is { } zone)
+            text += zone.ControllerCrew is { } owner
+                ? $"\n\nZona {zone.Name}: la controla «{owner}» ({zone.ControllerPoints} de influencia)."
+                : $"\n\nZona {zone.Name}: nadie la controla todavía (hacen falta {TerritoryRules.ControlThreshold} de influencia).";
         if (FamilyRules.FamilyOfNpc(npc.Code) is { } family && s.Families is not null)
             text += $"\n\nÁnimo de la familia: {FamilyRules.Display(s.MoodOf(family))}.";
         return new NpcDialog(npc.Code, npc.Name, prefix is null ? text : $"{prefix}\n\n{text}", options);

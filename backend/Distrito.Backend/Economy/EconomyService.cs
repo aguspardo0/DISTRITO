@@ -170,6 +170,17 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                 var negotiation = (await LoadProgressAsync(c, tx, participants[i], ct)).NegotiationLevel;
                 amounts.Add(ProgressionRules.WithNegotiationBonus(baseAmount, negotiation));
             }
+            // Territorio: quien es de la cuadrilla que controla la zona de entrega cobra +5 %.
+            var zone = TerritoryRules.ZoneOfNpc(template.DestinationNpc);
+            var controller = zone is null ? null : await ControllerOfZoneAsync(c, tx, zone, ct);
+            var crews = new List<Guid?>();
+            for (var i = 0; i < participants.Count; i++)
+            {
+                var crew = await CrewOfCharacterAsync(c, tx, participants[i], ct);
+                crews.Add(crew);
+                if (controller is not null && crew == controller)
+                    amounts[i] = TerritoryRules.WithControlBonus(amounts[i]);
+            }
             if (await BalanceAsync(c, tx, payer, ct) < amounts.Sum())
                 throw new EconomyRejected("client_cannot_pay", "El cliente no tiene fondos para pagar.");
 
@@ -210,6 +221,11 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             for (var i = 0; i < participants.Count; i++)
                 await GrantProgressAsync(c, tx, participants[i], ProgressionRules.XpPerContract,
                     logistics: i == 0 && template.HasGoods ? 1 : 0, negotiation: 1, administration: 0, ct);
+
+            // Influencia en la zona para cada cuadrilla que participó (una vez por contrato).
+            if (zone is not null)
+                foreach (var crew in crews.OfType<Guid>().Distinct())
+                    await GrantInfluenceAsync(c, tx, crew, zone, TerritoryRules.ContractPoints, $"contrato {templateCode}", ct);
 
             var reputationText = EconomyCatalog.DescribeReputation(template.Reputation)
                                  + (myTithe > 0 ? $"; aportaste {EconomyCatalog.FormatMoney(myTithe)} a la caja de la cuadrilla" : "");
@@ -649,6 +665,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
 
         var progress = await LoadProgressAsync(c, tx, characterId, ct);
         var families = await LoadFamilyMoodsAsync(c, tx, ct);
-        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families);
+        var territory = await LoadTerritoryAsync(c, tx, characterId, ct);
+        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory);
     }
 }

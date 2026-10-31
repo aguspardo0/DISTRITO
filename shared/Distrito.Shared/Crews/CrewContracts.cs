@@ -163,6 +163,7 @@ public static partial class CrewRules
         "withdraw" => $"{e.Who} sacó {e.Detail} de la caja",
         "tithe" => $"{e.Who} aportó {e.Detail} de un contrato",
         "settings" => $"{e.Who} cambió los permisos: {e.Detail}",
+        "season_won" => $"Ganó el territorio: {e.Detail}",
         _ => $"{e.Kind} {e.Who} {e.Detail}".Trim(),
     };
 
