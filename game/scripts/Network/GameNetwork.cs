@@ -323,10 +323,11 @@ public partial class GameNetwork : Node
         };
         foreach (var hit in _players.GetWorld3D().DirectSpaceState.IntersectShape(query, 8))
         {
-            // El piso también es un cuerpo estático: solo cuentan edificios y objetos sólidos.
-            if (hit["collider"].AsGodotObject() is StaticBody3D body && body.Name != "Ground")
+            // El piso no cuenta. Sí cuentan edificios, objetos y otros jugadores: dos personajes en el mismo lugar
+            // se empujan sin fin (todo personaje nuevo arranca en el mismo punto).
+            if (hit["collider"].AsGodotObject() is PhysicsBody3D body && body.Name != "Ground")
             {
-                Report($"Posición guardada de {who} dentro de {body.Name} ({saved.X:0.0}, {saved.Y:0.0}, {saved.Z:0.0}): aparece en un lugar seguro.");
+                Report($"Lugar guardado de {who} ocupado por {body.Name} ({saved.X:0.0}, {saved.Y:0.0}, {saved.Z:0.0}): aparece en su punto de aparición.");
                 return fallback;
             }
         }

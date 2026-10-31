@@ -61,8 +61,9 @@ pos_a=$(final_pos persist-r1-a.log); pos_b=$(final_pos persist-r1-b.log)
 sleep 3 # el servidor guarda al detectar la desconexión
 
 saved=$(PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -At -F ' ' \
-  -c "SELECT name, round(pos_x::numeric,2), round(pos_z::numeric,2) FROM distrito.characters ORDER BY name")
-note "Base de datos" "posiciones guardadas: $(echo "$saved" | tr '\n' ';')"
+  -c "SELECT name, round(pos_x::numeric,2), round(pos_y::numeric,2), round(pos_z::numeric,2) FROM distrito.characters ORDER BY name")
+note "Base de datos" "posiciones guardadas (x y z): $(echo "$saved" | tr '\n' ';')"
+if echo "$saved" | awk '{ if ($(NF-1) > 5) bad=1 } END { exit !bad }'; then error "Base de datos" "hay personajes guardados flotando (y > 5)"; fi
 
 # --- Ronda 2: volver y aparecer en el mismo lugar; un duplicado debe ser rechazado ---
 if [ -n "$pos_a" ] && [ -n "$pos_b" ]; then

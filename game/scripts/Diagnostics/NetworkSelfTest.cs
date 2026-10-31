@@ -15,6 +15,8 @@ public partial class NetworkSelfTest : Node
     private const float MinimumDisplacement = 1.0f;
     private const float SpawnTolerance = 0.5f;
     private const float MaxPredictionError = 0.75f;
+    private const float MaxHeight = 5f; // nadie debería quedar flotando en el barrio
+    private float _maxHeight = float.MinValue;
 
     private GameNetwork _network = null!;
     private int _expectedPlayers;
@@ -62,6 +64,7 @@ public partial class NetworkSelfTest : Node
         if (local is not null)
         {
             _firstPosition ??= local.GlobalPosition;
+            _maxHeight = Mathf.Max(_maxHeight, local.GlobalPosition.Y);
             _maxDisplacement = Mathf.Max(_maxDisplacement, FlatDistance(_firstPosition.Value, local.GlobalPosition));
         }
         _maxPlayersSeen = Math.Max(_maxPlayersSeen, _network.PlayerCount);
@@ -93,7 +96,7 @@ public partial class NetworkSelfTest : Node
             ? FlatDistance(predicted.GlobalPosition, local.GlobalPosition)
             : null;
         var rttInfo = _rttSamples == 0 ? "" : $" ping_ms_prom={_rttSum / _rttSamples:0} ping_ms_max={_rttMax:0}";
-        var contractInfo = rttInfo + $" visibles_al_final={visibleNow}"
+        var contractInfo = rttInfo + $" visibles_al_final={visibleNow} altura_max={_maxHeight:0.0}"
             + (predictionError is null ? "" : $" prediccion_error={predictionError:0.00}m") + (_contractBot is null
             ? ""
             : $" contrato={_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance} reputacion_caruso={_contractBot.ReputationCaruso}")
@@ -119,6 +122,7 @@ public partial class NetworkSelfTest : Node
             _maxPlayersSeen < _expectedPlayers ? "no ve a todos los jugadores" :
             _expectMovement && _maxDisplacement < MinimumDisplacement ? "el servidor no movió al personaje" :
             spawnError > SpawnTolerance ? $"apareció a {spawnError:0.00}m del lugar guardado" :
+            _maxHeight > MaxHeight ? $"el personaje quedó flotando a {_maxHeight:0.0} m" :
             predictionError > MaxPredictionError ? $"la predicción local quedó a {predictionError:0.00}m del servidor" :
             _expectVisibleAtEnd is { } v && visibleNow != v ? $"al final ve {visibleNow} jugadores y se esperaban {v}" :
             _businessBot is { Completed: false } ? $"el negocio no cerró el ciclo (quedó en {_businessBot.StepName})" :
