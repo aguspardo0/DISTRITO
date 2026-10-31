@@ -174,12 +174,18 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             var zone = TerritoryRules.ZoneOfNpc(template.DestinationNpc);
             var controller = zone is null ? null : await ControllerOfZoneAsync(c, tx, zone, ct);
             var crews = new List<Guid?>();
+            // Acuerdo: la cuadrilla (o coalición) con acuerdo con la familia que paga cobra +5 %.
+            var payerFamily = FamilyRules.FamilyOfNpc(template.Payer);
+            var pactFaction = payerFamily is null ? null : await FactionOfCrewAsync(c, tx, await PactHolderAsync(c, tx, payerFamily, ct), ct);
             for (var i = 0; i < participants.Count; i++)
             {
                 var crew = await CrewOfCharacterAsync(c, tx, participants[i], ct);
                 crews.Add(crew);
-                if (controller is not null && await FactionOfCrewAsync(c, tx, crew, ct) == controller)
+                var faction = await FactionOfCrewAsync(c, tx, crew, ct);
+                if (controller is not null && faction == controller)
                     amounts[i] = TerritoryRules.WithControlBonus(amounts[i]);
+                if (faction is not null && pactFaction is not null && faction == pactFaction)
+                    amounts[i] = PactRules.WithBonus(amounts[i]);
             }
             if (await BalanceAsync(c, tx, payer, ct) < amounts.Sum())
                 throw new EconomyRejected("client_cannot_pay", "El cliente no tiene fondos para pagar.");
@@ -680,6 +686,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         var families = await LoadFamilyMoodsAsync(c, tx, ct);
         var territory = await LoadTerritoryAsync(c, tx, characterId, ct);
         var events = UpcomingEvents(TimeSpan.FromHours(24));
-        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory, events);
+        var pacts = await LoadPactsAsync(c, tx, characterId, ct);
+        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory, events, pacts);
     }
 }

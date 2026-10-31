@@ -37,6 +37,8 @@ public static class Endpoints
         internalApi.MapPost("/crews/coalition/invite", (CoalitionInviteRequest r, CrewService s, CancellationToken ct) => s.InviteToCoalitionAsync(r, ct));
         internalApi.MapPost("/crews/coalition/respond", (CoalitionResponseRequest r, CrewService s, CancellationToken ct) => s.RespondCoalitionAsync(r, ct));
         internalApi.MapPost("/crews/coalition/leave", (CoalitionLeaveRequest r, CrewService s, CancellationToken ct) => s.LeaveCoalitionAsync(r, ct));
+        internalApi.MapPost("/crews/vote/open", (CrewVoteOpenRequest r, CrewService s, CancellationToken ct) => s.OpenVoteAsync(r, ct));
+        internalApi.MapPost("/crews/vote/cast", (CrewVoteCastRequest r, CrewService s, CancellationToken ct) => s.CastVoteAsync(r, ct));
         internalApi.MapPost("/crews/deposit", (CrewMoneyRequest r, CrewService s, CancellationToken ct) => s.DepositAsync(r, ct));
         internalApi.MapPost("/crews/withdraw", (CrewMoneyRequest r, CrewService s, CancellationToken ct) => s.WithdrawAsync(r, ct));
         internalApi.MapPost("/crews/settings", (CrewSettingsRequest r, CrewService s, CancellationToken ct) => s.SetSettingsAsync(r, ct));
@@ -46,6 +48,7 @@ public static class Endpoints
         internalApi.MapPost("/crews/leave", (LeaveCrewRequest r, CrewService s, CancellationToken ct) => s.LeaveAsync(r, ct));
         internalApi.MapPost("/economy/business/license", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.BuyLicenseAsync(r, ct));
         internalApi.MapPost("/economy/business/restock", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.RestockAsync(r, ct));
+        internalApi.MapPost("/economy/pact", (PactRequest r, EconomyService e, CancellationToken ct) => e.SignPactAsync(r, ct));
         internalApi.MapPost("/economy/business/hire", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.SetEmployeeAsync(r, hire: true, ct));
         internalApi.MapPost("/economy/business/fire", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.SetEmployeeAsync(r, hire: false, ct));
         internalApi.MapPost("/economy/business/withdraw", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.WithdrawAsync(r, ct));

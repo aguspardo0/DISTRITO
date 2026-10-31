@@ -8,6 +8,16 @@ public partial class CrewPanel : PanelContainer
 {
     private CrewNetwork _crews = null!;
     private VBoxContainer _content = null!;
+    private ScrollContainer _scroll = null!;
+
+    public override void _Process(double delta)
+    {
+        if (!Visible)
+            return;
+        var height = Mathf.Min(_content.GetCombinedMinimumSize().Y, GetViewportRect().Size.Y - 220);
+        if (!Mathf.IsEqualApprox(_scroll.CustomMinimumSize.Y, height))
+            _scroll.CustomMinimumSize = new Vector2(380, height);
+    }
     private Label _message = null!;
 
     public bool IsOpen => Visible;
@@ -22,7 +32,7 @@ public partial class CrewPanel : PanelContainer
     public override void _Ready()
     {
         Visible = false;
-        CustomMinimumSize = new Vector2(340, 0);
+        CustomMinimumSize = new Vector2(410, 0);
 
         var margin = new MarginContainer();
         foreach (var side in new[] { "left", "right", "top", "bottom" })
@@ -37,9 +47,12 @@ public partial class CrewPanel : PanelContainer
         title.AddThemeColorOverride("font_color", new Color(0.95f, 0.8f, 0.45f));
         box.AddChild(title);
 
-        _content = new VBoxContainer();
+        _content = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _content.AddThemeConstantOverride("separation", 4);
-        box.AddChild(_content);
+        // Con mucho contenido (votación, coalición, permisos) el panel se desplaza en vez de salirse de la pantalla.
+        _scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        _scroll.AddChild(_content);
+        box.AddChild(_scroll);
 
         _message = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(310, 0) };
         _message.AddThemeColorOverride("font_color", new Color(0.75f, 0.9f, 0.75f));
@@ -119,6 +132,41 @@ public partial class CrewPanel : PanelContainer
                     : MakeButton("Nombrar segundo", () => _crews.SetRole(id, CrewRoles.Second)));
                 row.AddChild(MakeButton("Expulsar", () => _crews.Kick(id)));
                 _content.AddChild(row);
+            }
+        }
+
+        // Votación.
+        if (status.Vote is { } vote)
+        {
+            if (vote.Status == "open")
+            {
+                var mine = vote.MyVote is null ? "todavía no votaste" : vote.MyVote.Value ? "votaste que sí" : "votaste que no";
+                _content.AddChild(new Label { Text = $"Votación: {vote.Describe()} — sí {vote.Yes}, no {vote.No} de {vote.Members} ({mine}). Cierra {vote.ClosesAt.ToLocalTime():dd/MM HH:mm}." , AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(310, 0) });
+                var row = new HBoxContainer();
+                var id = vote.Id;
+                row.AddChild(MakeButton("Votar sí", () => _crews.CastVote(id, true)));
+                row.AddChild(MakeButton("Votar no", () => _crews.CastVote(id, false)));
+                _content.AddChild(row);
+            }
+            else
+            {
+                _content.AddChild(new Label { Text = $"Última votación: {vote.Describe()} — {(vote.Status == "passed" ? "aprobada" : "no aprobada")}.", AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(310, 0) });
+            }
+        }
+        if (status.Vote is not { Status: "open" } && status.Members.Count > 1)
+        {
+            _content.AddChild(new Label { Text = "Abrir votación (gana con más de la mitad):" });
+            foreach (var member in status.Members)
+            {
+                var row = new HBoxContainer();
+                var id = member.CharacterId;
+                row.AddChild(new Label { Text = member.Name, SizeFlagsHorizontal = SizeFlags.ExpandFill });
+                if (member.Role != CrewRoles.Leader)
+                    row.AddChild(MakeButton("Jefe", () => _crews.OpenVote(CrewVotes.Leader, id, 0)));
+                if (status.TreasuryCents >= 500)
+                    row.AddChild(MakeButton("Darle $5", () => _crews.OpenVote(CrewVotes.Payout, id, 500)));
+                if (row.GetChildCount() > 1)
+                    _content.AddChild(row);
             }
         }
 

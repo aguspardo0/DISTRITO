@@ -20,7 +20,10 @@ public sealed partial class CrewService(NpgsqlDataSource db, TimeProvider clock)
         await using var c = await db.OpenConnectionAsync(ct);
         await using var tx = await c.BeginTransactionAsync(ct);
         if (await CrewOfAsync(c, tx, characterId, ct) is { } crew)
+        {
             await ApplyInactivitySuccessionAsync(c, tx, crew.Id, ct);
+            await CloseExpiredVotesAsync(c, tx, crew.Id, ct);
+        }
         var status = await LoadStatusAsync(c, tx, characterId, ct);
         await tx.CommitAsync(ct);
         return status;
@@ -456,10 +459,14 @@ public sealed partial class CrewService(NpgsqlDataSource db, TimeProvider clock)
         reader.Close();
         CoalitionView? coalition = null;
         List<CoalitionInviteView>? coalitionInvites = null;
+        CrewVoteView? vote = null;
         if (crewId is { } myCrew)
+        {
             (coalition, coalitionInvites) = await LoadCoalitionAsync(c, tx, myCrew, ct);
+            vote = await LoadVoteAsync(c, tx, myCrew, characterId, ct);
+        }
         return new CrewStatus(crewId, crewName, isLeader, members, invitations, level, history, contracts, reputation, treasury, permissions,
-            coalition, coalitionInvites)
+            coalition, coalitionInvites, vote)
         {
             MyRole = members.FirstOrDefault(m => m.CharacterId == characterId)?.Role,
         };

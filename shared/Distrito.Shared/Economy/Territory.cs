@@ -1,5 +1,21 @@
 namespace Distrito.Shared.Economy;
 
+/// <summary>Acuerdo de una familia esta temporada. Mine: lo tiene tu cuadrilla o tu coalición.</summary>
+public sealed record FamilyPactView(string FamilyCode, string HolderCrew, bool Mine);
+
+public sealed record PactRequest(Guid CharacterId, string FamilyCode, string RequestId);
+
+/// <summary>Acuerdos con las familias (propuesta aprobada, 2026-10-31).</summary>
+public static class PactRules
+{
+    public const int RequiredReputation = 50;
+    public const long CostCents = 5_000;
+    public const int ContractBonusPercent = 5;
+    public const int DailyInfluence = 2;
+
+    public static long WithBonus(long cents) => cents * (100 + ContractBonusPercent) / 100;
+}
+
 public sealed record ZoneView(string Code, string Name, string? ControllerCrew, int ControllerPoints, int MyCrewPoints);
 
 /// <summary>Territorio de la temporada actual, visto por un personaje.</summary>

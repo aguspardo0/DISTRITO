@@ -23,7 +23,8 @@ public sealed record CrewStatus(
     long TreasuryCents = 0,
     CrewPermissions? Permissions = null,
     CoalitionView? Coalition = null,
-    List<CoalitionInviteView>? CoalitionInvites = null)
+    List<CoalitionInviteView>? CoalitionInvites = null,
+    CrewVoteView? Vote = null)
 {
     public CrewPermissions Rules => Permissions ?? CrewPermissions.Default;
     public bool CanWithdraw => MyRole is { } r && Rules.CanWithdraw(r);
@@ -87,6 +88,30 @@ public sealed record CoalitionInviteRequest(Guid CharacterId, string TargetCrewN
 public sealed record CoalitionResponseRequest(Guid CharacterId, Guid FromCrewId, bool Accept);
 
 public sealed record CoalitionLeaveRequest(Guid CharacterId);
+
+/// <summary>Votación abierta (o la última cerrada) de la cuadrilla. MyVote: null si todavía no votó.</summary>
+public sealed record CrewVoteView(Guid Id, string Kind, string TargetName, long AmountCents, int Yes, int No, int Members,
+    DateTimeOffset ClosesAt, string Status, bool? MyVote)
+{
+    public string Describe() => Kind == CrewVotes.Leader
+        ? $"Que {TargetName} sea el nuevo jefe"
+        : $"Darle {Distrito.Shared.Economy.EconomyCatalog.FormatMoney(AmountCents)} de la caja a {TargetName}";
+}
+
+public sealed record CrewVoteOpenRequest(Guid CharacterId, string Kind, Guid TargetCharacterId, long AmountCents);
+public sealed record CrewVoteCastRequest(Guid CharacterId, Guid VoteId, bool Yes);
+
+/// <summary>Votaciones (propuesta aprobada, 2026-10-31): mayoría = más de la mitad de los integrantes; 24 h.</summary>
+public static class CrewVotes
+{
+    public const string Leader = "leader";
+    public const string Payout = "payout";
+    public static readonly TimeSpan Duration = TimeSpan.FromHours(24);
+
+    public static bool Passed(int yes, int members) => yes * 2 > members;
+    /// <summary>Ya no puede llegar a la mayoría (los que faltan no alcanzan).</summary>
+    public static bool CannotPass(int no, int members) => (members - no) * 2 <= members;
+}
 
 /// <summary>Reglas de coaliciones (propuesta aprobada por el equipo, 2026-10-31).</summary>
 public static class CoalitionRules
@@ -192,6 +217,10 @@ public static partial class CrewRules
         "coalition_joined" => $"Entró a la coalición {e.Detail}",
         "coalition_left" => $"Salió de la coalición {e.Detail}",
         "coalition_invited" => $"{e.Who} invitó a {e.Detail} a la coalición",
+        "vote_opened" => $"{e.Who} abrió una votación: {e.Detail}",
+        "vote_passed" => $"Se aprobó: {e.Detail}",
+        "vote_failed" => $"No se aprobó: {e.Detail}",
+        "pact_signed" => $"{e.Who} firmó un acuerdo con {e.Detail}",
         _ => $"{e.Kind} {e.Who} {e.Detail}".Trim(),
     };
 

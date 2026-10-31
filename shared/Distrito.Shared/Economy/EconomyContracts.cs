@@ -53,7 +53,8 @@ public sealed record EconomySnapshot(
     List<BusinessView>? Businesses = null,
     List<FamilyMoodView>? Families = null,
     TerritoryView? Territory = null,
-    List<EventView>? Events = null)
+    List<EventView>? Events = null,
+    List<FamilyPactView>? Pacts = null)
 {
     public string MoodOf(string familyCode) => Families?.FirstOrDefault(f => f.FamilyCode == familyCode)?.Mood ?? FamilyRules.Neutral;
 

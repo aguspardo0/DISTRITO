@@ -7,7 +7,7 @@ public sealed record NpcOption(string Id, string Label);
 
 public sealed record NpcDialog(string NpcCode, string Title, string Text, IReadOnlyList<NpcOption> Options);
 
-public enum NpcActionKind { AcceptContract, Buy, Deliver, BuyLicense, Restock, Withdraw, HireHelper, FireHelper }
+public enum NpcActionKind { AcceptContract, Buy, Deliver, BuyLicense, Restock, Withdraw, HireHelper, FireHelper, SignPact }
 
 public sealed record NpcAction(NpcActionKind Kind, string Code, Guid? ContractId = null);
 
@@ -65,6 +65,16 @@ public static class NpcInteractionRules
             text += ev.IsActive(DateTimeOffset.UtcNow)
                 ? $"\n\n¡{ev.Name}! Hasta las {ev.EndsAt.ToOffset(TerritoryRules.ArgentinaOffset):HH:mm}: cada contrato entregado acá da +{ev.PointsPerContract} de influencia."
                 : $"\n\nPróximo evento acá: {ev.Name}, a las {ev.StartsAt.ToOffset(TerritoryRules.ArgentinaOffset):HH:mm}.";
+        if (FamilyRules.FamilyOfNpc(npc.Code) is { } pactFamily && s.Pacts is not null)
+        {
+            if (s.Pacts.FirstOrDefault(p => p.FamilyCode == pactFamily) is { } pact)
+                text += pact.Mine
+                    ? $"\n\nTenemos un acuerdo con tu gente esta temporada (+{PactRules.ContractBonusPercent} % en nuestros contratos)."
+                    : $"\n\nEsta temporada tenemos acuerdo con «{pact.HolderCrew}».";
+            else
+                options.Add(new NpcOption($"pact:{pactFamily}",
+                    $"Firmar acuerdo de temporada ({EconomyCatalog.FormatMoney(PactRules.CostCents)} de la caja; pide {PactRules.RequiredReputation} de reputación sumada de la cuadrilla)"));
+        }
         if (FamilyRules.FamilyOfNpc(npc.Code) is { } family && s.Families is not null)
             text += $"\n\nÁnimo de la familia: {FamilyRules.Display(s.MoodOf(family))}.";
         return new NpcDialog(npc.Code, npc.Name, prefix is null ? text : $"{prefix}\n\n{text}", options);
@@ -86,6 +96,7 @@ public static class NpcInteractionRules
             "withdraw" => new NpcAction(NpcActionKind.Withdraw, parts[1]),
             "hire" => new NpcAction(NpcActionKind.HireHelper, parts[1]),
             "fire" => new NpcAction(NpcActionKind.FireHelper, parts[1]),
+            "pact" => new NpcAction(NpcActionKind.SignPact, parts[1]),
             "deliver" when Guid.TryParse(parts[1], out var id) =>
                 new NpcAction(NpcActionKind.Deliver, s.ActiveContracts.First(c => c.Id == id).TemplateCode, id),
             _ => null,

@@ -41,6 +41,8 @@ public partial class CrewNetwork : Node
     public void Leave() => Send(MethodName.ServerLeave);
     public void Kick(Guid characterId) => Send(MethodName.ServerKick, characterId.ToString());
     public void Expand() => Send(MethodName.ServerExpand);
+    public void OpenVote(string kind, Guid target, long cents) => Send(MethodName.ServerVoteOpen, kind, target.ToString(), cents);
+    public void CastVote(Guid voteId, bool yes) => Send(MethodName.ServerVoteCast, voteId.ToString(), yes);
     public void InviteCoalition(string crewName, string coalitionName) => Send(MethodName.ServerCoalitionInvite, crewName, coalitionName);
     public void RespondCoalition(Guid fromCrew, bool accept) => Send(MethodName.ServerCoalitionRespond, fromCrew.ToString(), accept);
     public void LeaveCoalition() => Send(MethodName.ServerCoalitionLeave);
@@ -114,6 +116,18 @@ public partial class CrewNetwork : Node
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerCoalitionLeave() =>
         Handle(async (api, me) => (ApiResult<CrewActionResult>?)await api.LeaveCoalitionAsync(_network.ServerKey, new CoalitionLeaveRequest(me)));
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerVoteOpen(string kind, string target, long cents) =>
+        Handle(async (api, me) => Guid.TryParse(target, out var id)
+            ? await api.OpenCrewVoteAsync(_network.ServerKey, new CrewVoteOpenRequest(me, kind ?? "", id, cents))
+            : null);
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerVoteCast(string voteId, bool yes) =>
+        Handle(async (api, me) => Guid.TryParse(voteId, out var id)
+            ? await api.CastCrewVoteAsync(_network.ServerKey, new CrewVoteCastRequest(me, id, yes))
+            : null);
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerExpand() =>

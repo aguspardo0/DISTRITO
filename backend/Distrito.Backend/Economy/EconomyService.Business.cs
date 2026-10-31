@@ -277,6 +277,7 @@ public sealed class BusinessCycleWorker(EconomyService economy, IConfiguration c
         {
             try
             {
+                await economy.GrantPactInfluenceAsync(stoppingToken);
                 if (await economy.CloseSeasonsAsync(stoppingToken) > 0)
                     logger.LogInformation("Temporada de territorio cerrada");
                 var expired = await economy.ExpireContractsAsync(stoppingToken);

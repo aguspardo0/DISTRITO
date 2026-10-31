@@ -95,6 +95,15 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<CrewActionResult>> LeaveCoalitionAsync(string serverKey, CoalitionLeaveRequest request, CancellationToken ct = default) =>
         SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/coalition/leave", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<CrewActionResult>> OpenCrewVoteAsync(string serverKey, CrewVoteOpenRequest request, CancellationToken ct = default) =>
+        SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/vote/open", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<CrewActionResult>> CastCrewVoteAsync(string serverKey, CrewVoteCastRequest request, CancellationToken ct = default) =>
+        SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/vote/cast", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> SignPactAsync(string serverKey, PactRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/economy/pact", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<CrewActionResult>> SetCrewSettingsAsync(string serverKey, CrewSettingsRequest request, CancellationToken ct = default) =>
         SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/settings", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

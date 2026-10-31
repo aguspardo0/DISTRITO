@@ -111,7 +111,7 @@ public sealed partial class EconomyService
         int today;
         await using (var sum = new NpgsqlCommand("""
             SELECT COALESCE(sum(points), 0)::int FROM distrito.zone_influence
-            WHERE crew_id = @crew AND zone = @zone AND created_at >= @day AND created_at <= @now AND reason NOT LIKE 'evento:%'
+            WHERE crew_id = @crew AND zone = @zone AND created_at >= @day AND created_at <= @now AND reason NOT LIKE 'evento:%' AND reason NOT LIKE 'pacto:%'
             """, c, tx))
         {
             sum.Parameters.AddWithValue("crew", crewId);
