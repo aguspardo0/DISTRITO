@@ -65,8 +65,8 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
             await LockCrewAsync(c, tx, crew.Id, ct);
             await ApplyInactivitySuccessionAsync(c, tx, crew.Id, ct);
             crew = await CrewOfAsync(c, tx, r.CharacterId, ct) ?? crew;
-            if (crew.Role != "leader")
-                throw new CrewRejected("not_leader", "Solo el jefe de la cuadrilla puede invitar.");
+            if (!CrewRoles.CanInvite(crew.Role))
+                throw new CrewRejected("not_allowed", "Solo el jefe o el segundo pueden invitar.");
             await EnsureCharacterExistsAsync(c, tx, r.TargetCharacterId, ct);
             if (await CrewOfAsync(c, tx, r.TargetCharacterId, ct) is not null)
                 throw new CrewRejected("target_in_crew", "Esa persona ya está en una cuadrilla.");
@@ -122,6 +122,57 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
                 ? "Te uniste a la cuadrilla. ¡Con vos ya está formada!"
                 : "Te uniste a la cuadrilla.";
         });
+
+    public Task<CrewActionResult> KickAsync(KickFromCrewRequest r, CancellationToken ct) =>
+        RunAsync(r.CharacterId, ct, async (c, tx) =>
+        {
+            var crew = await RequireManagerAsync(c, tx, r.CharacterId, r.TargetCharacterId, ct);
+            await using var delete = new NpgsqlCommand(
+                "DELETE FROM distrito.crew_members WHERE crew_id = @crew AND character_id = @t", c, tx);
+            delete.Parameters.AddWithValue("crew", crew.Id);
+            delete.Parameters.AddWithValue("t", r.TargetCharacterId);
+            await delete.ExecuteNonQueryAsync(ct);
+            await LogAsync(c, tx, crew.Id, "kicked", r.TargetCharacterId, "", ct);
+            return "Integrante expulsado.";
+        });
+
+    public Task<CrewActionResult> SetRoleAsync(SetCrewRoleRequest r, CancellationToken ct) =>
+        RunAsync(r.CharacterId, ct, async (c, tx) =>
+        {
+            if (r.Role is not (CrewRoles.Second or CrewRoles.Member))
+                throw new CrewRejected("invalid_role", "Rol inválido.");
+            var crew = await RequireManagerAsync(c, tx, r.CharacterId, r.TargetCharacterId, ct);
+
+            await using var cmd = new NpgsqlCommand(r.Role == CrewRoles.Second
+                ? """
+                  UPDATE distrito.crew_members SET role = 'member' WHERE crew_id = @crew AND role = 'second';
+                  UPDATE distrito.crew_members SET role = 'second' WHERE crew_id = @crew AND character_id = @t;
+                  """
+                : "UPDATE distrito.crew_members SET role = 'member' WHERE crew_id = @crew AND character_id = @t;", c, tx);
+            cmd.Parameters.AddWithValue("crew", crew.Id);
+            cmd.Parameters.AddWithValue("t", r.TargetCharacterId);
+            await cmd.ExecuteNonQueryAsync(ct);
+            await LogAsync(c, tx, crew.Id, r.Role == CrewRoles.Second ? "role_second" : "role_member", r.TargetCharacterId, "", ct);
+            return r.Role == CrewRoles.Second ? "Nombraste un segundo." : "Ya no es segundo.";
+        });
+
+    /// <summary>Verifica que quien pide sea jefe y que el objetivo sea otro integrante de la misma cuadrilla.</summary>
+    private async Task<Membership> RequireManagerAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid manager, Guid target, CancellationToken ct)
+    {
+        var crew = await CrewOfAsync(c, tx, manager, ct)
+            ?? throw new CrewRejected("not_in_crew", "No estás en una cuadrilla.");
+        await LockCrewAsync(c, tx, crew.Id, ct);
+        await ApplyInactivitySuccessionAsync(c, tx, crew.Id, ct);
+        crew = await CrewOfAsync(c, tx, manager, ct) ?? crew;
+        if (!CrewRoles.CanManage(crew.Role))
+            throw new CrewRejected("not_leader", "Solo el jefe puede hacer eso.");
+        if (manager == target)
+            throw new CrewRejected("invalid_target", "No podés hacerte eso a vos mismo.");
+        var targetCrew = await CrewOfAsync(c, tx, target, ct);
+        if (targetCrew?.Id != crew.Id)
+            throw new CrewRejected("not_member", "Esa persona no está en tu cuadrilla.");
+        return crew;
+    }
 
     public Task<CrewActionResult> LeaveAsync(LeaveCrewRequest r, CancellationToken ct) =>
         RunAsync(r.CharacterId, ct, async (c, tx) =>
@@ -250,7 +301,7 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
               (SELECT m.character_id FROM distrito.crew_members m JOIN distrito.characters ch ON ch.id = m.character_id
                 WHERE m.crew_id = @crew AND m.role = 'leader' AND ch.last_seen_at < @cutoff),
               (SELECT m.character_id FROM distrito.crew_members m JOIN distrito.characters ch ON ch.id = m.character_id
-                WHERE m.crew_id = @crew AND m.role = 'member' AND ch.last_seen_at >= @cutoff
+                WHERE m.crew_id = @crew AND m.role IN ('member', 'second') AND ch.last_seen_at >= @cutoff
                 ORDER BY m.joined_at, m.character_id LIMIT 1)
             """, c, tx);
         find.Parameters.AddWithValue("crew", crewId);
@@ -268,7 +319,7 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
             return;
 
         await using var swap = new NpgsqlCommand("""
-            UPDATE distrito.crew_members SET role = 'member' WHERE crew_id = @crew AND character_id = @old;
+            UPDATE distrito.crew_members SET role = 'member' WHERE crew_id = @crew AND character_id IN (@old, @heir);
             UPDATE distrito.crew_members SET role = 'leader' WHERE crew_id = @crew AND character_id = @heir;
             UPDATE distrito.crews SET leader_character_id = @heir WHERE id = @crew;
             """, c, tx);
@@ -355,6 +406,9 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
             history.Add(new CrewEventView(reader.GetFieldValue<DateTimeOffset>(0), reader.GetString(1),
                 reader.IsDBNull(2) ? null : reader.GetString(2), reader.GetString(3)));
 
-        return new CrewStatus(crewId, crewName, isLeader, members, invitations, level, history);
+        return new CrewStatus(crewId, crewName, isLeader, members, invitations, level, history)
+        {
+            MyRole = members.FirstOrDefault(m => m.CharacterId == characterId)?.Role,
+        };
     }
 }

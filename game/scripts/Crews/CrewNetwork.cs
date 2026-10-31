@@ -39,6 +39,8 @@ public partial class CrewNetwork : Node
     public void Invite(long targetPeer) => Send(MethodName.ServerInvite, targetPeer);
     public void Respond(Guid crewId, bool accept) => Send(MethodName.ServerRespond, crewId.ToString(), accept);
     public void Leave() => Send(MethodName.ServerLeave);
+    public void Kick(Guid characterId) => Send(MethodName.ServerKick, characterId.ToString());
+    public void SetRole(Guid characterId, string role) => Send(MethodName.ServerSetRole, characterId.ToString(), role);
 
     private void Send(StringName method, params Variant[] args)
     {
@@ -79,6 +81,18 @@ public partial class CrewNetwork : Node
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerLeave() =>
         Handle(async (api, me) => (ApiResult<CrewActionResult>?)await api.LeaveCrewAsync(_network.ServerKey, new LeaveCrewRequest(me)));
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerKick(string characterId) =>
+        Handle(async (api, me) => Guid.TryParse(characterId, out var target)
+            ? await api.KickFromCrewAsync(_network.ServerKey, new KickFromCrewRequest(me, target))
+            : null);
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerSetRole(string characterId, string role) =>
+        Handle(async (api, me) => Guid.TryParse(characterId, out var target)
+            ? await api.SetCrewRoleAsync(_network.ServerKey, new SetCrewRoleRequest(me, target, role))
+            : null);
 
     // ================= Servidor =================
 

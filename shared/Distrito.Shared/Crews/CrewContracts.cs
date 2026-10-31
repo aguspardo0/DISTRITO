@@ -20,6 +20,11 @@ public sealed record CrewStatus(
     List<CrewEventView>? History = null)
 {
     public static CrewStatus None { get; } = new(null, null, false, [], []);
+
+    /// <summary>Rol del que consulta (según la lista de miembros), o null si no está en la cuadrilla.</summary>
+    public string? MyRole { get; init; }
+
+    public bool CanInvite => MyRole is { } r && CrewRoles.CanInvite(r);
     public bool InCrew => CrewId is not null;
     public int Capacity => CrewRules.CapacityForLevel(Level);
 
@@ -39,6 +44,30 @@ public sealed record InviteToCrewRequest(Guid CharacterId, Guid TargetCharacterI
 public sealed record CrewInvitationResponse(Guid CharacterId, Guid CrewId, bool Accept);
 
 public sealed record LeaveCrewRequest(Guid CharacterId);
+
+/// <summary>El jefe expulsa a un integrante.</summary>
+public sealed record KickFromCrewRequest(Guid CharacterId, Guid TargetCharacterId);
+
+/// <summary>El jefe cambia el rol de un integrante ("second" o "member").</summary>
+public sealed record SetCrewRoleRequest(Guid CharacterId, Guid TargetCharacterId, string Role);
+
+/// <summary>Roles de cuadrilla (decisión del equipo): jefe, segundo y miembro.</summary>
+public static class CrewRoles
+{
+    public const string Leader = "leader";
+    public const string Second = "second";
+    public const string Member = "member";
+
+    public static bool CanInvite(string role) => role is Leader or Second;
+    public static bool CanManage(string role) => role == Leader; // expulsar y nombrar/quitar segundo
+
+    public static string Display(string role) => role switch
+    {
+        Leader => "Jefe",
+        Second => "Segundo",
+        _ => "Miembro",
+    };
+}
 
 /// <summary>Reglas provisionales de cuadrillas (ver ADR-004). No son diseño de juego definitivo.</summary>
 public static partial class CrewRules
@@ -73,6 +102,9 @@ public static partial class CrewRules
         "left" => $"{e.Who} se fue",
         "leadership_leader_left" => "El jefe se fue: manda el miembro más antiguo",
         "leadership_inactivity" => $"{e.Who} quedó a cargo por inactividad del jefe",
+        "role_second" => $"{e.Who} fue nombrado segundo",
+        "role_member" => $"{e.Who} dejó de ser segundo",
+        "kicked" => $"{e.Who} fue expulsado",
         _ => $"{e.Kind} {e.Who} {e.Detail}".Trim(),
     };
 

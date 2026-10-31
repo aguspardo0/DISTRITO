@@ -109,9 +109,24 @@ public partial class CrewPanel : PanelContainer
                 : $"En formación: faltan {CrewRules.MembersToForm - status.Members.Count} para estar formada.",
         });
         foreach (var member in status.Members)
-            _content.AddChild(new Label { Text = $"  {(member.Role == "leader" ? "★ " : "• ")}{member.Name}" });
+        {
+            var mark = member.Role switch { CrewRoles.Leader => "★", CrewRoles.Second => "☆", _ => "•" };
+            _content.AddChild(new Label { Text = $"  {mark} {member.Name} — {CrewRoles.Display(member.Role)}" });
 
-        if (status.IsLeader)
+            // Herramientas del jefe sobre los demás integrantes.
+            if (status.IsLeader && member.Role != CrewRoles.Leader)
+            {
+                var row = new HBoxContainer();
+                var id = member.CharacterId;
+                row.AddChild(member.Role == CrewRoles.Second
+                    ? MakeButton("Quitar segundo", () => _crews.SetRole(id, CrewRoles.Member))
+                    : MakeButton("Nombrar segundo", () => _crews.SetRole(id, CrewRoles.Second)));
+                row.AddChild(MakeButton("Expulsar", () => _crews.Kick(id)));
+                _content.AddChild(row);
+            }
+        }
+
+        if (status.CanInvite)
         {
             _content.AddChild(new Label { Text = "Invitar a alguien conectado:" });
             if (_crews.LastCandidates.Count == 0)

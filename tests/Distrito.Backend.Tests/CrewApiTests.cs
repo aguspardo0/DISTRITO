@@ -61,7 +61,7 @@ public class CrewApiTests
         await api.RespondCrewInvitationAsync(Key, new CrewInvitationResponse(member, crewId, true));
 
         var byMember = (await api.InviteToCrewAsync(Key, new InviteToCrewRequest(member, outsider))).Value!;
-        Assert.Equal("not_leader", byMember.ErrorCode);
+        Assert.Equal("not_allowed", byMember.ErrorCode);
 
         var secondCrew = (await api.CreateCrewAsync(Key, new CreateCrewRequest(member, UniqueCrewName()))).Value!;
         Assert.Equal("already_in_crew", secondCrew.ErrorCode);
@@ -255,6 +255,68 @@ public class CrewApiTests
     [InlineData("Signos!!", false)]
     public void Validacion_de_nombre(string name, bool valid) =>
         Assert.Equal(valid, CrewRules.ValidateName(name) is null);
+
+    [Fact]
+    public async Task Roles_segundo_invita_y_solo_el_jefe_nombra_y_expulsa()
+    {
+        await using var factory = TestBackend.Create();
+        var api = TestBackend.Api(factory);
+        var leader = await NewCharacter(api);
+        var second = await NewCharacter(api);
+        await api.CreateCrewAsync(Key, new CreateCrewRequest(leader, UniqueCrewName()));
+        var crewId = (await api.GetCrewStatusAsync(Key, leader)).Value!.CrewId!.Value;
+        await api.InviteToCrewAsync(Key, new InviteToCrewRequest(leader, second));
+        await api.RespondCrewInvitationAsync(Key, new CrewInvitationResponse(second, crewId, true));
+
+        // Un miembro común no puede nombrar ni expulsar.
+        Assert.Equal("not_leader", (await api.SetCrewRoleAsync(Key, new SetCrewRoleRequest(second, leader, CrewRoles.Second))).Value!.ErrorCode);
+        Assert.Equal("not_leader", (await api.KickFromCrewAsync(Key, new KickFromCrewRequest(second, leader))).Value!.ErrorCode);
+
+        // El jefe lo nombra segundo; ahora puede invitar.
+        var appointed = (await api.SetCrewRoleAsync(Key, new SetCrewRoleRequest(leader, second, CrewRoles.Second))).Value!;
+        Assert.True(appointed.Ok, appointed.Message);
+        var recruit = await NewCharacter(api);
+        var invite = (await api.InviteToCrewAsync(Key, new InviteToCrewRequest(second, recruit))).Value!;
+        Assert.True(invite.Ok, invite.Message);
+        var secondView = (await api.GetCrewStatusAsync(Key, second)).Value!;
+        Assert.Equal(CrewRoles.Second, secondView.MyRole);
+        Assert.True(secondView.CanInvite);
+
+        // El segundo tampoco puede expulsar; el jefe sí.
+        Assert.Equal("not_leader", (await api.KickFromCrewAsync(Key, new KickFromCrewRequest(second, leader))).Value!.ErrorCode);
+        var kicked = (await api.KickFromCrewAsync(Key, new KickFromCrewRequest(leader, second))).Value!;
+        Assert.True(kicked.Ok, kicked.Message);
+        Assert.False((await api.GetCrewStatusAsync(Key, second)).Value!.InCrew);
+        Assert.Contains(kicked.Status.History!, e => e.Kind == "kicked");
+        Assert.Contains(kicked.Status.History!, e => e.Kind == "role_second");
+
+        // No se puede expulsar a alguien de otra cuadrilla ni a uno mismo.
+        Assert.Equal("invalid_target", (await api.KickFromCrewAsync(Key, new KickFromCrewRequest(leader, leader))).Value!.ErrorCode);
+        Assert.Equal("not_member", (await api.KickFromCrewAsync(Key, new KickFromCrewRequest(leader, second))).Value!.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Solo_hay_un_segundo_a_la_vez()
+    {
+        await using var factory = TestBackend.Create();
+        var api = TestBackend.Api(factory);
+        var leader = await NewCharacter(api);
+        await api.CreateCrewAsync(Key, new CreateCrewRequest(leader, UniqueCrewName()));
+        var crewId = (await api.GetCrewStatusAsync(Key, leader)).Value!.CrewId!.Value;
+        var a = await NewCharacter(api);
+        var b = await NewCharacter(api);
+        foreach (var m in new[] { a, b })
+        {
+            await api.InviteToCrewAsync(Key, new InviteToCrewRequest(leader, m));
+            await api.RespondCrewInvitationAsync(Key, new CrewInvitationResponse(m, crewId, true));
+        }
+
+        await api.SetCrewRoleAsync(Key, new SetCrewRoleRequest(leader, a, CrewRoles.Second));
+        var status = (await api.SetCrewRoleAsync(Key, new SetCrewRoleRequest(leader, b, CrewRoles.Second))).Value!.Status;
+
+        Assert.Single(status.Members, m => m.Role == CrewRoles.Second);
+        Assert.Equal(CrewRoles.Second, status.Members.Single(m => m.CharacterId == b).Role);
+    }
 
     [Fact]
     public void Capacidad_progresiva_3_4_5()
