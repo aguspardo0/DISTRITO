@@ -17,6 +17,7 @@ public partial class NetworkSelfTest : Node
     private double _remaining;
     private Vector3? _firstPosition;
     private float _maxDisplacement;
+    private int _maxPlayersSeen;
 
     public void Configure(GameNetwork network, int seconds, int expectedPlayers)
     {
@@ -34,6 +35,8 @@ public partial class NetworkSelfTest : Node
             _maxDisplacement = Mathf.Max(_maxDisplacement, FlatDistance(_firstPosition.Value, local.GlobalPosition));
         }
 
+        _maxPlayersSeen = Math.Max(_maxPlayersSeen, _network.PlayerCount);
+
         _remaining -= delta;
         if (_remaining > 0)
             return;
@@ -45,8 +48,9 @@ public partial class NetworkSelfTest : Node
     private void Finish(Player.PlayerCharacter? local)
     {
         var connected = Multiplayer.MultiplayerPeer?.GetConnectionStatus() == MultiplayerPeer.ConnectionStatus.Connected;
-        var players = _network.PlayerCount;
-        var summary = $"id={Multiplayer.GetUniqueId()} conectado={connected} jugadores={players}/{_expectedPlayers} " +
+        // Se usa el máximo visto: otro cliente de la prueba puede terminar y desconectarse antes.
+        var players = _maxPlayersSeen;
+        var summary = $"id={Multiplayer.GetUniqueId()} conectado={connected} jugadores_max={players}/{_expectedPlayers} " +
                       $"desplazamiento={_maxDisplacement:0.00}m";
 
         string? failure =

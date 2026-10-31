@@ -36,7 +36,7 @@ for i in 1 2; do
     ok=1
   fi
 done
-echo "::notice title=Red servidor::$(grep -c 'conectado. Jugadores' net-server.log) conexiones registradas"
+echo "::notice title=Red servidor::$(grep -c ' conectado. Jugadores' net-server.log) conexiones registradas"
 
 echo "códigos de salida: cliente1=$r1 cliente2=$r2"
 [ "$r1" -eq 0 ] && [ "$r2" -eq 0 ] && [ "$ok" -eq 0 ]

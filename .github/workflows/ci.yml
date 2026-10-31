@@ -47,16 +47,16 @@ jobs:
           done
 
       - name: Restaurar
-        run: dotnet restore Distrito.sln
+        run: .github/scripts/run-annotated.sh dotnet restore Distrito.sln
 
       - name: Compilar
-        run: dotnet build Distrito.sln --no-restore -c Debug
+        run: .github/scripts/run-annotated.sh dotnet build Distrito.sln --no-restore -c Debug
 
       - name: Pruebas
-        run: dotnet test Distrito.sln --no-build -c Debug --logger "console;verbosity=normal" --logger "trx" --results-directory TestResults
+        run: .github/scripts/run-annotated.sh dotnet test Distrito.sln --no-build -c Debug --logger "console;verbosity=normal" --logger "trx" --results-directory TestResults
 
       - name: Resumen de pruebas
-        if: always()
+        if: always() && hashFiles('TestResults/*.trx') != ''
         run: |
           for f in TestResults/*.trx; do
             line=$(grep -o '<Counters [^>]*>' "$f")
@@ -83,7 +83,7 @@ jobs:
         run: .github/scripts/install-godot.sh
 
       - name: Compilar C# del juego
-        run: dotnet build game/Distrito.Game.csproj -c Debug
+        run: .github/scripts/run-annotated.sh dotnet build game/Distrito.Game.csproj -c Debug
 
       - name: Importar proyecto
         run: timeout 300 "$GODOT" --headless --path game --import
