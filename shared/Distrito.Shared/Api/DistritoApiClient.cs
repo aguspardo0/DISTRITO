@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Distrito.Shared.Crews;
 using Distrito.Shared.Economy;
 
 namespace Distrito.Shared.Api;
@@ -60,6 +61,23 @@ public sealed class DistritoApiClient(HttpClient http)
 
     public Task<ApiResult<EconomyActionResult>> DeliverAsync(string serverKey, DeliverContractRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/economy/deliver", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    // --- Cuadrillas (API interna) ---
+
+    public Task<ApiResult<CrewStatus>> GetCrewStatusAsync(string serverKey, Guid characterId, CancellationToken ct = default) =>
+        SendAsync<CrewStatus>(HttpMethod.Get, $"internal/crews/status/{characterId}", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<CrewActionResult>> CreateCrewAsync(string serverKey, CreateCrewRequest request, CancellationToken ct = default) =>
+        SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/create", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<CrewActionResult>> InviteToCrewAsync(string serverKey, InviteToCrewRequest request, CancellationToken ct = default) =>
+        SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/invite", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<CrewActionResult>> RespondCrewInvitationAsync(string serverKey, CrewInvitationResponse request, CancellationToken ct = default) =>
+        SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/respond", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<CrewActionResult>> LeaveCrewAsync(string serverKey, LeaveCrewRequest request, CancellationToken ct = default) =>
+        SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/leave", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
     private static void Bearer(HttpRequestMessage request, string token) =>
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);

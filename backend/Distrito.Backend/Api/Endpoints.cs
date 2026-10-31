@@ -2,7 +2,9 @@ using System.Security.Cryptography;
 using System.Text;
 using Distrito.Backend.Accounts;
 using Distrito.Backend.Characters;
+using Distrito.Backend.Crews;
 using Distrito.Backend.Economy;
+using Distrito.Shared.Crews;
 using Distrito.Shared.Economy;
 using Distrito.Shared.Api;
 
@@ -27,6 +29,12 @@ public static class Endpoints
             Results.Ok(await economy.GetSnapshotAsync(characterId, ct)));
         internalApi.MapPost("/economy/contracts/accept", (AcceptContractRequest r, EconomyService e, CancellationToken ct) => e.AcceptContractAsync(r, ct));
         internalApi.MapPost("/economy/buy", (BuyItemRequest r, EconomyService e, CancellationToken ct) => e.BuyAsync(r, ct));
+        internalApi.MapGet("/crews/status/{characterId:guid}", async (Guid characterId, CrewService crews, CancellationToken ct) =>
+            Results.Ok(await crews.GetStatusAsync(characterId, ct)));
+        internalApi.MapPost("/crews/create", (CreateCrewRequest r, CrewService s, CancellationToken ct) => s.CreateAsync(r, ct));
+        internalApi.MapPost("/crews/invite", (InviteToCrewRequest r, CrewService s, CancellationToken ct) => s.InviteAsync(r, ct));
+        internalApi.MapPost("/crews/respond", (CrewInvitationResponse r, CrewService s, CancellationToken ct) => s.RespondAsync(r, ct));
+        internalApi.MapPost("/crews/leave", (LeaveCrewRequest r, CrewService s, CancellationToken ct) => s.LeaveAsync(r, ct));
         internalApi.MapPost("/economy/deliver", (DeliverContractRequest r, EconomyService e, CancellationToken ct) => e.DeliverAsync(r, ct));
     }
 
