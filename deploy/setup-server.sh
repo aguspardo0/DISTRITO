@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Instala o actualiza DISTRITO en el servidor (Ubuntu 24.04 ARM64, Oracle Cloud).
+# Instala o actualiza DISTRITO en el servidor (Ubuntu 22.04 o 24.04, ARM64, Oracle Cloud).
 # Idempotente: se ejecuta en cada despliegue. Uso (como root):
 #   setup-server.sh <carpeta-del-release> <dominio> <commit>
 #
@@ -20,13 +20,21 @@ ENV_FILE=/etc/distrito/distrito.env
 log() { echo "[setup] $*"; }
 
 # --- Paquetes ---
+export DEBIAN_FRONTEND=noninteractive
+# Caddy: si el sistema no lo trae en sus repositorios (Ubuntu 22.04), se usa el repositorio oficial de Caddy.
+if ! command -v caddy >/dev/null && ! apt-cache show caddy >/dev/null 2>&1; then
+  log "Agregando repositorio oficial de Caddy"
+  apt-get install -y -q debian-keyring debian-archive-keyring apt-transport-https curl gnupg
+  curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt > /etc/apt/sources.list.d/caddy-stable.list
+  apt-get update -q
+fi
 need=()
 command -v psql  >/dev/null || need+=(postgresql)
 command -v caddy >/dev/null || need+=(caddy)
 dpkg -s iptables-persistent >/dev/null 2>&1 || need+=(iptables-persistent)
 if [ ${#need[@]} -gt 0 ]; then
   log "Instalando: ${need[*]}"
-  export DEBIAN_FRONTEND=noninteractive
   apt-get update -q
   apt-get install -y -q "${need[@]}"
 fi
