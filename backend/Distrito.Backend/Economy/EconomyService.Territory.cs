@@ -127,23 +127,57 @@ public sealed partial class EconomyService
         return grant;
     }
 
-    private sealed record Standing(Guid Crew, string CrewName, int Points, DateTimeOffset LastGain);
+    /// <summary>
+    /// Posición en una zona de una cuadrilla sola o de una coalición (Crew = id de la cuadrilla o de la coalición).
+    /// La influencia de una coalición es la suma de sus cuadrillas al 75 %.
+    /// </summary>
+    private sealed record Standing(Guid Crew, string CrewName, int Points, DateTimeOffset LastGain, bool IsCoalition = false);
 
-    private static async Task<Dictionary<string, List<Standing>>> StandingsAsync(NpgsqlConnection c, NpgsqlTransaction tx, int season, CancellationToken ct)
+    private sealed record CrewPoints(string Zone, Guid Crew, string CrewName, int Points, DateTimeOffset LastGain, Guid? Coalition, string? CoalitionName);
+
+    private static async Task<List<CrewPoints>> CrewPointsAsync(NpgsqlConnection c, NpgsqlTransaction tx, int season, CancellationToken ct)
     {
-        var result = TerritoryRules.Zones.ToDictionary(z => z.Code, _ => new List<Standing>());
+        var list = new List<CrewPoints>();
         await using var cmd = new NpgsqlCommand("""
-            SELECT i.zone, i.crew_id, cr.name, sum(i.points)::int, max(i.created_at)
+            SELECT i.zone, i.crew_id, cr.name, sum(i.points)::int, max(i.created_at), co.id, co.name
               FROM distrito.zone_influence i JOIN distrito.crews cr ON cr.id = i.crew_id
+              LEFT JOIN distrito.coalition_members m ON m.crew_id = i.crew_id
+              LEFT JOIN distrito.coalitions co ON co.id = m.coalition_id
              WHERE i.season = @season
-             GROUP BY i.zone, i.crew_id, cr.name
+             GROUP BY i.zone, i.crew_id, cr.name, co.id, co.name
             """, c, tx);
         cmd.Parameters.AddWithValue("season", season);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
-            if (result.TryGetValue(reader.GetString(0), out var list))
-                list.Add(new Standing(reader.GetGuid(1), reader.GetString(2), reader.GetInt32(3), reader.GetFieldValue<DateTimeOffset>(4)));
+            list.Add(new CrewPoints(reader.GetString(0), reader.GetGuid(1), reader.GetString(2), reader.GetInt32(3),
+                reader.GetFieldValue<DateTimeOffset>(4), reader.IsDBNull(5) ? null : reader.GetGuid(5), reader.IsDBNull(6) ? null : reader.GetString(6)));
+        return list;
+    }
+
+    private static async Task<Dictionary<string, List<Standing>>> StandingsAsync(NpgsqlConnection c, NpgsqlTransaction tx, int season, CancellationToken ct)
+    {
+        var result = TerritoryRules.Zones.ToDictionary(z => z.Code, _ => new List<Standing>());
+        foreach (var group in (await CrewPointsAsync(c, tx, season, ct)).GroupBy(p => (p.Zone, Key: p.Coalition ?? p.Crew)))
+        {
+            if (!result.TryGetValue(group.Key.Zone, out var list))
+                continue;
+            var first = group.First();
+            list.Add(first.Coalition is { } coalition
+                ? new Standing(coalition, $"Coalición {first.CoalitionName}", Distrito.Shared.Crews.CoalitionRules.CombinedInfluence(group.Select(p => p.Points)),
+                    group.Max(p => p.LastGain), IsCoalition: true)
+                : new Standing(first.Crew, first.CrewName, first.Points, first.LastGain));
+        }
         return result;
+    }
+
+    /// <summary>La "facción" de una cuadrilla para el territorio: su coalición si tiene, si no ella misma.</summary>
+    private static async Task<Guid?> FactionOfCrewAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid? crewId, CancellationToken ct)
+    {
+        if (crewId is not { } id)
+            return null;
+        await using var cmd = new NpgsqlCommand("SELECT coalition_id FROM distrito.coalition_members WHERE crew_id = @c", c, tx);
+        cmd.Parameters.AddWithValue("c", id);
+        return await cmd.ExecuteScalarAsync(ct) as Guid? ?? id;
     }
 
     private static Standing? ControllerOf(List<Standing> standings)
@@ -162,12 +196,12 @@ public sealed partial class EconomyService
     {
         var season = TerritoryRules.SeasonAt(clock.GetUtcNow());
         var standings = await StandingsAsync(c, tx, season, ct);
-        var myCrew = await CrewOfCharacterAsync(c, tx, characterId, ct);
+        var myFaction = await FactionOfCrewAsync(c, tx, await CrewOfCharacterAsync(c, tx, characterId, ct), ct);
         var zones = TerritoryRules.Zones.Select(z =>
         {
             var list = standings[z.Code];
             var controller = ControllerOf(list);
-            var mine = myCrew is { } id ? list.FirstOrDefault(s => s.Crew == id)?.Points ?? 0 : 0;
+            var mine = myFaction is { } id ? list.FirstOrDefault(s => s.Crew == id)?.Points ?? 0 : 0;
             return new ZoneView(z.Code, z.Name, controller?.CrewName, controller?.Points ?? 0, mine);
         }).ToList();
         return new TerritoryView(season, TerritoryRules.SeasonEnd(season), zones);
@@ -201,20 +235,34 @@ public sealed partial class EconomyService
             {
                 var winner = ControllerOf(standings[zone]);
                 await using var insert = new NpgsqlCommand("""
-                    INSERT INTO distrito.zone_season_results (season, zone, crew_id, points) VALUES (@s, @z, @crew, @p);
+                    INSERT INTO distrito.zone_season_results (season, zone, crew_id, coalition_id, points) VALUES (@s, @z, @crew, @co, @p);
                     """, c, tx);
                 insert.Parameters.AddWithValue("s", season);
                 insert.Parameters.AddWithValue("z", zone);
-                insert.Parameters.AddWithValue("crew", (object?)winner?.Crew ?? DBNull.Value);
+                insert.Parameters.AddWithValue("crew", winner is { IsCoalition: false } ? winner.Crew : DBNull.Value);
+                insert.Parameters.AddWithValue("co", winner is { IsCoalition: true } ? winner.Crew : DBNull.Value);
                 insert.Parameters.AddWithValue("p", winner?.Points ?? 0);
                 await insert.ExecuteNonQueryAsync(ct);
                 if (winner is null)
                     continue;
-                await using var log = new NpgsqlCommand(
-                    "INSERT INTO distrito.crew_events (crew_id, kind, character_id, detail) VALUES (@crew, 'season_won', NULL, @d)", c, tx);
-                log.Parameters.AddWithValue("crew", winner.Crew);
-                log.Parameters.AddWithValue("d", string.Create(CultureInfo.InvariantCulture, $"{name}, temporada {season} ({winner.Points} de influencia)"));
-                await log.ExecuteNonQueryAsync(ct);
+                var crews = new List<Guid> { winner.Crew };
+                if (winner.IsCoalition)
+                {
+                    crews.Clear();
+                    await using var members = new NpgsqlCommand("SELECT crew_id FROM distrito.coalition_members WHERE coalition_id = @co", c, tx);
+                    members.Parameters.AddWithValue("co", winner.Crew);
+                    await using var reader = await members.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct)) crews.Add(reader.GetGuid(0));
+                }
+                foreach (var crew in crews)
+                {
+                    await using var log = new NpgsqlCommand(
+                        "INSERT INTO distrito.crew_events (crew_id, kind, character_id, detail) VALUES (@crew, 'season_won', NULL, @d)", c, tx);
+                    log.Parameters.AddWithValue("crew", crew);
+                    log.Parameters.AddWithValue("d", string.Create(CultureInfo.InvariantCulture,
+                        $"{name}, temporada {season} ({winner.Points} de influencia{(winner.IsCoalition ? $", con la {winner.CrewName}" : "")})"));
+                    await log.ExecuteNonQueryAsync(ct);
+                }
             }
             closed++;
         }

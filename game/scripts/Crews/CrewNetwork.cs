@@ -41,6 +41,9 @@ public partial class CrewNetwork : Node
     public void Leave() => Send(MethodName.ServerLeave);
     public void Kick(Guid characterId) => Send(MethodName.ServerKick, characterId.ToString());
     public void Expand() => Send(MethodName.ServerExpand);
+    public void InviteCoalition(string crewName, string coalitionName) => Send(MethodName.ServerCoalitionInvite, crewName, coalitionName);
+    public void RespondCoalition(Guid fromCrew, bool accept) => Send(MethodName.ServerCoalitionRespond, fromCrew.ToString(), accept);
+    public void LeaveCoalition() => Send(MethodName.ServerCoalitionLeave);
     public void Deposit(long cents) => Send(MethodName.ServerMoney, true, cents);
     public void Withdraw(long cents) => Send(MethodName.ServerMoney, false, cents);
     public void SetSettings(CrewPermissions p) =>
@@ -96,6 +99,21 @@ public partial class CrewNetwork : Node
     public void ServerSettings(bool secondCanWithdraw, bool secondCanInvite, bool memberCanInvite, int tithePercent) =>
         Handle(async (api, me) => (ApiResult<CrewActionResult>?)await api.SetCrewSettingsAsync(_network.ServerKey,
             new CrewSettingsRequest(me, new CrewPermissions(secondCanWithdraw, secondCanInvite, memberCanInvite, tithePercent))));
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerCoalitionInvite(string crewName, string coalitionName) =>
+        Handle(async (api, me) => (ApiResult<CrewActionResult>?)await api.InviteToCoalitionAsync(_network.ServerKey,
+            new CoalitionInviteRequest(me, crewName ?? "", coalitionName ?? "")));
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerCoalitionRespond(string fromCrew, bool accept) =>
+        Handle(async (api, me) => Guid.TryParse(fromCrew, out var id)
+            ? await api.RespondCoalitionAsync(_network.ServerKey, new CoalitionResponseRequest(me, id, accept))
+            : null);
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerCoalitionLeave() =>
+        Handle(async (api, me) => (ApiResult<CrewActionResult>?)await api.LeaveCoalitionAsync(_network.ServerKey, new CoalitionLeaveRequest(me)));
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerExpand() =>

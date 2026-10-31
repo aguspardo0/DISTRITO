@@ -178,7 +178,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             {
                 var crew = await CrewOfCharacterAsync(c, tx, participants[i], ct);
                 crews.Add(crew);
-                if (controller is not null && crew == controller)
+                if (controller is not null && await FactionOfCrewAsync(c, tx, crew, ct) == controller)
                     amounts[i] = TerritoryRules.WithControlBonus(amounts[i]);
             }
             if (await BalanceAsync(c, tx, payer, ct) < amounts.Sum())
@@ -315,9 +315,17 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         var mates = new List<Guid>();
         if (candidates.Count == 0)
             return mates;
+        // Sirven compañeros de la propia cuadrilla y de las cuadrillas aliadas (misma coalición).
         await using var cmd = new NpgsqlCommand("""
+            WITH mine AS (SELECT crew_id FROM distrito.crew_members WHERE character_id = @c),
+                 allies AS (
+                     SELECT crew_id FROM mine
+                     UNION
+                     SELECT m2.crew_id FROM distrito.coalition_members m1
+                       JOIN distrito.coalition_members m2 ON m2.coalition_id = m1.coalition_id
+                      WHERE m1.crew_id = (SELECT crew_id FROM mine))
             SELECT m.character_id FROM distrito.crew_members m
-            WHERE m.crew_id = (SELECT crew_id FROM distrito.crew_members WHERE character_id = @c)
+            WHERE m.crew_id IN (SELECT crew_id FROM allies)
               AND m.character_id = ANY(@ids) AND m.character_id <> @c
             ORDER BY m.character_id
             """, c, tx);

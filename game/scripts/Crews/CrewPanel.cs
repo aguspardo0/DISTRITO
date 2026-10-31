@@ -160,6 +160,47 @@ public partial class CrewPanel : PanelContainer
             _content.AddChild(new Label { Text = $"Aporte de contratos a la caja: {rules.TithePercent} %" });
         }
 
+        // Coalición.
+        if (status.Coalition is { Name: { } coalitionName } coalition)
+        {
+            _content.AddChild(new Label { Text = $"Coalición «{coalitionName}»: {string.Join(", ", coalition.Crews)}" });
+            if (status.IsLeader)
+                AddButton("Salir de la coalición", () => _crews.LeaveCoalition());
+        }
+        else if (status.IsLeader)
+        {
+            _content.AddChild(new Label { Text = status.Coalition?.CooldownUntil is { } until
+                ? $"Coalición: podés entrar a otra desde {until.ToLocalTime():dd/MM HH:mm}."
+                : "Coalición: invitá a otra cuadrilla (hasta 3)." });
+            var row = new HBoxContainer();
+            var target = new LineEdit { PlaceholderText = "Cuadrilla", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            var name = new LineEdit { PlaceholderText = "Nombre de la coalición", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            row.AddChild(target);
+            row.AddChild(name);
+            row.AddChild(MakeButton("Invitar", () => _crews.InviteCoalition(target.Text.Trim(), name.Text.Trim())));
+            _content.AddChild(row);
+        }
+        if (status.IsLeader && status.Coalition?.Name is { } && status.Coalition.Crews.Count < CoalitionRules.MaxCrews)
+        {
+            var row = new HBoxContainer();
+            var target = new LineEdit { PlaceholderText = "Invitar otra cuadrilla", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            row.AddChild(target);
+            row.AddChild(MakeButton("Invitar", () => _crews.InviteCoalition(target.Text.Trim(), "")));
+            _content.AddChild(row);
+        }
+        foreach (var invite in status.CoalitionInvites ?? [])
+        {
+            _content.AddChild(new Label { Text = $"«{invite.FromCrewName}» los invita a la coalición «{invite.CoalitionName}»" });
+            if (status.IsLeader)
+            {
+                var row = new HBoxContainer();
+                var from = invite.FromCrewId;
+                row.AddChild(MakeButton("Aceptar", () => _crews.RespondCoalition(from, true)));
+                row.AddChild(MakeButton("Rechazar", () => _crews.RespondCoalition(from, false)));
+                _content.AddChild(row);
+            }
+        }
+
         // Ampliación del cupo: por contratos cumplidos y reputación de todos los integrantes.
         if (status.NextExpansion is { } next)
         {

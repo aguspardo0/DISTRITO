@@ -21,7 +21,9 @@ public sealed record CrewStatus(
     int Contracts = 0,
     int Reputation = 0,
     long TreasuryCents = 0,
-    CrewPermissions? Permissions = null)
+    CrewPermissions? Permissions = null,
+    CoalitionView? Coalition = null,
+    List<CoalitionInviteView>? CoalitionInvites = null)
 {
     public CrewPermissions Rules => Permissions ?? CrewPermissions.Default;
     public bool CanWithdraw => MyRole is { } r && Rules.CanWithdraw(r);
@@ -72,6 +74,29 @@ public sealed record CrewPermissions(bool SecondCanWithdraw, bool SecondCanInvit
 
     /// <summary>Parte de un cobro de contrato que va sola a la caja.</summary>
     public long TitheOf(long cents) => cents * Math.Clamp(TithePercent, 0, MaxTithePercent) / 100;
+}
+
+/// <summary>Coalición a la que pertenece la cuadrilla (CooldownUntil: hasta cuándo no puede entrar a otra).</summary>
+public sealed record CoalitionView(Guid? Id, string? Name, List<string> Crews, DateTimeOffset? CooldownUntil);
+
+public sealed record CoalitionInviteView(Guid FromCrewId, string FromCrewName, string CoalitionName);
+
+/// <summary>El jefe invita a otra cuadrilla (por nombre). CoalitionName se usa si todavía no tiene coalición.</summary>
+public sealed record CoalitionInviteRequest(Guid CharacterId, string TargetCrewName, string CoalitionName);
+
+public sealed record CoalitionResponseRequest(Guid CharacterId, Guid FromCrewId, bool Accept);
+
+public sealed record CoalitionLeaveRequest(Guid CharacterId);
+
+/// <summary>Reglas de coaliciones (propuesta aprobada por el equipo, 2026-10-31).</summary>
+public static class CoalitionRules
+{
+    public const int MaxCrews = 3;
+    public const int InfluencePercent = 75; // la influencia sumada de los aliados cuenta el 75 %
+    public static readonly TimeSpan RejoinCooldown = TimeSpan.FromHours(24);
+    public static readonly TimeSpan InvitationLifetime = TimeSpan.FromHours(24);
+
+    public static int CombinedInfluence(IEnumerable<int> crewPoints) => crewPoints.Sum() * InfluencePercent / 100;
 }
 
 /// <summary>Depositar en la caja o retirar de ella. AmountCents 0 = todo. RequestId hace el pedido idempotente.</summary>
@@ -164,6 +189,9 @@ public static partial class CrewRules
         "tithe" => $"{e.Who} aportó {e.Detail} de un contrato",
         "settings" => $"{e.Who} cambió los permisos: {e.Detail}",
         "season_won" => $"Ganó el territorio: {e.Detail}",
+        "coalition_joined" => $"Entró a la coalición {e.Detail}",
+        "coalition_left" => $"Salió de la coalición {e.Detail}",
+        "coalition_invited" => $"{e.Who} invitó a {e.Detail} a la coalición",
         _ => $"{e.Kind} {e.Who} {e.Detail}".Trim(),
     };
 

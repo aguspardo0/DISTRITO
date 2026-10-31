@@ -86,6 +86,15 @@ public sealed class DistritoApiClient(HttpClient http)
         SendAsync<CrewActionResult>(HttpMethod.Post, deposit ? "internal/crews/deposit" : "internal/crews/withdraw", request,
             r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<CrewActionResult>> InviteToCoalitionAsync(string serverKey, CoalitionInviteRequest request, CancellationToken ct = default) =>
+        SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/coalition/invite", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<CrewActionResult>> RespondCoalitionAsync(string serverKey, CoalitionResponseRequest request, CancellationToken ct = default) =>
+        SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/coalition/respond", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<CrewActionResult>> LeaveCoalitionAsync(string serverKey, CoalitionLeaveRequest request, CancellationToken ct = default) =>
+        SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/coalition/leave", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<CrewActionResult>> SetCrewSettingsAsync(string serverKey, CrewSettingsRequest request, CancellationToken ct = default) =>
         SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/settings", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

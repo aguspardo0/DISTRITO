@@ -34,6 +34,9 @@ public static class Endpoints
         internalApi.MapPost("/crews/create", (CreateCrewRequest r, CrewService s, CancellationToken ct) => s.CreateAsync(r, ct));
         internalApi.MapPost("/crews/invite", (InviteToCrewRequest r, CrewService s, CancellationToken ct) => s.InviteAsync(r, ct));
         internalApi.MapPost("/crews/respond", (CrewInvitationResponse r, CrewService s, CancellationToken ct) => s.RespondAsync(r, ct));
+        internalApi.MapPost("/crews/coalition/invite", (CoalitionInviteRequest r, CrewService s, CancellationToken ct) => s.InviteToCoalitionAsync(r, ct));
+        internalApi.MapPost("/crews/coalition/respond", (CoalitionResponseRequest r, CrewService s, CancellationToken ct) => s.RespondCoalitionAsync(r, ct));
+        internalApi.MapPost("/crews/coalition/leave", (CoalitionLeaveRequest r, CrewService s, CancellationToken ct) => s.LeaveCoalitionAsync(r, ct));
         internalApi.MapPost("/crews/deposit", (CrewMoneyRequest r, CrewService s, CancellationToken ct) => s.DepositAsync(r, ct));
         internalApi.MapPost("/crews/withdraw", (CrewMoneyRequest r, CrewService s, CancellationToken ct) => s.WithdrawAsync(r, ct));
         internalApi.MapPost("/crews/settings", (CrewSettingsRequest r, CrewService s, CancellationToken ct) => s.SetSettingsAsync(r, ct));

@@ -453,7 +453,13 @@ public sealed partial class CrewService(NpgsqlDataSource db, TimeProvider clock)
         if (await reader.ReadAsync(ct))
             (contracts, reputation) = (reader.GetInt32(0), reader.GetInt32(1));
 
-        return new CrewStatus(crewId, crewName, isLeader, members, invitations, level, history, contracts, reputation, treasury, permissions)
+        reader.Close();
+        CoalitionView? coalition = null;
+        List<CoalitionInviteView>? coalitionInvites = null;
+        if (crewId is { } myCrew)
+            (coalition, coalitionInvites) = await LoadCoalitionAsync(c, tx, myCrew, ct);
+        return new CrewStatus(crewId, crewName, isLeader, members, invitations, level, history, contracts, reputation, treasury, permissions,
+            coalition, coalitionInvites)
         {
             MyRole = members.FirstOrDefault(m => m.CharacterId == characterId)?.Role,
         };
