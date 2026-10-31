@@ -9,7 +9,7 @@ namespace Distrito.Game.Map;
 public partial class MapPanel : Control
 {
     private const float SizePx = 420f;
-    private static readonly Color Paper = new(0.12f, 0.11f, 0.1f, 0.92f);
+    private static readonly Color Paper = new(0.12f, 0.11f, 0.1f, 0.98f);
     private static readonly Color Building = new(0.32f, 0.29f, 0.25f);
     private static readonly Color Brass = new(0.83f, 0.68f, 0.38f);
     private static readonly Color Others = new(0.85f, 0.85f, 0.8f);

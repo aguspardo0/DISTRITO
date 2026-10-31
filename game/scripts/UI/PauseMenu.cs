@@ -18,12 +18,14 @@ public partial class PauseMenu : Control
     public override void _Ready()
     {
         Visible = false;
-        SetAnchorsPreset(LayoutPreset.FullRect);
+        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Stop; // tapa el juego: los clics no capturan el mouse
 
-        AddChild(new ColorRect { Color = new Color(0, 0, 0, 0.55f), AnchorRight = 1, AnchorBottom = 1, MouseFilter = MouseFilterEnum.Ignore });
+        var dim = new ColorRect { Color = new Color(0, 0, 0, 0.55f), MouseFilter = MouseFilterEnum.Ignore };
+        AddChild(dim);
+        dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         var center = new CenterContainer();
-        center.SetAnchorsPreset(LayoutPreset.FullRect);
+        center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(center);
         var panel = new PanelContainer { CustomMinimumSize = new Vector2(360, 0) };
         center.AddChild(panel);

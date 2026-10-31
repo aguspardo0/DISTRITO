@@ -38,9 +38,9 @@ public partial class ConnectMenu : Control
 
     public override void _Ready()
     {
-        SetAnchorsPreset(LayoutPreset.FullRect);
+        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         var center = new CenterContainer();
-        center.SetAnchorsPreset(LayoutPreset.FullRect);
+        center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(center);
 
         var panel = new PanelContainer { CustomMinimumSize = new Vector2(420, 0) };
