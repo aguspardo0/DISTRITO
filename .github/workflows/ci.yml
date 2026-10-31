@@ -53,7 +53,19 @@ jobs:
         run: dotnet build Distrito.sln --no-restore -c Debug
 
       - name: Pruebas
-        run: dotnet test Distrito.sln --no-build -c Debug --logger "console;verbosity=normal"
+        run: dotnet test Distrito.sln --no-build -c Debug --logger "console;verbosity=normal" --logger "trx" --results-directory TestResults
+
+      - name: Resumen de pruebas
+        if: always()
+        run: |
+          for f in TestResults/*.trx; do
+            line=$(grep -o '<Counters [^>]*>' "$f")
+            total=$(echo "$line" | grep -o 'total="[0-9]*"' | grep -o '[0-9]*')
+            passed=$(echo "$line" | grep -o 'passed="[0-9]*"' | grep -o '[0-9]*')
+            failed=$(echo "$line" | grep -o 'failed="[0-9]*"' | grep -o '[0-9]*')
+            name=$(grep -o 'storage="[^"]*\.dll"' "$f" | head -1 | sed 's/.*\///; s/\.dll"//')
+            echo "::notice title=Pruebas ${name}::total=${total} ok=${passed} fallidas=${failed}"
+          done
 
   godot:
     name: Godot — importar y arrancar headless
@@ -87,8 +99,10 @@ jobs:
         run: |
           timeout 60 "$GODOT" --headless --path game -- --server --smoke-test 2>&1 | tee boot.log
           grep -q "SMOKE_TEST_OK" boot.log
+          echo "::notice title=Godot servidor::$(grep 'Arranque OK' boot.log)"
 
       - name: Arrancar en modo cliente (smoke test)
         run: |
           timeout 60 "$GODOT" --headless --path game -- --client --smoke-test 2>&1 | tee boot-client.log
           grep -q "SMOKE_TEST_OK" boot-client.log
+          echo "::notice title=Godot cliente::$(grep 'Arranque OK' boot-client.log)"

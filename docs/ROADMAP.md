@@ -5,7 +5,7 @@ Cada etapa debe compilar, tener sus pruebas en verde en CI y quedar explicada an
 ## Etapa 0 — Base técnica *(en curso)*
 - [x] Diagnóstico del entorno
 - [x] Documentación de arquitectura inicial
-- [ ] Repositorio, solución, proyecto Godot, backend, PostgreSQL, tests, CI en verde
+- [x] Repositorio, solución, proyecto Godot, backend, PostgreSQL, tests, CI en verde
 
 ## Etapa 1 — Prototipo técnico de red
 - [ ] Escena 3D con un barrio de prueba
