@@ -1,4 +1,5 @@
 using System.Globalization;
+using Distrito.Shared.Progression;
 
 namespace Distrito.Shared.Economy;
 
@@ -45,8 +46,11 @@ public sealed record EconomySnapshot(
     List<ContractView> ActiveContracts,
     int CompletedContracts,
     List<ReputationView>? Reputation = null,
-    BusinessView? Business = null)
+    BusinessView? Business = null,
+    ProgressView? Progress = null)
 {
+    public ProgressView ProgressOrEmpty => Progress ?? ProgressView.Empty;
+
     public int ReputationWith(string familyCode) => Reputation?.FirstOrDefault(r => r.FamilyCode == familyCode)?.Value ?? 0;
 
     public int QuantityOf(string itemCode) => Inventory.Where(i => i.ItemCode == itemCode).Sum(i => i.Quantity);

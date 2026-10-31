@@ -1,4 +1,5 @@
 using Distrito.Shared.Economy;
+using Distrito.Shared.Progression;
 using Npgsql;
 
 namespace Distrito.Backend.Economy;
@@ -134,8 +135,9 @@ public sealed partial class EconomyService
         Guid account;
         long lastCycle;
         bool hasHelper;
+        Guid owner;
         await using (var lockBusiness = new NpgsqlCommand(
-            "SELECT account_id, last_cycle, has_helper FROM distrito.businesses WHERE id = @id FOR UPDATE", c, tx))
+            "SELECT account_id, last_cycle, has_helper, owner_character_id FROM distrito.businesses WHERE id = @id FOR UPDATE", c, tx))
         {
             lockBusiness.Parameters.AddWithValue("id", businessId);
             await using var reader = await lockBusiness.ExecuteReaderAsync(ct);
@@ -144,6 +146,7 @@ public sealed partial class EconomyService
             account = reader.GetGuid(0);
             lastCycle = reader.GetInt64(1);
             hasHelper = reader.GetBoolean(2);
+            owner = reader.GetGuid(3);
         }
         if (lastCycle >= currentCycle)
             return 0;
@@ -163,7 +166,10 @@ public sealed partial class EconomyService
 
             // El ayudante trabaja solo si hay caja para pagarle al empezar el ciclo; si no, ese ciclo no trabaja.
             var helperWorks = hasHelper && await BalanceAsync(c, tx, account, ct) >= EconomyCatalog.CoffeeHelperWageCents;
-            var demand = EconomyCatalog.CoffeeDemandPerCycle + (helperWorks ? EconomyCatalog.CoffeeHelperExtraDemand : 0);
+            // Administración del dueño (nivel 5: +1, nivel 10: +2), según su práctica al empezar el ciclo.
+            var administration = (await LoadProgressAsync(c, tx, owner, ct)).AdministrationLevel;
+            var demand = EconomyCatalog.CoffeeDemandPerCycle + (helperWorks ? EconomyCatalog.CoffeeHelperExtraDemand : 0)
+                         + ProgressionRules.ExtraSalesPerCycle(administration);
             var units = Math.Min(stock, demand);
             var revenue = units * EconomyCatalog.CoffeeSalePriceCents;
             var rent = Math.Min(EconomyCatalog.CoffeeStandRentCents, revenue);
@@ -191,6 +197,7 @@ public sealed partial class EconomyService
             record.Parameters.AddWithValue("wages", wages);
             record.Parameters.AddWithValue("tx", txId);
             await record.ExecuteNonQueryAsync(ct);
+            await GrantProgressAsync(c, tx, owner, ProgressionRules.XpPerSalesCycle, logistics: 0, negotiation: 0, administration: 1, ct);
             totalSold += units;
         }
 

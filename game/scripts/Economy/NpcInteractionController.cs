@@ -99,7 +99,10 @@ public partial class NpcInteractionController : Node
         var reputation = s.Reputation is { Count: > 0 }
             ? string.Join(" · ", s.Reputation.Select(r => $"{r.FamilyName.Replace("Familia ", "")} {r.Value}"))
             : "—";
-        _status.Text = $"Dinero: {EconomyCatalog.FormatMoney(s.BalanceCents)}\nLlevás: {carried}\nContrato: {contract}\n" +
+        var pr = s.ProgressOrEmpty;
+        var level = $"Nivel {pr.Level}" + (pr.Level < Distrito.Shared.Progression.ProgressionRules.MaxLevel ? $" ({pr.Xp}/{pr.XpForNext} exp)" : "") +
+                    $" · Logística {pr.LogisticsLevel} · Negociación {pr.NegotiationLevel} · Administración {pr.AdministrationLevel}";
+        _status.Text = $"{level}\nDinero: {EconomyCatalog.FormatMoney(s.BalanceCents)}\nLlevás: {carried}\nContrato: {contract}\n" +
                        $"Contratos cumplidos: {s.CompletedContracts}\nReputación: {reputation}" +
                        (s.Business is { } b
                            ? $"\nPuesto de café ({b.OperatingState}): stock {b.Stock} · caja {EconomyCatalog.FormatMoney(b.CashCents)} · ganancia {EconomyCatalog.FormatMoney(b.ProfitCents)}"

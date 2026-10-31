@@ -157,7 +157,7 @@ public static class NpcInteractionRules
 
         var m = EconomyCatalog.FormatMoney;
         var text = $"{b.Name} — {b.OperatingState}\n" +
-                   $"Stock: {b.Stock} bolsa(s) · vende hasta {EconomyCatalog.CoffeeDemandPerCycle + (b.HasHelper ? EconomyCatalog.CoffeeHelperExtraDemand : 0)} por ciclo a {m(EconomyCatalog.CoffeeSalePriceCents)}\n" +
+                   $"Stock: {b.Stock} bolsa(s) · vende hasta {EconomyCatalog.CoffeeDemandPerCycle + (b.HasHelper ? EconomyCatalog.CoffeeHelperExtraDemand : 0) + Distrito.Shared.Progression.ProgressionRules.ExtraSalesPerCycle(s.ProgressOrEmpty.AdministrationLevel)} por ciclo a {m(EconomyCatalog.CoffeeSalePriceCents)}\n" +
                    $"Caja: {m(b.CashCents)} · Patrimonio: {m(b.EquityCents)}\n" +
                    $"Vendidos: {b.UnitsSold} · Facturación: {m(b.RevenueCents)} · Alquiler: {m(b.RentCents)} · Sueldos: {m(b.WagesCents)} · Ganancia: {m(b.ProfitCents)}\n" +
                    (b.HasHelper ? "Ayudante: contratado" : "Ayudante: no");

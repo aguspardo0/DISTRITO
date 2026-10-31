@@ -1,4 +1,5 @@
 using Distrito.Shared.Economy;
+using Distrito.Shared.Progression;
 using Npgsql;
 
 namespace Distrito.Backend.Economy;
@@ -61,8 +62,11 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             cmd.Parameters.AddWithValue("t", template.Code);
             cmd.Parameters.AddWithValue("c", request.CharacterId);
             cmd.Parameters.AddWithValue("k", request.RequestId);
+            var extraSeconds = template.HasTimeLimit
+                ? ProgressionRules.ExtraDeadlineSeconds((await LoadProgressAsync(c, tx, request.CharacterId, ct)).LogisticsLevel)
+                : 0;
             cmd.Parameters.AddWithValue("exp", template.HasTimeLimit
-                ? clock.GetUtcNow().AddSeconds(template.TimeLimitSeconds)
+                ? clock.GetUtcNow().AddSeconds(template.TimeLimitSeconds + extraSeconds)
                 : DBNull.Value);
             if (await cmd.ExecuteNonQueryAsync(ct) == 0)
             {
@@ -72,7 +76,8 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                 throw new EconomyRejected("contract_already_active", "Ya tenés ese contrato en curso.");
             }
             return template.HasTimeLimit
-                ? $"Contrato aceptado: {template.Title}. Tenés {template.TimeLimitSeconds / 60} minutos."
+                ? $"Contrato aceptado: {template.Title}. Tenés {template.TimeLimitSeconds / 60} minutos" +
+                  (extraSeconds > 0 ? $" y {extraSeconds} segundos (Logística)." : ".")
                 : $"Contrato aceptado: {template.Title}.";
         });
 
@@ -143,7 +148,16 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             var receiver = template.HasGoods ? await AccountIdByCodeAsync(c, tx, template.DestinationNpc, ct) : payer;
             await LockAccountsAsync(c, tx, ct, [.. accounts, payer, receiver]);
 
-            if (await BalanceAsync(c, tx, payer, ct) < template.RewardCents)
+            // Pago: partes iguales (el resto de la división queda para quien entrega) y cada uno con su bonificación de Negociación.
+            var share = template.RewardCents / participants.Count;
+            var amounts = new List<long>();
+            for (var i = 0; i < participants.Count; i++)
+            {
+                var baseAmount = share + (i == 0 ? template.RewardCents - share * participants.Count : 0);
+                var negotiation = (await LoadProgressAsync(c, tx, participants[i], ct)).NegotiationLevel;
+                amounts.Add(ProgressionRules.WithNegotiationBonus(baseAmount, negotiation));
+            }
+            if (await BalanceAsync(c, tx, payer, ct) < amounts.Sum())
                 throw new EconomyRejected("client_cannot_pay", "El cliente no tiene fondos para pagar.");
 
             var txId = await NewLedgerTransactionAsync(c, tx, request.RequestId, "contract_delivery",
@@ -153,13 +167,8 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                     from: (accounts[0], EconomyCatalog.CarriedLocation), to: (receiver, template.DestinationLocation),
                     notEnough: "No tenés la mercadería que pide el contrato.", ct);
 
-            // El pago se reparte en partes iguales; el resto de la división (centavos) queda para quien entrega.
-            var share = template.RewardCents / participants.Count;
             for (var i = 0; i < accounts.Count; i++)
-            {
-                var amount = share + (i == 0 ? template.RewardCents - share * participants.Count : 0);
-                await TransferMoneyAsync(c, tx, txId, from: payer, to: accounts[i], amount, ct);
-            }
+                await TransferMoneyAsync(c, tx, txId, from: payer, to: accounts[i], amounts[i], ct);
 
             await using (var complete = new NpgsqlCommand("""
                 UPDATE distrito.contracts
@@ -176,11 +185,49 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                 foreach (var reward in template.Reputation)
                     await GrantReputationAsync(c, tx, p, reward, $"contrato {templateCode}", txId, ct);
 
+            // Progresión: experiencia y Negociación para todos; Logística para quien llevó la mercadería.
+            for (var i = 0; i < participants.Count; i++)
+                await GrantProgressAsync(c, tx, participants[i], ProgressionRules.XpPerContract,
+                    logistics: i == 0 && template.HasGoods ? 1 : 0, negotiation: 1, administration: 0, ct);
+
             var reputationText = EconomyCatalog.DescribeReputation(template.Reputation);
             return participants.Count > 1
-                ? $"Trabajo hecho entre {participants.Count}. Cada uno cobró {EconomyCatalog.FormatMoney(share)} y ganó reputación ({reputationText})."
-                : $"Contrato cumplido. Cobraste {EconomyCatalog.FormatMoney(template.RewardCents)} y ganaste reputación ({reputationText}).";
+                ? $"Trabajo hecho entre {participants.Count}. Cobraste {EconomyCatalog.FormatMoney(amounts[0])} y ganaste reputación ({reputationText}) y {ProgressionRules.XpPerContract} de experiencia."
+                : $"Contrato cumplido. Cobraste {EconomyCatalog.FormatMoney(amounts[0])} y ganaste reputación ({reputationText}) y {ProgressionRules.XpPerContract} de experiencia.";
         });
+
+    private static async Task<ProgressView> LoadProgressAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, CancellationToken ct)
+    {
+        await using var cmd = new NpgsqlCommand(
+            "SELECT xp, logistics, negotiation, administration FROM distrito.character_progress WHERE character_id = @c", c, tx);
+        cmd.Parameters.AddWithValue("c", characterId);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        return await reader.ReadAsync(ct)
+            ? new ProgressView(reader.GetInt64(0), reader.GetInt32(1), reader.GetInt32(2), reader.GetInt32(3))
+            : ProgressView.Empty;
+    }
+
+    /// <summary>Suma experiencia y práctica de oficios, dentro de la transacción que lo causa.</summary>
+    private static async Task GrantProgressAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId,
+        long xp, int logistics, int negotiation, int administration, CancellationToken ct)
+    {
+        await using var cmd = new NpgsqlCommand("""
+            INSERT INTO distrito.character_progress (character_id, xp, logistics, negotiation, administration)
+            VALUES (@c, @xp, @l, @n, @a)
+            ON CONFLICT (character_id) DO UPDATE SET
+                xp = distrito.character_progress.xp + @xp,
+                logistics = distrito.character_progress.logistics + @l,
+                negotiation = distrito.character_progress.negotiation + @n,
+                administration = distrito.character_progress.administration + @a,
+                updated_at = now()
+            """, c, tx);
+        cmd.Parameters.AddWithValue("c", characterId);
+        cmd.Parameters.AddWithValue("xp", xp);
+        cmd.Parameters.AddWithValue("l", logistics);
+        cmd.Parameters.AddWithValue("n", negotiation);
+        cmd.Parameters.AddWithValue("a", administration);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
 
     private static async Task<List<Guid>> CrewMatesAmongAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId,
         IReadOnlyList<Guid> candidates, CancellationToken ct)
@@ -538,6 +585,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                     reader.GetInt64(4), reader.GetInt64(5), reader.GetInt32(6), reader.GetInt32(7), reader.GetBoolean(8), reader.GetInt64(9));
         }
 
-        return new EconomySnapshot(balance, inventory, active, completed, reputation, business);
+        var progress = await LoadProgressAsync(c, tx, characterId, ct);
+        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress);
     }
 }
