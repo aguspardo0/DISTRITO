@@ -55,7 +55,7 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Prueba con latencia, variación y pérdida de paquetes (netem en CI)
 - [x] Prueba de colisiones (edificios y bordes del barrio; se agregaron bordes invisibles)
 - [x] Métricas: CPU, RAM, RTT, ancho de banda, desconexiones y errores
-- [ ] Prueba de corte de cliente a mitad de partida (el resto sigue jugando, se guarda el progreso)
+- [x] Prueba de corte de cliente a mitad de partida (el resto sigue jugando, se guarda el progreso; un cliente colgado sale a los ~8 s)
 
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.
