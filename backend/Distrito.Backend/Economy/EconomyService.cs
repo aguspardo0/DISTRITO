@@ -173,6 +173,14 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             for (var i = 0; i < accounts.Count; i++)
                 await TransferMoneyAsync(c, tx, txId, from: payer, to: accounts[i], amounts[i], ct);
 
+            // Aporte automático a la caja de la cuadrilla de cada uno (si su jefe lo configuró).
+            long myTithe = 0;
+            for (var i = 0; i < accounts.Count; i++)
+            {
+                var tithe = await Distrito.Backend.Crews.CrewService.ApplyContractTitheAsync(c, tx, txId, participants[i], accounts[i], amounts[i], ct);
+                if (i == 0) myTithe = tithe;
+            }
+
             await using (var complete = new NpgsqlCommand("""
                 UPDATE distrito.contracts
                 SET status = 'completed', completed_at = now(), completion_transaction_id = @tx
@@ -193,7 +201,8 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                 await GrantProgressAsync(c, tx, participants[i], ProgressionRules.XpPerContract,
                     logistics: i == 0 && template.HasGoods ? 1 : 0, negotiation: 1, administration: 0, ct);
 
-            var reputationText = EconomyCatalog.DescribeReputation(template.Reputation);
+            var reputationText = EconomyCatalog.DescribeReputation(template.Reputation)
+                                 + (myTithe > 0 ? $"; aportaste {EconomyCatalog.FormatMoney(myTithe)} a la caja de la cuadrilla" : "");
             return participants.Count > 1
                 ? $"Trabajo hecho entre {participants.Count}. Cobraste {EconomyCatalog.FormatMoney(amounts[0])} y ganaste reputación ({reputationText}) y {ProgressionRules.XpPerContract} de experiencia."
                 : $"Contrato cumplido. Cobraste {EconomyCatalog.FormatMoney(amounts[0])} y ganaste reputación ({reputationText}) y {ProgressionRules.XpPerContract} de experiencia.";
@@ -372,7 +381,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
     private async Task<EconomyActionResult> FailAsync(Guid characterId, string code, string message, CancellationToken ct) =>
         new(false, code, message, await GetSnapshotAsync(characterId, ct));
 
-    private static async Task<bool> ExistsAsync(NpgsqlConnection c, NpgsqlTransaction tx, string sql, string key, CancellationToken ct)
+    internal static async Task<bool> ExistsAsync(NpgsqlConnection c, NpgsqlTransaction tx, string sql, string key, CancellationToken ct)
     {
         await using var cmd = new NpgsqlCommand(sql, c, tx);
         cmd.Parameters.AddWithValue("k", key);
@@ -380,7 +389,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
     }
 
     /// <summary>Crea la cuenta del personaje la primera vez, con sus fondos iniciales emitidos por el sistema.</summary>
-    private static async Task<Guid> EnsureCharacterAccountAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, CancellationToken ct)
+    internal static async Task<Guid> EnsureCharacterAccountAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, CancellationToken ct)
     {
         await using (var find = new NpgsqlCommand(
             "SELECT id FROM distrito.economic_accounts WHERE character_id = @c", c, tx))
@@ -438,7 +447,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
     }
 
     /// <summary>Bloquea las filas de las cuentas siempre en el mismo orden (por id) para evitar interbloqueos.</summary>
-    private static async Task LockAccountsAsync(NpgsqlConnection c, NpgsqlTransaction tx, CancellationToken ct, params Guid[] accounts)
+    internal static async Task LockAccountsAsync(NpgsqlConnection c, NpgsqlTransaction tx, CancellationToken ct, params Guid[] accounts)
     {
         await using var cmd = new NpgsqlCommand(
             "SELECT id FROM distrito.economic_accounts WHERE id = ANY(@ids) ORDER BY id FOR UPDATE", c, tx);
@@ -447,14 +456,14 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         while (await reader.ReadAsync(ct)) { }
     }
 
-    private static async Task<long> BalanceAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid account, CancellationToken ct)
+    internal static async Task<long> BalanceAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid account, CancellationToken ct)
     {
         await using var cmd = new NpgsqlCommand("SELECT balance_cents FROM distrito.economic_accounts WHERE id = @id", c, tx);
         cmd.Parameters.AddWithValue("id", account);
         return (long)(await cmd.ExecuteScalarAsync(ct))!;
     }
 
-    private static async Task<Guid> NewLedgerTransactionAsync(
+    internal static async Task<Guid> NewLedgerTransactionAsync(
         NpgsqlConnection c, NpgsqlTransaction tx, string key, string kind, string description, CancellationToken ct)
     {
         var id = Guid.CreateVersion7();
@@ -468,7 +477,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         return id;
     }
 
-    private static async Task TransferMoneyAsync(
+    internal static async Task TransferMoneyAsync(
         NpgsqlConnection c, NpgsqlTransaction tx, Guid txId, Guid from, Guid to, long amount, CancellationToken ct)
     {
         if (amount <= 0 || from == to)

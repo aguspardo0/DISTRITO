@@ -34,6 +34,9 @@ public static class Endpoints
         internalApi.MapPost("/crews/create", (CreateCrewRequest r, CrewService s, CancellationToken ct) => s.CreateAsync(r, ct));
         internalApi.MapPost("/crews/invite", (InviteToCrewRequest r, CrewService s, CancellationToken ct) => s.InviteAsync(r, ct));
         internalApi.MapPost("/crews/respond", (CrewInvitationResponse r, CrewService s, CancellationToken ct) => s.RespondAsync(r, ct));
+        internalApi.MapPost("/crews/deposit", (CrewMoneyRequest r, CrewService s, CancellationToken ct) => s.DepositAsync(r, ct));
+        internalApi.MapPost("/crews/withdraw", (CrewMoneyRequest r, CrewService s, CancellationToken ct) => s.WithdrawAsync(r, ct));
+        internalApi.MapPost("/crews/settings", (CrewSettingsRequest r, CrewService s, CancellationToken ct) => s.SetSettingsAsync(r, ct));
         internalApi.MapPost("/crews/expand", (ExpandCrewRequest r, CrewService s, CancellationToken ct) => s.ExpandAsync(r, ct));
         internalApi.MapPost("/crews/kick", (KickFromCrewRequest r, CrewService s, CancellationToken ct) => s.KickAsync(r, ct));
         internalApi.MapPost("/crews/role", (SetCrewRoleRequest r, CrewService s, CancellationToken ct) => s.SetRoleAsync(r, ct));

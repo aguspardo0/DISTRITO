@@ -19,14 +19,19 @@ public sealed record CrewStatus(
     int Level = 1,
     List<CrewEventView>? History = null,
     int Contracts = 0,
-    int Reputation = 0)
+    int Reputation = 0,
+    long TreasuryCents = 0,
+    CrewPermissions? Permissions = null)
 {
+    public CrewPermissions Rules => Permissions ?? CrewPermissions.Default;
+    public bool CanWithdraw => MyRole is { } r && Rules.CanWithdraw(r);
+
     public static CrewStatus None { get; } = new(null, null, false, [], []);
 
     /// <summary>Rol del que consulta (según la lista de miembros), o null si no está en la cuadrilla.</summary>
     public string? MyRole { get; init; }
 
-    public bool CanInvite => MyRole is { } r && CrewRoles.CanInvite(r);
+    public bool CanInvite => MyRole is { } r && Rules.CanInvite(r);
     public bool InCrew => CrewId is not null;
     public int Capacity => CrewRules.CapacityForLevel(Level);
 
@@ -52,6 +57,28 @@ public sealed record InviteToCrewRequest(Guid CharacterId, Guid TargetCharacterI
 public sealed record CrewInvitationResponse(Guid CharacterId, Guid CrewId, bool Accept);
 
 public sealed record LeaveCrewRequest(Guid CharacterId);
+
+/// <summary>
+/// Permisos configurables por el jefe y aporte automático a la caja (propuesta aprobada, 2026-10-31).
+/// El jefe siempre puede todo.
+/// </summary>
+public sealed record CrewPermissions(bool SecondCanWithdraw, bool SecondCanInvite, bool MemberCanInvite, int TithePercent)
+{
+    public const int MaxTithePercent = 20;
+    public static CrewPermissions Default { get; } = new(false, true, false, 0);
+
+    public bool CanInvite(string role) => role == CrewRoles.Leader || (role == CrewRoles.Second && SecondCanInvite) || (role == CrewRoles.Member && MemberCanInvite);
+    public bool CanWithdraw(string role) => role == CrewRoles.Leader || (role == CrewRoles.Second && SecondCanWithdraw);
+
+    /// <summary>Parte de un cobro de contrato que va sola a la caja.</summary>
+    public long TitheOf(long cents) => cents * Math.Clamp(TithePercent, 0, MaxTithePercent) / 100;
+}
+
+/// <summary>Depositar en la caja o retirar de ella. AmountCents 0 = todo. RequestId hace el pedido idempotente.</summary>
+public sealed record CrewMoneyRequest(Guid CharacterId, long AmountCents, string RequestId);
+
+/// <summary>El jefe cambia permisos y el aporte automático.</summary>
+public sealed record CrewSettingsRequest(Guid CharacterId, CrewPermissions Permissions);
 
 /// <summary>El jefe amplía el cupo de la cuadrilla cuando se cumplen los requisitos.</summary>
 public sealed record ExpandCrewRequest(Guid CharacterId);
@@ -132,6 +159,10 @@ public static partial class CrewRules
         "role_member" => $"{e.Who} dejó de ser segundo",
         "kicked" => $"{e.Who} fue expulsado",
         "expanded" => $"La cuadrilla creció: cupo {e.Detail}",
+        "deposit" => $"{e.Who} puso {e.Detail} en la caja",
+        "withdraw" => $"{e.Who} sacó {e.Detail} de la caja",
+        "tithe" => $"{e.Who} aportó {e.Detail} de un contrato",
+        "settings" => $"{e.Who} cambió los permisos: {e.Detail}",
         _ => $"{e.Kind} {e.Who} {e.Detail}".Trim(),
     };
 

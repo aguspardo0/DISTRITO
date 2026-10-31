@@ -8,7 +8,7 @@ namespace Distrito.Backend.Crews;
 /// Cada acción es una transacción; la fila de la cuadrilla se bloquea para que el cupo y el liderazgo
 /// no se rompan con pedidos simultáneos.
 /// </summary>
-public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
+public sealed partial class CrewService(NpgsqlDataSource db, TimeProvider clock)
 {
     private sealed class CrewRejected(string code, string message) : Exception(message)
     {
@@ -65,8 +65,8 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
             await LockCrewAsync(c, tx, crew.Id, ct);
             await ApplyInactivitySuccessionAsync(c, tx, crew.Id, ct);
             crew = await CrewOfAsync(c, tx, r.CharacterId, ct) ?? crew;
-            if (!CrewRoles.CanInvite(crew.Role))
-                throw new CrewRejected("not_allowed", "Solo el jefe o el segundo pueden invitar.");
+            if (!(await PermissionsAsync(c, tx, crew.Id, ct)).CanInvite(crew.Role))
+                throw new CrewRejected("not_allowed", "Tu rol no tiene permiso para invitar en esta cuadrilla.");
             await EnsureCharacterExistsAsync(c, tx, r.TargetCharacterId, ct);
             if (await CrewOfAsync(c, tx, r.TargetCharacterId, ct) is not null)
                 throw new CrewRejected("target_in_crew", "Esa persona ya está en una cuadrilla.");
@@ -396,11 +396,17 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
         string? crewName = null;
         var isLeader = false;
         var level = 1;
+        long treasury = 0;
+        CrewPermissions? permissions = null;
         var members = new List<CrewMemberView>();
         var invitations = new List<CrewInvitationView>();
 
         await using var cmd = new NpgsqlCommand("""
-            SELECT cr.id, cr.name, m.role, cr.level FROM distrito.crew_members m JOIN distrito.crews cr ON cr.id = m.crew_id WHERE m.character_id = @c;
+            SELECT cr.id, cr.name, m.role, cr.level, COALESCE(a.balance_cents, 0),
+                   cr.second_can_withdraw, cr.second_can_invite, cr.member_can_invite, cr.contract_tithe_pct
+              FROM distrito.crew_members m JOIN distrito.crews cr ON cr.id = m.crew_id
+              LEFT JOIN distrito.economic_accounts a ON a.id = cr.account_id
+             WHERE m.character_id = @c;
             SELECT ch.id, ch.name, m.role FROM distrito.crew_members m JOIN distrito.characters ch ON ch.id = m.character_id
              WHERE m.crew_id = (SELECT crew_id FROM distrito.crew_members WHERE character_id = @c) ORDER BY m.joined_at, ch.id;
             SELECT cr.id, cr.name, inviter.name FROM distrito.crew_invitations i
@@ -428,6 +434,8 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
             crewName = reader.GetString(1);
             isLeader = reader.GetString(2) == "leader";
             level = reader.GetInt32(3);
+            treasury = reader.GetInt64(4);
+            permissions = new CrewPermissions(reader.GetBoolean(5), reader.GetBoolean(6), reader.GetBoolean(7), reader.GetInt32(8));
         }
         await reader.NextResultAsync(ct);
         while (await reader.ReadAsync(ct))
@@ -445,7 +453,7 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
         if (await reader.ReadAsync(ct))
             (contracts, reputation) = (reader.GetInt32(0), reader.GetInt32(1));
 
-        return new CrewStatus(crewId, crewName, isLeader, members, invitations, level, history, contracts, reputation)
+        return new CrewStatus(crewId, crewName, isLeader, members, invitations, level, history, contracts, reputation, treasury, permissions)
         {
             MyRole = members.FirstOrDefault(m => m.CharacterId == characterId)?.Role,
         };

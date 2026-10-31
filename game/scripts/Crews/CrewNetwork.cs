@@ -41,6 +41,10 @@ public partial class CrewNetwork : Node
     public void Leave() => Send(MethodName.ServerLeave);
     public void Kick(Guid characterId) => Send(MethodName.ServerKick, characterId.ToString());
     public void Expand() => Send(MethodName.ServerExpand);
+    public void Deposit(long cents) => Send(MethodName.ServerMoney, true, cents);
+    public void Withdraw(long cents) => Send(MethodName.ServerMoney, false, cents);
+    public void SetSettings(CrewPermissions p) =>
+        Send(MethodName.ServerSettings, p.SecondCanWithdraw, p.SecondCanInvite, p.MemberCanInvite, p.TithePercent);
     public void SetRole(Guid characterId, string role) => Send(MethodName.ServerSetRole, characterId.ToString(), role);
 
     private void Send(StringName method, params Variant[] args)
@@ -82,6 +86,16 @@ public partial class CrewNetwork : Node
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerLeave() =>
         Handle(async (api, me) => (ApiResult<CrewActionResult>?)await api.LeaveCrewAsync(_network.ServerKey, new LeaveCrewRequest(me)));
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerMoney(bool deposit, long cents) =>
+        Handle(async (api, me) => (ApiResult<CrewActionResult>?)await api.CrewMoneyAsync(_network.ServerKey, deposit,
+            new CrewMoneyRequest(me, Math.Max(0, cents), Guid.NewGuid().ToString())));
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerSettings(bool secondCanWithdraw, bool secondCanInvite, bool memberCanInvite, int tithePercent) =>
+        Handle(async (api, me) => (ApiResult<CrewActionResult>?)await api.SetCrewSettingsAsync(_network.ServerKey,
+            new CrewSettingsRequest(me, new CrewPermissions(secondCanWithdraw, secondCanInvite, memberCanInvite, tithePercent))));
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerExpand() =>

@@ -122,6 +122,44 @@ public partial class CrewPanel : PanelContainer
             }
         }
 
+        // Caja común.
+        _content.AddChild(new Label { Text = $"Caja: {Distrito.Shared.Economy.EconomyCatalog.FormatMoney(status.TreasuryCents)}" });
+        var put = new HBoxContainer();
+        put.AddChild(new Label { Text = "Poner:" });
+        foreach (var (label, cents) in MoneySteps)
+            put.AddChild(MakeButton(label, () => _crews.Deposit(cents)));
+        _content.AddChild(put);
+        if (status.CanWithdraw)
+        {
+            var take = new HBoxContainer();
+            take.AddChild(new Label { Text = "Sacar:" });
+            foreach (var (label, cents) in MoneySteps)
+                take.AddChild(MakeButton(label, () => _crews.Withdraw(cents)));
+            _content.AddChild(take);
+        }
+
+        var rules = status.Rules;
+        if (status.IsLeader)
+        {
+            _content.AddChild(new Label { Text = "Permisos (solo el jefe):" });
+            AddToggle("El segundo puede sacar de la caja", rules.SecondCanWithdraw, on => _crews.SetSettings(rules with { SecondCanWithdraw = on }));
+            AddToggle("El segundo puede invitar", rules.SecondCanInvite, on => _crews.SetSettings(rules with { SecondCanInvite = on }));
+            AddToggle("Los miembros pueden invitar", rules.MemberCanInvite, on => _crews.SetSettings(rules with { MemberCanInvite = on }));
+            var tithe = new HBoxContainer();
+            tithe.AddChild(new Label { Text = "Aporte de contratos a la caja:" });
+            var picker = new OptionButton();
+            for (var pct = 0; pct <= CrewPermissions.MaxTithePercent; pct += 5)
+                picker.AddItem($"{pct} %", pct);
+            picker.Select(picker.GetItemIndex(rules.TithePercent - rules.TithePercent % 5));
+            picker.ItemSelected += index => _crews.SetSettings(rules with { TithePercent = picker.GetItemId((int)index) });
+            tithe.AddChild(picker);
+            _content.AddChild(tithe);
+        }
+        else if (rules.TithePercent > 0)
+        {
+            _content.AddChild(new Label { Text = $"Aporte de contratos a la caja: {rules.TithePercent} %" });
+        }
+
         // Ampliación del cupo: por contratos cumplidos y reputación de todos los integrantes.
         if (status.NextExpansion is { } next)
         {
@@ -150,6 +188,15 @@ public partial class CrewPanel : PanelContainer
             foreach (var e in history.Take(5))
                 _content.AddChild(new Label { Text = $"  {e.When.ToLocalTime():dd/MM HH:mm} · {CrewRules.Describe(e)}" });
         }
+    }
+
+    private static readonly (string Label, long Cents)[] MoneySteps = [("$1", 100), ("$5", 500), ("$10", 1_000), ("Todo", 0)];
+
+    private void AddToggle(string text, bool value, Action<bool> onToggled)
+    {
+        var toggle = new CheckButton { Text = text, ButtonPressed = value };
+        toggle.Toggled += on => onToggled(on);
+        _content.AddChild(toggle);
     }
 
     private void AddButton(string text, Action onPressed) => _content.AddChild(MakeButton(text, onPressed));
