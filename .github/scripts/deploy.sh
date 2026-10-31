@@ -3,7 +3,7 @@
 # Requiere: DEPLOY_HOST, DEPLOY_SSH_KEY (secretos del repo) y build/release ya armado.
 set -euo pipefail
 
-user=ubuntu
+user="${DEPLOY_USER:-ubuntu}"
 domain="$(echo "$DEPLOY_HOST" | tr . -).sslip.io"
 key="$RUNNER_TEMP/deploy_key"
 

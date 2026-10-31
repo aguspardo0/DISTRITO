@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Instala o actualiza DISTRITO en el servidor (Ubuntu 22.04 o 24.04, ARM64, Oracle Cloud).
+# Instala o actualiza DISTRITO en el servidor (Ubuntu 22.04 o 24.04, x86_64 o ARM64; Oracle, Vultr u otro VPS).
 # Idempotente: se ejecuta en cada despliegue. Uso (como root):
 #   setup-server.sh <carpeta-del-release> <dominio> <commit>
 #
@@ -79,7 +79,7 @@ log "Instalando release $COMMIT"
 rm -rf "$release"
 mkdir -p "$release"
 cp -a "$RELEASE_SRC"/. "$release"/
-chmod +x "$release/server/DistritoServer.arm64" "$release/backend/Distrito.Backend"
+chmod +x "$release/server/DistritoServer" "$release/backend/Distrito.Backend"
 chown -R distrito:distrito "$APP"
 ln -sfn "$release" "$APP/current"
 
@@ -112,7 +112,7 @@ Wants=distrito-backend.service
 User=distrito
 EnvironmentFile=$ENV_FILE
 WorkingDirectory=$APP/current/server
-ExecStart=$APP/current/server/DistritoServer.arm64 --headless -- --server --port 7777 --backend http://127.0.0.1:5080
+ExecStart=$APP/current/server/DistritoServer --headless -- --server --port 7777 --backend http://127.0.0.1:5080
 Restart=always
 RestartSec=3
 
@@ -129,7 +129,14 @@ $DOMAIN {
 }
 EOF
 
-# --- Firewall del sistema (las imágenes de Oracle bloquean todo salvo SSH) ---
+# --- Firewall del sistema ---
+# Vultr (y otros) traen ufw activo con solo SSH abierto.
+if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
+  ufw allow 80/tcp >/dev/null
+  ufw allow 443/tcp >/dev/null
+  ufw allow 7777/udp >/dev/null
+fi
+# Las imágenes de Oracle bloquean todo con iptables salvo SSH.
 for rule in "-p tcp --dport 80" "-p tcp --dport 443" "-p udp --dport 7777"; do
   # shellcheck disable=SC2086
   iptables -C INPUT $rule -j ACCEPT 2>/dev/null || iptables -I INPUT 1 $rule -j ACCEPT
