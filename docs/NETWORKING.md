@@ -10,3 +10,10 @@
 | 20 jugadores | física máx 6,3 ms/tick · CPU 14 % · RAM 191 MB · 105 kbps por jugador · 0 desconexiones |
 
 Las métricas del servidor (`METRICS`) ahora incluyen `cpu_pct`, `desconexiones` y `errores`.
+
+## Etapa C — presencia en el mapa
+
+`MapPresence` (núcleo) + `MapNetwork` (Godot): el servidor manda a cada cliente, 1 vez por segundo y sin garantía de entrega,
+arreglos paralelos `peers / nombres / x,z` con posiciones redondeadas a 0,5 m. Es independiente del interés de red:
+quien está lejos aparece en el mapa pero no se replica su entidad 3D. Costo: N² marcadores por segundo
+(20 jugadores ≈ 400 marcadores/s, unos pocos KB/s en total).

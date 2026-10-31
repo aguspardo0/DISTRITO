@@ -57,5 +57,11 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Métricas: CPU, RAM, RTT, ancho de banda, desconexiones y errores
 - [x] Prueba de corte de cliente a mitad de partida (el resto sigue jugando, se guarda el progreso; un cliente colgado sale a los ~8 s)
 
+## Etapa C — Mundo y visibilidad (en curso)
+- [x] Mapa del barrio (tecla M) separado del mundo 3D: nombre y posición redondeada (0,5 m) de todos, 1 vez por segundo
+- [x] Privacidad decidida por el equipo: todos ven a todos en el mapa (las opciones por grupo/familia quedan para cuando haya permisos)
+- [x] Prueba en CI: fuera del radio de interés no se cargan modelos, pero el mapa muestra a los dos
+- [ ] Prueba visual del mapa por el equipo
+
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.
