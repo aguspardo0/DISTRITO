@@ -63,5 +63,11 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Prueba en CI: fuera del radio de interés no se cargan modelos, pero el mapa muestra a los dos
 - [x] Prueba visual del mapa por el equipo (2026-10-31: funciona)
 
+## Etapa D — Alpha de contenido (en curso)
+- [x] Progresión del personaje: nivel 1–30 y oficios (ver `docs/Design/PROGRESSION.md`)
+- [ ] Segundo negocio con proveedor
+- [ ] Familias NPC con estados
+- [ ] Herramientas de la cuadrilla (caja común, permisos por rol)
+
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.
