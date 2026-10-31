@@ -15,14 +15,18 @@ PostgreSQL 16 (desarrollo local vía Docker Compose; en CI como servicio de GitH
 
 ## Esquema
 
-Por ahora la migración inicial solo crea el esquema `distrito` y una tabla de control de migraciones. Las tablas de cuentas, personajes, inventarios y ledger se diseñan en la etapa del hito 1 y se documentan acá antes de crearlas.
-
-Borrador de entidades para el hito 1 (no implementado):
+Implementado (migración 0002):
 
 | Tabla | Propósito |
 |---|---|
-| `accounts` | Cuenta de usuario |
-| `characters` | Personaje (pertenece a una cuenta) |
+| `accounts` | Cuenta: usuario único (sin distinguir mayúsculas) y hash PBKDF2 |
+| `sessions` | Sesiones de login: SHA-256 del token + vencimiento |
+| `characters` | Personaje: cuenta dueña, nombre único global, zona y posición |
+
+Pendiente para el resto del hito 1:
+
+| Tabla | Propósito |
+|---|---|
 | `item_definitions` | Tipos de mercancía |
 | `item_stacks` | Mercancía concreta: propietario + ubicación + cantidad |
 | `ledger_entries` | Asientos económicos inmutables |
@@ -31,4 +35,4 @@ Borrador de entidades para el hito 1 (no implementado):
 
 ## Migraciones
 
-Archivos SQL numerados en `database/migrations/` (`0001_...sql`). **Pendiente:** elegir cómo se aplican (herramienta propia mínima, DbUp, o migraciones de EF Core). Ver ADR-001 → decisiones pendientes.
+Archivos SQL numerados en `database/migrations/`, aplicados por el backend al arrancar. Ver ADR-002 y `database/migrations/README.md`.

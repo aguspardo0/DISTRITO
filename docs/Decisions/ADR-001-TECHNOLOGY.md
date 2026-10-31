@@ -50,8 +50,8 @@ Todas las versiones de paquetes NuGet se fijan en un solo lugar: `Directory.Pack
 | Tema | Alternativas | Cuándo decidir |
 |---|---|---|
 | Host del servidor de juego | Godot headless (actual) vs. servidor .NET puro | Tras pruebas de 20 jugadores |
-| Aplicación de migraciones | Runner SQL propio mínimo / DbUp / EF Core Migrations | Antes de crear las tablas del hito 1 |
-| Acceso a datos | Npgsql + SQL directo / Dapper / EF Core | Antes de crear las tablas del hito 1 |
+| ~~Aplicación de migraciones~~ | **Resuelto en ADR-002**: runner propio | — |
+| ~~Acceso a datos~~ | **Resuelto en ADR-002**: Npgsql + SQL | — |
 | Formato de mensajes de red | RPC de Godot / serialización manual binaria | Con las pruebas de 10 jugadores |
-| Autenticación | Tokens propios firmados / proveedor externo | Hito 1 |
+| ~~Autenticación~~ | **Resuelto en ADR-002**: token opaco | — |
 | Reglas de Legacy (sucesión de personaje) | Abierto — no definir hasta que el diseño lo cierre | — |

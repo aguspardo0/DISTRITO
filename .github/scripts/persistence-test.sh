@@ -72,7 +72,7 @@ if [ -n "$pos_a" ] && [ -n "$pos_b" ]; then
   wait $a; wait $b; wait $d
   for x in a b; do
     line=$(result_line "persist-r2-$x.log")
-    if grep -q NET_TEST_OK "persist-r2-$x.log"; then note "Ronda 2 bot $x (esperado $( [ $x = a ] && echo "$pos_a" || echo "$pos_b"))" "${line#*\] }"; else error "Ronda 2 bot $x" "${line:-sin resultado}"; fi
+    if grep -q NET_TEST_OK "persist-r2-$x.log"; then note "Ronda 2 bot $x" "esperado=$( [ $x = a ] && echo "$pos_a" || echo "$pos_b") ${line#*\] }"; else error "Ronda 2 bot $x" "${line:-sin resultado}"; fi
   done
   if grep -q "ya está conectado" persist-dup.log; then note "Duplicado" "rechazado correctamente"; else error "Duplicado" "el mismo personaje pudo entrar dos veces"; fi
 else

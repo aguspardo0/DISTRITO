@@ -41,4 +41,14 @@ El proyecto Godot (`game/`) se ejecuta en uno de dos modos:
 3. Servidor de juego → Backend: valida token, carga personaje.
 4. Servidor crea la entidad del jugador y empieza a replicar entidades cercanas.
 
-En el **prototipo técnico (etapa D)** se omiten los pasos 1 y 3: se conecta directo al servidor sin cuenta. Está marcado como deuda explícita, no como diseño final.
+**Implementado (etapa 2).** Detalles:
+- Al conectarse, el cliente manda `Authenticate(token, personaje)` por RPC confiable. Hasta entonces el servidor no le crea personaje; si no llega en 10 s, lo corta.
+- El servidor valida con `POST /internal/sessions/resolve`. Si falla, responde `AuthRejected(motivo)` y corta la conexión.
+- Un personaje no puede estar conectado dos veces en la zona.
+- Posición guardada con `PUT /internal/characters/{id}/state` al desconectarse y cada 15 s.
+- **Modo invitado:** un servidor sin `--backend` (o la "partida local" del menú) acepta a cualquiera sin guardar nada.
+
+Ejecutar un servidor con cuentas:
+```bash
+DISTRITO_SERVER_KEY=... godot --headless --path game -- --server --backend http://localhost:5080
+```

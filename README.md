@@ -2,7 +2,7 @@
 
 MMORPG 3D persistente de sociedad, economía y organizaciones, ambientado en Estados Unidos en los años 30.
 
-> Estado: **prototipo de red** — dos o más jugadores se conectan y caminan por un barrio de prueba. Ver [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> Estado: **prototipo con cuentas** — jugadores se conectan, caminan por un barrio de prueba y (con servidor de cuentas) su personaje se guarda. Ver [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Qué hay en el repositorio
 
@@ -37,12 +37,14 @@ Modo servidor desde la terminal:
 godot --headless --path game -- --server --port 7777
 ```
 
-### Base de datos y backend
+### Base de datos, backend y servidor con cuentas
 ```bash
-docker compose up -d                       # levanta PostgreSQL con el esquema inicial
-dotnet run --project backend/Distrito.Backend
-# Probar: http://localhost:5000/health/ready  (el puerto exacto lo muestra la consola)
+docker compose up -d                                   # PostgreSQL
+Internal__ServerKey=dev-key ASPNETCORE_URLS=http://localhost:5080 \
+  dotnet run --project backend/Distrito.Backend         # aplica migraciones al arrancar
+DISTRITO_SERVER_KEY=dev-key godot --headless --path game -- --server --backend http://localhost:5080
 ```
+En el juego: menú → "Servidor de cuentas" = `http://localhost:5080` → Crear cuenta → Crear personaje → Unirse.
 
 ### Pruebas
 ```bash
