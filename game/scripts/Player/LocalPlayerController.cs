@@ -19,6 +19,7 @@ public partial class LocalPlayerController : Node
     private Node3D _yaw = null!;
     private Node3D _pitch = null!;
     private double _botClock;
+    private LocalPrediction? _prediction;
 
     /// <summary>Bot de pruebas: camina en círculos solo y se detiene al final para que la posición final sea estable.</summary>
     public BotSettings Bot { get; init; } = BotSettings.Off;
@@ -45,6 +46,14 @@ public partial class LocalPlayerController : Node
         _pitch.AddChild(arm);
         arm.AddChild(camera);
         camera.Current = true;
+
+        // En un cliente remoto se predice el movimiento propio. En el anfitrión no hace falta: el servidor es este proceso.
+        if (!Multiplayer.IsServer())
+        {
+            _prediction = new LocalPrediction();
+            _prediction.Initialize(_player);
+            AddChild(_prediction);
+        }
         _yaw.GlobalPosition = _player.GlobalPosition + Vector3.Up * CameraHeight;
 
         if (!IsHeadless && !UseBot)
@@ -81,6 +90,7 @@ public partial class LocalPlayerController : Node
     {
         var (direction, jump) = UseBot ? BotInput(delta) : KeyboardInput();
         _player.SubmitLocalInput(direction.X, direction.Y, jump);
+        _prediction?.SetInput(direction.X, direction.Y, jump);
     }
 
     private (Vector2 Direction, bool Jump) KeyboardInput()

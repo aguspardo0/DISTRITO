@@ -14,6 +14,7 @@ public partial class NetworkSelfTest : Node
 {
     private const float MinimumDisplacement = 1.0f;
     private const float SpawnTolerance = 0.5f;
+    private const float MaxPredictionError = 0.75f;
 
     private GameNetwork _network = null!;
     private int _expectedPlayers;
@@ -83,8 +84,12 @@ public partial class NetworkSelfTest : Node
         var spawnError = _expectedSpawn is { } e ? new Vector2(first.X - e.X, first.Z - e.Z).Length() : 0f;
 
         var visibleNow = _network.PlayerCount;
+        float? predictionError = local?.VisualOverride is { } predicted && IsInstanceValid(predicted)
+            ? FlatDistance(predicted.GlobalPosition, local.GlobalPosition)
+            : null;
         var rttInfo = _rttSamples == 0 ? "" : $" ping_ms_prom={_rttSum / _rttSamples:0} ping_ms_max={_rttMax:0}";
-        var contractInfo = rttInfo + $" visibles_al_final={visibleNow}" + (_contractBot is null
+        var contractInfo = rttInfo + $" visibles_al_final={visibleNow}"
+            + (predictionError is null ? "" : $" prediccion_error={predictionError:0.00}m") + (_contractBot is null
             ? ""
             : $" contrato={_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance} reputacion_caruso={_contractBot.ReputationCaruso}")
             + (_crewBot is null ? "" : $" cuadrilla=\"{_crewBot.State}\"");
@@ -102,6 +107,7 @@ public partial class NetworkSelfTest : Node
             _maxPlayersSeen < _expectedPlayers ? "no ve a todos los jugadores" :
             _expectMovement && _maxDisplacement < MinimumDisplacement ? "el servidor no movió al personaje" :
             spawnError > SpawnTolerance ? $"apareció a {spawnError:0.00}m del lugar guardado" :
+            predictionError > MaxPredictionError ? $"la predicción local quedó a {predictionError:0.00}m del servidor" :
             _expectVisibleAtEnd is { } v && visibleNow != v ? $"al final ve {visibleNow} jugadores y se esperaban {v}" :
             _crewBot is { Completed: false } ? $"la cuadrilla no se formó (quedó: {_crewBot.State})" :
             _contractBot is { Completed: false } ? $"el contrato no se completó (quedó en {_contractBot.StepName})" :

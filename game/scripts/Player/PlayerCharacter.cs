@@ -35,6 +35,9 @@ public partial class PlayerCharacter : CharacterBody3D
     /// <summary>Punto de aparición asignado por el servidor (solo se usa en el servidor).</summary>
     public Vector3 SpawnPoint { get; set; }
 
+    /// <summary>Si se asigna (personaje propio con predicción), el modelo visual sigue a este nodo en vez de al cuerpo replicado.</summary>
+    public Node3D? VisualOverride { get; set; }
+
     /// <summary>Posición suavizada que ve el jugador; la cámara la sigue.</summary>
     public Vector3 VisualPosition => _visual.GlobalPosition;
 
@@ -63,6 +66,13 @@ public partial class PlayerCharacter : CharacterBody3D
     public override void _Process(double delta)
     {
         RefreshNameTag();
+        if (VisualOverride is { } predicted && IsInstanceValid(predicted))
+        {
+            // Personaje propio: se muestra la predicción local, sin demora.
+            _visual.GlobalPosition = predicted.GlobalPosition;
+            _visual.GlobalRotation = new Vector3(0, Mathf.LerpAngle(_visual.GlobalRotation.Y, predicted.GlobalRotation.Y, 1f - Mathf.Exp(-20f * (float)delta)), 0);
+            return;
+        }
         var weight = 1f - Mathf.Exp(-VisualSmoothing * (float)delta);
         _visual.GlobalPosition = _visual.GlobalPosition.Lerp(GlobalPosition, weight);
         _visual.GlobalRotation = new Vector3(0, Mathf.LerpAngle(_visual.GlobalRotation.Y, GlobalRotation.Y, weight), 0);
