@@ -209,6 +209,21 @@ collect_db=$(PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -
 if echo "$collect_db" | grep -q "Bot Recluta"; then note "Cobranza en la base" "$collect_db (los dos ganaron reputación)"
 else error "Cobranza en la base" "el recluta no recibió su parte: ${collect_db:-nadie}"; fi
 
+# --- Corte de un cliente a mitad de partida (proceso matado, sin despedirse) ---
+#     El otro sigue jugando, el servidor saca al cortado y guarda su progreso.
+crew_bot persist-cut-survivor.log bot_alfa "Bot Alfa" --bot --expect-visible-end 1 & a=$!
+crew_bot persist-cut-victim.log bot_corte "Bot Corte" --bot & b=$!
+sleep 14
+kill -9 $b 2>/dev/null; wait $b 2>/dev/null
+cut_at=$(grep -c . persist-server.log)
+wait $a
+line=$(result_line persist-cut-survivor.log)
+if grep -q NET_TEST_OK persist-cut-survivor.log; then note "Corte de cliente (el otro sigue)" "${line#*\] }"
+else error "Corte de cliente (el otro sigue)" "${line:-sin resultado}"; fi
+if tail -n +"$cut_at" persist-server.log | grep -q "Guardado Bot Corte"; then
+  note "Corte de cliente (guardado)" "$(tail -n +"$cut_at" persist-server.log | grep "Guardado Bot Corte" | tail -1 | sed 's/.*\] //')"
+else error "Corte de cliente (guardado)" "el servidor no guardó al jugador cortado"; fi
+
 # --- Cliente sin cuenta contra servidor con cuentas ---
 timeout 60 "$GODOT" --headless --path game -- --client --host 127.0.0.1 --port "$PORT" --test-seconds 4 > persist-guest.log 2>&1
 if grep -q "requiere iniciar sesión" persist-guest.log; then note "Invitado" "rechazado correctamente"; else error "Invitado" "el servidor con cuentas aceptó un cliente sin sesión"; fi
