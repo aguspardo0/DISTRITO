@@ -190,6 +190,25 @@ crew_db=$(PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -At 
   WHERE cr.name = 'Los Del Barrio' GROUP BY cr.name")
 if echo "$crew_db" | grep -q " 2 "; then note "Cuadrilla en la base" "$crew_db"; else error "Cuadrilla en la base" "${crew_db:-no existe}"; fi
 
+# --- Ciclo completo en cuadrilla (contrato 3): el jefe acepta la cobranza en la Oficina Valenti
+#     y la cobra en el Taller Caruso con el recluta al lado; el pago se reparte entre los dos ---
+PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -q -c "
+  INSERT INTO distrito.character_reputation (character_id, family_code, value)
+  SELECT id, 'caruso', 5 FROM distrito.characters WHERE name = 'Bot Jefe'
+  ON CONFLICT (character_id, family_code) DO UPDATE SET value = GREATEST(distrito.character_reputation.value, 5)"
+crew_bot persist-collect-jefe.log bot_jefe "Bot Jefe" --bot-contract-code cobranza-caruso & a=$!
+crew_bot persist-collect-recluta.log bot_recluta "Bot Recluta" --bot-goto "8.5,4.5" & b=$!
+wait $a; wait $b
+line=$(result_line persist-collect-jefe.log)
+if grep -q NET_TEST_OK persist-collect-jefe.log; then note "Cobranza en cuadrilla (jefe)" "${line#*\] }"
+else grep "bot-contrato" persist-collect-jefe.log | tail -6; error "Cobranza en cuadrilla (jefe)" "${line:-sin resultado}"; fi
+collect_db=$(PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -At -F ' ' -c "
+  SELECT string_agg(ch.name || ': valenti ' || r.value, ', ' ORDER BY ch.name)
+  FROM distrito.character_reputation r JOIN distrito.characters ch ON ch.id = r.character_id
+  WHERE r.family_code = 'valenti' AND ch.name IN ('Bot Jefe', 'Bot Recluta') AND r.value >= 6")
+if echo "$collect_db" | grep -q "Bot Recluta"; then note "Cobranza en la base" "$collect_db (los dos ganaron reputación)"
+else error "Cobranza en la base" "el recluta no recibió su parte: ${collect_db:-nadie}"; fi
+
 # --- Cliente sin cuenta contra servidor con cuentas ---
 timeout 60 "$GODOT" --headless --path game -- --client --host 127.0.0.1 --port "$PORT" --test-seconds 4 > persist-guest.log 2>&1
 if grep -q "requiere iniciar sesión" persist-guest.log; then note "Invitado" "rechazado correctamente"; else error "Invitado" "el servidor con cuentas aceptó un cliente sin sesión"; fi

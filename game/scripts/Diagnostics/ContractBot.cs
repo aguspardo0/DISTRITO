@@ -26,7 +26,12 @@ public partial class ContractBot : Node
 
     public ContractTemplate Template => _template;
     /// <summary>Lo que debería ganar: el pago menos lo que cuesta la mercadería.</summary>
-    public long ExpectedGain => _template.RewardCents - _template.Quantity * PriceOf(_template.ItemCode);
+    /// En trabajos de cuadrilla el bot va con un compañero: le toca la mitad.
+    public long ExpectedGain => _template.RewardCents / (_template.RequiresCrewMate ? 2 : 1)
+                                - _template.Quantity * PriceOf(_template.ItemCode);
+
+    private string? _pendingDeliver;
+    private double _nextDeliverAt;
 
     public long? StartBalance { get; private set; }
     public long? FinalBalance { get; private set; }
@@ -68,6 +73,13 @@ public partial class ContractBot : Node
                     _step = Step.TalkingToDeposit;
                     _economy.Interact(_template.SourceNpc);
                 }
+                break;
+            case Step.TalkingToWorkshop when _pendingDeliver is not null && Time.GetTicksMsec() / 1000.0 >= _nextDeliverAt:
+                // Reintenta cada 1,5 s: en la cobranza el compañero puede no haber llegado todavía.
+                controller.ScriptedDirection = Vector2.Zero;
+                _economy.Choose(_template.DestinationNpc, _pendingDeliver);
+                _pendingDeliver = null;
+                _nextDeliverAt = Time.GetTicksMsec() / 1000.0 + 1.5;
                 break;
             case Step.GoingToWorkshop:
                 if (WalkTo(player, controller, NpcInteractionRules.Find(_template.DestinationNpc)!))
@@ -117,7 +129,7 @@ public partial class ContractBot : Node
             var contract = _economy.LastSnapshot?.ActiveContract(_template.Code);
             var deliver = contract is null ? null : dialog.Options.FirstOrDefault(o => o.Id == $"deliver:{contract.Id}");
             if (deliver is not null)
-                _economy.Choose(dialog.NpcCode, deliver.Id);
+                _pendingDeliver = deliver.Id;
         }
     }
 
