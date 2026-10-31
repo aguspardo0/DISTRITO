@@ -12,10 +12,15 @@ public sealed record CrewStatus(
     string? CrewName,
     bool IsLeader,
     List<CrewMemberView> Members,
-    List<CrewInvitationView> Invitations)
+    List<CrewInvitationView> Invitations,
+    int Level = 1)
 {
     public static CrewStatus None { get; } = new(null, null, false, [], []);
     public bool InCrew => CrewId is not null;
+    public int Capacity => CrewRules.CapacityForLevel(Level);
+
+    /// <summary>Con menos de <see cref="CrewRules.MembersToForm"/> integrantes, la cuadrilla está "en formación".</summary>
+    public bool IsFormed => Members.Count >= CrewRules.MembersToForm;
 }
 
 /// <summary>Resultado de una acción sobre cuadrillas: siempre trae el estado actualizado del que la pidió.</summary>
@@ -34,8 +39,23 @@ public sealed record LeaveCrewRequest(Guid CharacterId);
 /// <summary>Reglas provisionales de cuadrillas (ver ADR-004). No son diseño de juego definitivo.</summary>
 public static partial class CrewRules
 {
-    public const int MaxMembers = 8;
+    /// <summary>Integrantes necesarios para que la cuadrilla deje de estar "en formación" (documento de diseño).</summary>
+    public const int MembersToForm = 3;
+
+    /// <summary>Cupo máximo absoluto (nivel más alto). El cupo real depende del nivel.</summary>
+    public const int MaxMembers = 5;
+
+    /// <summary>Días sin entrar al juego tras los cuales el jefe pierde el mando.</summary>
+    public const int LeaderInactivityDays = 14;
+
     public static readonly TimeSpan InvitationLifetime = TimeSpan.FromMinutes(10);
+
+    /// <summary>Cupo por nivel. Por ahora solo existe el nivel 1 (5 integrantes, según el documento de diseño).</summary>
+    public static int CapacityForLevel(int level) => level switch
+    {
+        <= 1 => 5,
+        _ => 5, // niveles superiores: pendiente de diseño (progresión colectiva)
+    };
 
     public static string? ValidateName(string? name) =>
         name is not null && name == string.Join(' ', name.Split(' ', StringSplitOptions.RemoveEmptyEntries)) && NamePattern().IsMatch(name)

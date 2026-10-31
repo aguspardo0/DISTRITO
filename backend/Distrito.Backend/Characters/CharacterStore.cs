@@ -68,9 +68,11 @@ public sealed class CharacterStore(NpgsqlDataSource db)
     /// <summary>Datos del personaje si pertenece a la cuenta.</summary>
     public async Task<ResolvedSession?> LoadForAccountAsync(Guid accountId, Guid characterId, CancellationToken ct)
     {
+        // Entrar al mundo cuenta como actividad (sucesión de cuadrilla por inactividad).
         await using var cmd = db.CreateCommand("""
-            SELECT name, zone_id, pos_x, pos_y, pos_z, yaw
-            FROM distrito.characters WHERE id = @c AND account_id = @a
+            UPDATE distrito.characters SET last_seen_at = now()
+            WHERE id = @c AND account_id = @a
+            RETURNING name, zone_id, pos_x, pos_y, pos_z, yaw
             """);
         cmd.Parameters.AddWithValue("c", characterId);
         cmd.Parameters.AddWithValue("a", accountId);
@@ -86,7 +88,7 @@ public sealed class CharacterStore(NpgsqlDataSource db)
     {
         await using var cmd = db.CreateCommand("""
             UPDATE distrito.characters
-            SET pos_x = @x, pos_y = @y, pos_z = @z, yaw = @yaw, updated_at = now()
+            SET pos_x = @x, pos_y = @y, pos_z = @z, yaw = @yaw, updated_at = now(), last_seen_at = now()
             WHERE id = @c
             """);
         cmd.Parameters.AddWithValue("c", characterId);

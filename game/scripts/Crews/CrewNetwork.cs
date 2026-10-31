@@ -146,7 +146,9 @@ public partial class CrewNetwork : Node
             return;
 
         if (_network.GetPlayer(peer) is { } player)
-            player.CrewName = status.Value!.CrewName ?? "";
+            player.CrewName = status.Value!.CrewName is { } name
+                ? (status.Value.IsFormed ? name : $"{name} (en formación)")
+                : "";
 
         var members = status.Value!.Members.Select(m => m.CharacterId).ToHashSet();
         var candidates = _network.AuthenticatedPlayers

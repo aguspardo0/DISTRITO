@@ -1,5 +1,6 @@
 using Distrito.Shared.Api;
 using Distrito.Shared.Crews;
+using Npgsql;
 
 namespace Distrito.Backend.Tests;
 
@@ -145,7 +146,8 @@ public class CrewApiTests
 
         // Se invita a más gente que lugares libres, antes de que nadie acepte.
         var recruits = new List<Guid>();
-        for (var i = 0; i < CrewRules.MaxMembers + 2; i++)
+        var capacity = CrewRules.CapacityForLevel(1);
+        for (var i = 0; i < capacity + 2; i++)
         {
             var id = await NewCharacter(api);
             recruits.Add(id);
@@ -155,8 +157,84 @@ public class CrewApiTests
         var results = await Task.WhenAll(recruits.Select(r =>
             api.RespondCrewInvitationAsync(Key, new CrewInvitationResponse(r, crewId, true))));
 
-        Assert.Equal(CrewRules.MaxMembers - 1, results.Count(r => r.Value!.Ok));
-        Assert.Equal(CrewRules.MaxMembers, (await api.GetCrewStatusAsync(Key, leader)).Value!.Members.Count);
+        Assert.Equal(capacity - 1, results.Count(r => r.Value!.Ok));
+        Assert.Equal(capacity, (await api.GetCrewStatusAsync(Key, leader)).Value!.Members.Count);
+    }
+
+    [Fact]
+    public async Task La_cuadrilla_queda_formada_al_llegar_a_tres_y_el_cupo_inicial_es_cinco()
+    {
+        await using var factory = TestBackend.Create();
+        var api = TestBackend.Api(factory);
+        var leader = await NewCharacter(api);
+        var created = (await api.CreateCrewAsync(Key, new CreateCrewRequest(leader, UniqueCrewName()))).Value!;
+        Assert.False(created.Status.IsFormed);
+        Assert.Equal(5, created.Status.Capacity);
+        var crewId = created.Status.CrewId!.Value;
+
+        CrewActionResult? last = null;
+        for (var i = 0; i < 2; i++)
+        {
+            var recruit = await NewCharacter(api);
+            await api.InviteToCrewAsync(Key, new InviteToCrewRequest(leader, recruit));
+            last = (await api.RespondCrewInvitationAsync(Key, new CrewInvitationResponse(recruit, crewId, true))).Value!;
+        }
+
+        Assert.True(last!.Status.IsFormed);
+        Assert.Contains("formada", last.Message);
+    }
+
+    [Fact]
+    public async Task Jefe_inactivo_mas_de_14_dias_pierde_el_mando_ante_un_miembro_activo()
+    {
+        await using var factory = TestBackend.Create();
+        var api = TestBackend.Api(factory);
+        var leader = await NewCharacter(api);
+        var member = await NewCharacter(api);
+        await api.CreateCrewAsync(Key, new CreateCrewRequest(leader, UniqueCrewName()));
+        var crewId = (await api.GetCrewStatusAsync(Key, leader)).Value!.CrewId!.Value;
+        await api.InviteToCrewAsync(Key, new InviteToCrewRequest(leader, member));
+        await api.RespondCrewInvitationAsync(Key, new CrewInvitationResponse(member, crewId, true));
+
+        // Activo hace poco: no cambia nada.
+        Assert.True((await api.GetCrewStatusAsync(Key, leader)).Value!.IsLeader);
+
+        await using var db = NpgsqlDataSource.Create(TestBackend.ConnectionString);
+        await using (var age = db.CreateCommand("UPDATE distrito.characters SET last_seen_at = now() - interval '15 days' WHERE id = @c"))
+        {
+            age.Parameters.AddWithValue("c", leader);
+            await age.ExecuteNonQueryAsync();
+        }
+
+        var memberView = (await api.GetCrewStatusAsync(Key, member)).Value!;
+        Assert.True(memberView.IsLeader);
+        Assert.False((await api.GetCrewStatusAsync(Key, leader)).Value!.IsLeader);
+
+        await using var events = db.CreateCommand("SELECT count(*) FROM distrito.crew_events WHERE crew_id = @crew AND kind = 'leadership_inactivity'");
+        events.Parameters.AddWithValue("crew", crewId);
+        Assert.Equal(1L, (long)(await events.ExecuteScalarAsync())!);
+    }
+
+    [Fact]
+    public async Task Si_nadie_esta_activo_el_jefe_inactivo_conserva_el_mando()
+    {
+        await using var factory = TestBackend.Create();
+        var api = TestBackend.Api(factory);
+        var leader = await NewCharacter(api);
+        var member = await NewCharacter(api);
+        await api.CreateCrewAsync(Key, new CreateCrewRequest(leader, UniqueCrewName()));
+        var crewId = (await api.GetCrewStatusAsync(Key, leader)).Value!.CrewId!.Value;
+        await api.InviteToCrewAsync(Key, new InviteToCrewRequest(leader, member));
+        await api.RespondCrewInvitationAsync(Key, new CrewInvitationResponse(member, crewId, true));
+
+        await using var db = NpgsqlDataSource.Create(TestBackend.ConnectionString);
+        await using (var age = db.CreateCommand("UPDATE distrito.characters SET last_seen_at = now() - interval '30 days' WHERE id = ANY(@ids)"))
+        {
+            age.Parameters.AddWithValue("ids", new[] { leader, member });
+            await age.ExecuteNonQueryAsync();
+        }
+
+        Assert.True((await api.GetCrewStatusAsync(Key, leader)).Value!.IsLeader);
     }
 
     [Theory]

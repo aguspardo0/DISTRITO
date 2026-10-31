@@ -18,7 +18,12 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
     public async Task<CrewStatus> GetStatusAsync(Guid characterId, CancellationToken ct)
     {
         await using var c = await db.OpenConnectionAsync(ct);
-        return await LoadStatusAsync(c, null, characterId, ct);
+        await using var tx = await c.BeginTransactionAsync(ct);
+        if (await CrewOfAsync(c, tx, characterId, ct) is { } crew)
+            await ApplyInactivitySuccessionAsync(c, tx, crew.Id, ct);
+        var status = await LoadStatusAsync(c, tx, characterId, ct);
+        await tx.CommitAsync(ct);
+        return status;
     }
 
     public Task<CrewActionResult> CreateAsync(CreateCrewRequest r, CancellationToken ct) =>
@@ -46,7 +51,8 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
 
             await AddMemberAsync(c, tx, crewId, r.CharacterId, "leader", ct);
             await DeleteInvitationsForAsync(c, tx, r.CharacterId, ct);
-            return $"Fundaste la cuadrilla {r.Name}.";
+            await LogAsync(c, tx, crewId, "founded", r.CharacterId, r.Name, ct);
+            return $"Fundaste la cuadrilla {r.Name}. Está en formación hasta llegar a {CrewRules.MembersToForm} integrantes.";
         });
 
     public Task<CrewActionResult> InviteAsync(InviteToCrewRequest r, CancellationToken ct) =>
@@ -57,13 +63,16 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
             var crew = await CrewOfAsync(c, tx, r.CharacterId, ct)
                 ?? throw new CrewRejected("not_in_crew", "No estás en una cuadrilla.");
             await LockCrewAsync(c, tx, crew.Id, ct);
+            await ApplyInactivitySuccessionAsync(c, tx, crew.Id, ct);
+            crew = await CrewOfAsync(c, tx, r.CharacterId, ct) ?? crew;
             if (crew.Role != "leader")
                 throw new CrewRejected("not_leader", "Solo el jefe de la cuadrilla puede invitar.");
             await EnsureCharacterExistsAsync(c, tx, r.TargetCharacterId, ct);
             if (await CrewOfAsync(c, tx, r.TargetCharacterId, ct) is not null)
                 throw new CrewRejected("target_in_crew", "Esa persona ya está en una cuadrilla.");
-            if (await MemberCountAsync(c, tx, crew.Id, ct) >= CrewRules.MaxMembers)
-                throw new CrewRejected("crew_full", $"La cuadrilla está completa ({CrewRules.MaxMembers}).");
+            var capacity = await CapacityAsync(c, tx, crew.Id, ct);
+            if (await MemberCountAsync(c, tx, crew.Id, ct) >= capacity)
+                throw new CrewRejected("crew_full", $"La cuadrilla está completa ({capacity}).");
 
             await using var cmd = new NpgsqlCommand("""
                 INSERT INTO distrito.crew_invitations (crew_id, character_id, invited_by, expires_at)
@@ -102,12 +111,16 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
 
             if (await CrewOfAsync(c, tx, r.CharacterId, ct) is not null)
                 throw new CrewRejected("already_in_crew", "Ya estás en una cuadrilla.");
-            if (await MemberCountAsync(c, tx, r.CrewId, ct) >= CrewRules.MaxMembers)
+            if (await MemberCountAsync(c, tx, r.CrewId, ct) >= await CapacityAsync(c, tx, r.CrewId, ct))
                 throw new CrewRejected("crew_full", "La cuadrilla está completa.");
 
             await AddMemberAsync(c, tx, r.CrewId, r.CharacterId, "member", ct);
             await DeleteInvitationsForAsync(c, tx, r.CharacterId, ct);
-            return "Te uniste a la cuadrilla.";
+            await LogAsync(c, tx, r.CrewId, "joined", r.CharacterId, "", ct);
+            var count = await MemberCountAsync(c, tx, r.CrewId, ct);
+            return count == CrewRules.MembersToForm
+                ? "Te uniste a la cuadrilla. ¡Con vos ya está formada!"
+                : "Te uniste a la cuadrilla.";
         });
 
     public Task<CrewActionResult> LeaveAsync(LeaveCrewRequest r, CancellationToken ct) =>
@@ -124,6 +137,8 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
                 delete.Parameters.AddWithValue("c", r.CharacterId);
                 await delete.ExecuteNonQueryAsync(ct);
             }
+
+            await LogAsync(c, tx, crew.Id, "left", r.CharacterId, "", ct);
 
             if (await MemberCountAsync(c, tx, crew.Id, ct) == 0)
             {
@@ -146,6 +161,7 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
                     """, c, tx);
                 promote.Parameters.AddWithValue("crew", crew.Id);
                 await promote.ExecuteNonQueryAsync(ct);
+                await LogAsync(c, tx, crew.Id, "leadership_leader_left", null, "pasa al miembro más antiguo", ct);
             }
             return "Saliste de la cuadrilla.";
         });
@@ -204,6 +220,65 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
             throw new CrewRejected("crew_not_found", "La cuadrilla ya no existe.");
     }
 
+    private static async Task<int> CapacityAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid crewId, CancellationToken ct)
+    {
+        await using var cmd = new NpgsqlCommand("SELECT level FROM distrito.crews WHERE id = @id", c, tx);
+        cmd.Parameters.AddWithValue("id", crewId);
+        return CrewRules.CapacityForLevel((int)(await cmd.ExecuteScalarAsync(ct) ?? 1));
+    }
+
+    private static async Task LogAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid crewId, string kind, Guid? characterId, string detail, CancellationToken ct)
+    {
+        await using var cmd = new NpgsqlCommand(
+            "INSERT INTO distrito.crew_events (crew_id, kind, character_id, detail) VALUES (@crew, @kind, @c, @detail)", c, tx);
+        cmd.Parameters.AddWithValue("crew", crewId);
+        cmd.Parameters.AddWithValue("kind", kind);
+        cmd.Parameters.AddWithValue("c", (object?)characterId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("detail", detail);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Si el jefe no entra al juego hace más de <see cref="CrewRules.LeaderInactivityDays"/> días,
+    /// el mando pasa al miembro activo más antiguo. Si nadie está activo, no cambia nada.
+    /// </summary>
+    private async Task ApplyInactivitySuccessionAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid crewId, CancellationToken ct)
+    {
+        var cutoff = clock.GetUtcNow() - TimeSpan.FromDays(CrewRules.LeaderInactivityDays);
+        await using var find = new NpgsqlCommand("""
+            SELECT
+              (SELECT m.character_id FROM distrito.crew_members m JOIN distrito.characters ch ON ch.id = m.character_id
+                WHERE m.crew_id = @crew AND m.role = 'leader' AND ch.last_seen_at < @cutoff),
+              (SELECT m.character_id FROM distrito.crew_members m JOIN distrito.characters ch ON ch.id = m.character_id
+                WHERE m.crew_id = @crew AND m.role = 'member' AND ch.last_seen_at >= @cutoff
+                ORDER BY m.joined_at, m.character_id LIMIT 1)
+            """, c, tx);
+        find.Parameters.AddWithValue("crew", crewId);
+        find.Parameters.AddWithValue("cutoff", cutoff);
+        Guid? oldLeader = null, heir = null;
+        await using (var reader = await find.ExecuteReaderAsync(ct))
+        {
+            if (await reader.ReadAsync(ct))
+            {
+                oldLeader = reader.IsDBNull(0) ? null : reader.GetGuid(0);
+                heir = reader.IsDBNull(1) ? null : reader.GetGuid(1);
+            }
+        }
+        if (oldLeader is null || heir is null)
+            return;
+
+        await using var swap = new NpgsqlCommand("""
+            UPDATE distrito.crew_members SET role = 'member' WHERE crew_id = @crew AND character_id = @old;
+            UPDATE distrito.crew_members SET role = 'leader' WHERE crew_id = @crew AND character_id = @heir;
+            UPDATE distrito.crews SET leader_character_id = @heir WHERE id = @crew;
+            """, c, tx);
+        swap.Parameters.AddWithValue("crew", crewId);
+        swap.Parameters.AddWithValue("old", oldLeader.Value);
+        swap.Parameters.AddWithValue("heir", heir.Value);
+        await swap.ExecuteNonQueryAsync(ct);
+        await LogAsync(c, tx, crewId, "leadership_inactivity", heir, $"el jefe anterior ({oldLeader}) superó {CrewRules.LeaderInactivityDays} días sin entrar", ct);
+    }
+
     private static async Task<long> MemberCountAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid crewId, CancellationToken ct)
     {
         await using var cmd = new NpgsqlCommand("SELECT count(*) FROM distrito.crew_members WHERE crew_id = @id", c, tx);
@@ -242,11 +317,12 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
         Guid? crewId = null;
         string? crewName = null;
         var isLeader = false;
+        var level = 1;
         var members = new List<CrewMemberView>();
         var invitations = new List<CrewInvitationView>();
 
         await using var cmd = new NpgsqlCommand("""
-            SELECT cr.id, cr.name, m.role FROM distrito.crew_members m JOIN distrito.crews cr ON cr.id = m.crew_id WHERE m.character_id = @c;
+            SELECT cr.id, cr.name, m.role, cr.level FROM distrito.crew_members m JOIN distrito.crews cr ON cr.id = m.crew_id WHERE m.character_id = @c;
             SELECT ch.id, ch.name, m.role FROM distrito.crew_members m JOIN distrito.characters ch ON ch.id = m.character_id
              WHERE m.crew_id = (SELECT crew_id FROM distrito.crew_members WHERE character_id = @c) ORDER BY m.joined_at, ch.id;
             SELECT cr.id, cr.name, inviter.name FROM distrito.crew_invitations i
@@ -261,6 +337,7 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
             crewId = reader.GetGuid(0);
             crewName = reader.GetString(1);
             isLeader = reader.GetString(2) == "leader";
+            level = reader.GetInt32(3);
         }
         await reader.NextResultAsync(ct);
         while (await reader.ReadAsync(ct))
@@ -269,6 +346,6 @@ public sealed class CrewService(NpgsqlDataSource db, TimeProvider clock)
         while (await reader.ReadAsync(ct))
             invitations.Add(new CrewInvitationView(reader.GetGuid(0), reader.GetString(1), reader.GetString(2)));
 
-        return new CrewStatus(crewId, crewName, isLeader, members, invitations);
+        return new CrewStatus(crewId, crewName, isLeader, members, invitations, level);
     }
 }

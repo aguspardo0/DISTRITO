@@ -15,13 +15,15 @@
 
 | Regla | Provisional |
 |---|---|
-| Cupo | 8 miembros |
-| Quién invita | Solo el jefe |
-| Vencimiento de invitaciones | 10 minutos |
-| Si el jefe se va | Hereda el miembro más antiguo |
+| Formación | **Decidido (equipo):** progresiva. Se funda solo y queda "en formación"; con 3 integrantes queda formada |
+| Cupo | **Decidido:** por nivel; nivel 1 = 5 (documento de diseño). Niveles superiores pendientes |
+| Quién invita | Solo el jefe (provisional) |
+| Vencimiento de invitaciones | 10 minutos (provisional) |
+| Si el jefe se va | Hereda el miembro más antiguo (provisional) |
+| Jefe inactivo | **Decidido (equipo):** a los 14 días sin entrar, el mando pasa al miembro activo más antiguo; se registra en `crew_events` |
 | Cuadrilla vacía | Se disuelve |
 
-La **sucesión real del liderazgo** (incluido el caso del fundador desconectado mucho tiempo y el sistema Legacy) está pendiente de diseño. La herencia al más antiguo es solo para que el sistema no quede en un estado inválido.
+Pendiente: votación interna (el documento la menciona; el equipo eligió solo inactividad por ahora), requisito de nivel 5 para fundar (cuando exista la progresión de personaje), sistema Legacy.
 
 ## Pendiente
 

@@ -101,7 +101,13 @@ public partial class CrewPanel : PanelContainer
             return;
         }
 
-        _content.AddChild(new Label { Text = $"«{status.CrewName}» — {status.Members.Count}/{CrewRules.MaxMembers}" });
+        _content.AddChild(new Label { Text = $"«{status.CrewName}» — nivel {status.Level} — {status.Members.Count}/{status.Capacity}" });
+        _content.AddChild(new Label
+        {
+            Text = status.IsFormed
+                ? "Cuadrilla formada."
+                : $"En formación: faltan {CrewRules.MembersToForm - status.Members.Count} para estar formada.",
+        });
         foreach (var member in status.Members)
             _content.AddChild(new Label { Text = $"  {(member.Role == "leader" ? "★ " : "• ")}{member.Name}" });
 
