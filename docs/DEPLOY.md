@@ -1,6 +1,8 @@
 # Despliegue
 
-Servidor de pruebas: Oracle Cloud Always Free, Ubuntu 24.04 ARM64 (Ampere A1, máx. 2 OCPU / 12 GB para seguir gratis).
+Servidor de pruebas actual: **Vultr**, Cloud Compute Shared CPU `vc2-1c-2gb` (1 vCPU, 2 GB), São Paulo, Ubuntu 24.04 x64. Usuario SSH: `root`.
+
+También soportado: Oracle Cloud Always Free (Ubuntu ARM64, usuario `ubuntu`). La CI detecta la arquitectura por SSH y arma el release que corresponde.
 
 ## Cómo funciona
 
@@ -21,9 +23,14 @@ Secretos del servidor (contraseña de la base, clave interna) se generan la prim
 
 Secretos del repositorio (*Settings → Secrets and variables → Actions*):
 - `DEPLOY_HOST`: IP pública.
-- `DEPLOY_SSH_KEY`: llave privada SSH del usuario `ubuntu`.
+- `DEPLOY_SSH_KEY`: llave privada SSH.
+- `DEPLOY_USER`: usuario SSH (`root` en Vultr; si falta, `ubuntu`).
 
 Sin esos secretos el job arma el release pero no despliega.
+
+## Vultr: firewall
+
+La imagen de Ubuntu trae `ufw` activo; `setup-server.sh` abre 80/tcp, 443/tcp y 7777/udp. Si se usa un *Firewall Group* de Vultr, hay que abrir los mismos puertos ahí.
 
 ## Oracle: reglas de red necesarias
 
