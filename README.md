@@ -2,7 +2,7 @@
 
 MMORPG 3D persistente de sociedad, economía y organizaciones, ambientado en Estados Unidos en los años 30.
 
-> Estado: **etapa 0 — base técnica**. Todavía no hay juego jugable. Ver [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> Estado: **prototipo de red** — dos o más jugadores se conectan y caminan por un barrio de prueba. Ver [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Qué hay en el repositorio
 
@@ -15,7 +15,11 @@ MMORPG 3D persistente de sociedad, economía y organizaciones, ambientado en Est
 | `tests/` | Pruebas automáticas (xUnit) |
 | `docs/` | Arquitectura, decisiones (ADR) y roadmap |
 
-## Requisitos
+## Probar el prototipo sin instalar nada (Windows)
+
+Descargá **DISTRITO-windows.zip** de la [release `prototipo`](../../releases/tag/prototipo), descomprimilo y abrí `DISTRITO.exe`. Las instrucciones están en `LEEME.txt`. Se regenera solo con cada cambio en `main`.
+
+## Requisitos (para desarrollar)
 
 - [Godot 4.7.2 **.NET**](https://godotengine.org/download) (la versión que dice *.NET*, no la normal)
 - [.NET SDK 10](https://dotnet.microsoft.com/download) **y** .NET SDK 8

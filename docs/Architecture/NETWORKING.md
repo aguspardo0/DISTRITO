@@ -32,11 +32,21 @@ Se **evalúa** (no está cerrado) `ENetMultiplayerPeer` + `MultiplayerAPI` de Go
 
 | Dato | Frecuencia |
 |---|---|
-| Tick del servidor (física) | 30 Hz |
-| Input del cliente | 30 Hz |
+| Tick del servidor (física) | 60 Hz (valor por defecto de Godot en el prototipo) |
+| Input del cliente | 60 Hz (prototipo: cada tick de física; reducir tras medir) |
 | Replicación de posiciones | 20 Hz |
 | Recalculo de interés | 4 Hz |
 
 ## Métricas a registrar por etapa
 
 CPU, RAM, ancho de banda por jugador, latencia, frecuencia de sincronización, cantidad de entidades, tiempo de respuesta y consistencia de datos. Plan: 2 → 10 → 20 jugadores → mayor concurrencia, con clientes headless automatizados.
+
+## Implementación actual (prototipo, etapa 1)
+
+- `GameNetwork` crea el peer ENet en uno de tres modos: servidor dedicado, anfitrión (servidor + jugador en el mismo proceso, id 1) o cliente.
+- El servidor crea un `Player` por conexión, con nombre = id de red. `MultiplayerSpawner` lo replica a todos (incluidos los que entran después).
+- `MultiplayerSynchronizer` (autoridad del servidor) replica `position` y `rotation` cada 50 ms.
+- El dueño envía su intención por RPC no confiable (`ReceiveInput`). El servidor verifica que el emisor sea el dueño, la sanea con `MovementRules` y la aplica.
+- Si no llegan entradas por 250 ms, el personaje se detiene.
+- Los demás clientes suavizan el modelo visual hacia la última posición recibida.
+- CI levanta un servidor dedicado y 2 clientes bot y verifica conexión, visibilidad mutua y movimiento.
