@@ -57,3 +57,11 @@ Volver a un release anterior: `sudo ln -sfn /opt/distrito/releases/<commit> /opt
 En cada push, CI abre el juego con pantalla virtual (Xvfb + OpenGL) en 1280×720, 1920×1080 pantalla completa y 1024×600,
 y saca capturas del menú, el juego, el diálogo, la cuadrilla, el mapa y las opciones (`--ui-snapshot <carpeta>`).
 Las capturas quedan en la rama `ui-capturas` del repositorio.
+
+## Actualización automática del cliente
+
+La CI escribe la versión (commit corto) en `server_defaults.json` del cliente y publica `version.txt` junto al zip
+en la release `prototipo`. Al abrir, el cliente de Windows compara versiones; si hay una nueva la descarga,
+la descomprime en `%APPDATA%\Godot\app_userdata\DISTRITO\actualizacion`, se cierra y un script de PowerShell
+copia los archivos sobre la carpeta del juego y lo reabre (`game/scripts/Backend/GameUpdater.cs`).
+El servidor se actualiza solo con cada despliegue.
