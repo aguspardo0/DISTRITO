@@ -29,11 +29,13 @@ public sealed record BusinessView(
     int UnitsSold,
     int LastCycleUnits,
     bool HasHelper = false,
-    long WagesCents = 0)
+    long WagesCents = 0,
+    string Kind = EconomyCatalog.CoffeeStandLocation)
 {
-    public long CostOfGoodsCents => UnitsSold * EconomyCatalog.CoffeeBagPriceCents;
+    public BusinessType Type => EconomyCatalog.BusinessTypes[Kind];
+    public long CostOfGoodsCents => UnitsSold * Type.ItemPriceCents;
     public long ProfitCents => RevenueCents - RentCents - WagesCents - CostOfGoodsCents;
-    public long StockValueCents => Stock * EconomyCatalog.CoffeeBagPriceCents;
+    public long StockValueCents => Stock * Type.ItemPriceCents;
     public long EquityCents => CashCents + StockValueCents;
 
     /// <summary>Estado operativo: sin mercadería el puesto no abre ni paga alquiler.</summary>
@@ -47,8 +49,13 @@ public sealed record EconomySnapshot(
     int CompletedContracts,
     List<ReputationView>? Reputation = null,
     BusinessView? Business = null,
-    ProgressView? Progress = null)
+    ProgressView? Progress = null,
+    List<BusinessView>? Businesses = null)
 {
+    /// <summary>El negocio propio de ese tipo (el puesto de café también está en <see cref="Business"/>).</summary>
+    public BusinessView? BusinessOf(string kind) =>
+        Businesses?.FirstOrDefault(b => b.Kind == kind) ?? (Business?.Kind == kind ? Business : null);
+
     public ProgressView ProgressOrEmpty => Progress ?? ProgressView.Empty;
 
     public int ReputationWith(string familyCode) => Reputation?.FirstOrDefault(r => r.FamilyCode == familyCode)?.Value ?? 0;
@@ -72,8 +79,29 @@ public sealed record BuyItemRequest(Guid CharacterId, string NpcCode, string Ite
 /// <summary>Companions: personajes que el servidor de juego vio cerca del NPC. El backend se queda solo con los de la misma cuadrilla.</summary>
 public sealed record DeliverContractRequest(Guid CharacterId, Guid ContractId, string RequestId, IReadOnlyList<Guid>? Companions = null);
 
-/// <summary>Comprar licencia, reponer o retirar ganancias del negocio propio.</summary>
-public sealed record BusinessActionRequest(Guid CharacterId, string RequestId);
+/// <summary>Comprar licencia, reponer, retirar o contratar en el negocio propio del tipo Kind.</summary>
+public sealed record BusinessActionRequest(Guid CharacterId, string RequestId, string Kind = EconomyCatalog.CoffeeStandLocation);
+
+/// <summary>
+/// Un tipo de negocio administrado por jugadores. Todos funcionan igual: licencia de los Valenti, mercadería de un
+/// proveedor, ventas solas por ciclo, alquiler por ciclo con ventas y un empleado opcional que vende uno más.
+/// </summary>
+public sealed record BusinessType(
+    string Code,
+    string Name,
+    string SiteNpc,
+    long LicenseCents,
+    long RentCents,
+    string ItemCode,
+    string ItemName,
+    long ItemPriceCents,
+    string SupplierNpc,
+    long SalePriceCents,
+    int BaseDemand,
+    string EmployeeName,
+    long EmployeeWageCents,
+    int EmployeeExtraDemand,
+    bool NightBonus = false);
 
 // ---------- Catálogo provisional del barrio de prueba ----------
 
@@ -137,6 +165,31 @@ public static class EconomyCatalog
     // Ayudante (empleado básico; decisión del equipo): cobra por ciclo abierto y amplía la venta máxima.
     public const long CoffeeHelperWageCents = 100;
     public const int CoffeeHelperExtraDemand = 1;
+
+    // --- Club de jazz (segundo negocio; propuesta aprobada por el equipo, 2026-10-31) ---
+    public const string JazzClubNpc = "npc:club-jazz";
+    public const string JazzClubKind = "club-jazz";
+    public const string DrinksCrateItem = "cajon-bebidas";
+
+    /// <summary>Noche en Bellmont: de 20 a 4 hs, hora de Argentina (UTC−3). El club vende uno más.</summary>
+    public static bool IsNight(DateTimeOffset when)
+    {
+        var hour = when.ToOffset(TimeSpan.FromHours(-3)).Hour;
+        return hour >= 20 || hour < 4;
+    }
+
+    public static readonly BusinessType CoffeeStand = new(
+        CoffeeStandLocation, "Puesto de café", CoffeeCornerNpc, CoffeeStandLicenseCents, CoffeeStandRentCents,
+        CoffeeBagItem, "bolsa de café", CoffeeBagPriceCents, DepositNpc, CoffeeSalePriceCents, CoffeeDemandPerCycle,
+        "ayudante", CoffeeHelperWageCents, CoffeeHelperExtraDemand);
+
+    public static readonly BusinessType JazzClub = new(
+        JazzClubKind, "Club de jazz", JazzClubNpc, LicenseCents: 3_000, RentCents: 200,
+        DrinksCrateItem, "cajón de bebidas", ItemPriceCents: 400, SupplierNpc: DepositNpc, SalePriceCents: 700, BaseDemand: 2,
+        "músico", EmployeeWageCents: 200, EmployeeExtraDemand: 1, NightBonus: true);
+
+    public static readonly IReadOnlyDictionary<string, BusinessType> BusinessTypes =
+        new Dictionary<string, BusinessType> { [CoffeeStand.Code] = CoffeeStand, [JazzClub.Code] = JazzClub };
 
     /// <summary>Ubicación de las mercancías que lleva encima un personaje.</summary>
     public const string CarriedLocation = "encima";

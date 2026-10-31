@@ -104,8 +104,7 @@ public partial class NpcInteractionController : Node
                     $" · Logística {pr.LogisticsLevel} · Negociación {pr.NegotiationLevel} · Administración {pr.AdministrationLevel}";
         _status.Text = $"{level}\nDinero: {EconomyCatalog.FormatMoney(s.BalanceCents)}\nLlevás: {carried}\nContrato: {contract}\n" +
                        $"Contratos cumplidos: {s.CompletedContracts}\nReputación: {reputation}" +
-                       (s.Business is { } b
-                           ? $"\nPuesto de café ({b.OperatingState}): stock {b.Stock} · caja {EconomyCatalog.FormatMoney(b.CashCents)} · ganancia {EconomyCatalog.FormatMoney(b.ProfitCents)}"
-                           : "");
+                       string.Concat((s.Businesses ?? (s.Business is { } only ? new List<BusinessView> { only } : new List<BusinessView>())).Select(b =>
+                           $"\n{b.Type.Name} ({b.OperatingState}): stock {b.Stock} · caja {EconomyCatalog.FormatMoney(b.CashCents)} · ganancia {EconomyCatalog.FormatMoney(b.ProfitCents)}"));
     }
 }

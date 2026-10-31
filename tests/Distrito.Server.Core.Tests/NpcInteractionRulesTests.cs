@@ -113,7 +113,9 @@ public class NpcInteractionRulesTests
     public void Valenti_vende_licencia_solo_a_quien_no_tiene_negocio()
     {
         Assert.Contains(NpcInteractionRules.DialogFor(EconomyCatalog.ValentiOfficeNpc, State()).Options, o => o.Id == "license:puesto-cafe");
-        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.ValentiOfficeNpc, WithBusiness()).Options);
+        // Con el puesto de café, la oficina solo ofrece la licencia del club de jazz.
+        Assert.Equal(new[] { $"license:{EconomyCatalog.JazzClubKind}" },
+            NpcInteractionRules.DialogFor(EconomyCatalog.ValentiOfficeNpc, WithBusiness()).Options.Select(o => o.Id));
     }
 
     [Fact]
@@ -145,6 +147,32 @@ public class NpcInteractionRulesTests
         Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.CoffeeCornerNpc, "hire:puesto-cafe", withHelper));
         Assert.Contains("vende hasta 3", NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, withHelper).Text);
     }
+
+    [Fact]
+    public void Club_de_jazz_se_administra_en_su_local_con_musico_opcional()
+    {
+        var club = new BusinessView(Guid.NewGuid(), "Club de prueba", 0, 0, 0, 0, 0, 0, Kind: EconomyCatalog.JazzClubKind);
+        var crates = new EconomySnapshot(2000, [new InventoryItem(EconomyCatalog.DrinksCrateItem, "Cajón de bebidas", 3)], [], 0,
+            Businesses: [club]);
+
+        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.JazzClubNpc, State()).Options);
+        var options = NpcInteractionRules.DialogFor(EconomyCatalog.JazzClubNpc, crates).Options.Select(o => o.Id).ToList();
+        Assert.Contains($"restock:{EconomyCatalog.JazzClubKind}", options);
+        Assert.Contains($"hire:{EconomyCatalog.JazzClubKind}", options);
+        Assert.Equal(EconomyCatalog.JazzClubKind,
+            NpcInteractionRules.Resolve(EconomyCatalog.JazzClubNpc, $"restock:{EconomyCatalog.JazzClubKind}", crates)!.Code);
+        // El club no aparece en la esquina del café.
+        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, crates).Options);
+        Assert.Contains(NpcInteractionRules.DialogFor(EconomyCatalog.DepositNpc, State()).Options, o => o.Id == $"buy:{EconomyCatalog.DrinksCrateItem}");
+    }
+
+    [Theory]
+    [InlineData("2026-10-31T23:30:00Z", true)]  // 20:30 en Argentina
+    [InlineData("2026-11-01T06:59:00Z", true)]  // 03:59
+    [InlineData("2026-11-01T07:00:00Z", false)] // 04:00
+    [InlineData("2026-10-31T15:00:00Z", false)] // 12:00
+    public void Noche_de_20_a_4_hora_argentina(string utc, bool night) =>
+        Assert.Equal(night, EconomyCatalog.IsNight(DateTimeOffset.Parse(utc, System.Globalization.CultureInfo.InvariantCulture)));
 
     [Fact]
     public void El_almacen_siempre_vende_bolsas_de_cafe()

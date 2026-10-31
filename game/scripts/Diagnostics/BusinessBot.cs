@@ -93,7 +93,7 @@ public partial class BusinessBot : Node
         switch (_step)
         {
             case Step.AtValenti:
-                if (Pick(dialog, "license:")) return;
+                if (Pick(dialog, $"license:{EconomyCatalog.CoffeeStandLocation}")) return;
                 if (snapshot?.Business is not null) _step = Step.ToDeposit;
                 break;
             case Step.AtDeposit:
@@ -101,11 +101,11 @@ public partial class BusinessBot : Node
                 Pick(dialog, $"buy:{EconomyCatalog.CoffeeBagItem}");
                 break;
             case Step.AtCorner:
-                if (Pick(dialog, "restock:")) return;
+                if (Pick(dialog, $"restock:{EconomyCatalog.CoffeeStandLocation}")) return;
                 if (snapshot?.Business is { Stock: > 0 }) { _step = Step.WaitingForSales; _untilPoll = PollSeconds; }
                 break;
             case Step.WaitingForSales:
-                if (Pick(dialog, "withdraw:")) return;
+                if (Pick(dialog, $"withdraw:{EconomyCatalog.CoffeeStandLocation}")) return;
                 if (snapshot is { Business: { CashCents: 0, UnitsSold: > 0 } })
                 {
                     FinalBalance = snapshot.BalanceCents;

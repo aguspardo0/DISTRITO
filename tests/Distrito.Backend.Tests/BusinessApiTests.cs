@@ -170,6 +170,53 @@ public class BusinessApiTests
     }
 
     [Fact]
+    public async Task Club_de_jazz_junto_al_cafe_vende_cajones_y_de_noche_uno_mas()
+    {
+        await using var factory = TestBackend.Create();
+        var api = TestBackend.Api(factory);
+        var economy = TestBackend.Economy();
+        var id = await NewCharacter(api);
+        var club = EconomyCatalog.JazzClub;
+        BusinessActionRequest ClubReq() => new(id, Guid.NewGuid().ToString(), club.Code);
+
+        Assert.Equal("insufficient_funds", (await api.BusinessActionAsync(Key, "license", ClubReq())).Value!.ErrorCode); // $30 > $20
+        await GrantMoney(api, id, 5_000);
+        Assert.True((await api.BusinessActionAsync(Key, "license", Req(id))).Value!.Ok); // puesto de café
+        var licensed = (await api.BusinessActionAsync(Key, "license", ClubReq())).Value!;
+        Assert.True(licensed.Ok, licensed.Message);
+        Assert.Equal(2, licensed.Snapshot.Businesses!.Count);
+        Assert.Equal("already_owner", (await api.BusinessActionAsync(Key, "license", ClubReq())).Value!.ErrorCode);
+
+        for (var i = 0; i < 6; i++)
+            Assert.True((await api.BuyAsync(Key, new BuyItemRequest(id, EconomyCatalog.DepositNpc, club.ItemCode, 1, Guid.NewGuid().ToString()))).Value!.Ok);
+        var restocked = (await api.BusinessActionAsync(Key, "restock", ClubReq())).Value!;
+        Assert.True(restocked.Ok, restocked.Message);
+        Assert.Equal(6, restocked.Snapshot.BusinessOf(club.Code)!.Stock);
+        Assert.Equal(0, restocked.Snapshot.Business!.Stock); // el café no recibió los cajones
+
+        int Expected(long cycle, bool musician) => club.BaseDemand + (musician ? 1 : 0)
+            + (EconomyCatalog.IsNight(DateTimeOffset.FromUnixTimeSeconds(cycle * economy.CycleSeconds)) ? 1 : 0);
+
+        var first = economy.CurrentCycle() + 1;
+        var sold1 = Expected(first, musician: false);
+        Assert.Equal(sold1, await economy.RunBusinessCyclesAsync(first, default, id));
+        Assert.True((await api.BusinessActionAsync(Key, "hire", ClubReq())).Value!.Ok);
+        var sold2 = Math.Min(6 - sold1, Expected(first + 1, musician: true));
+        Assert.Equal(sold2, await economy.RunBusinessCyclesAsync(first + 1, default, id));
+
+        var b = (await api.GetEconomyAsync(Key, id)).Value!.BusinessOf(club.Code)!;
+        Assert.Equal(sold1 + sold2, b.UnitsSold);
+        Assert.Equal((sold1 + sold2) * club.SalePriceCents, b.RevenueCents);
+        Assert.Equal(2 * club.RentCents, b.RentCents);
+        Assert.Equal(club.EmployeeWageCents, b.WagesCents);
+        Assert.Equal(b.RevenueCents - b.RentCents - b.WagesCents - (sold1 + sold2) * club.ItemPriceCents, b.ProfitCents);
+
+        await using var db = NpgsqlDataSource.Create(TestBackend.ConnectionString);
+        await using var total = db.CreateCommand("SELECT sum(balance_cents) FROM distrito.economic_accounts");
+        Assert.Equal(0m, (decimal)(await total.ExecuteScalarAsync())!);
+    }
+
+    [Fact]
     public async Task El_precio_de_la_bolsa_coincide_con_la_base()
     {
         await using var factory = TestBackend.Create();

@@ -38,11 +38,11 @@ public static class Endpoints
         internalApi.MapPost("/crews/kick", (KickFromCrewRequest r, CrewService s, CancellationToken ct) => s.KickAsync(r, ct));
         internalApi.MapPost("/crews/role", (SetCrewRoleRequest r, CrewService s, CancellationToken ct) => s.SetRoleAsync(r, ct));
         internalApi.MapPost("/crews/leave", (LeaveCrewRequest r, CrewService s, CancellationToken ct) => s.LeaveAsync(r, ct));
-        internalApi.MapPost("/economy/business/license", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.BuyCoffeeStandLicenseAsync(r, ct));
-        internalApi.MapPost("/economy/business/restock", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.RestockCoffeeStandAsync(r, ct));
-        internalApi.MapPost("/economy/business/hire", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.SetCoffeeHelperAsync(r, hire: true, ct));
-        internalApi.MapPost("/economy/business/fire", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.SetCoffeeHelperAsync(r, hire: false, ct));
-        internalApi.MapPost("/economy/business/withdraw", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.WithdrawCoffeeStandAsync(r, ct));
+        internalApi.MapPost("/economy/business/license", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.BuyLicenseAsync(r, ct));
+        internalApi.MapPost("/economy/business/restock", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.RestockAsync(r, ct));
+        internalApi.MapPost("/economy/business/hire", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.SetEmployeeAsync(r, hire: true, ct));
+        internalApi.MapPost("/economy/business/fire", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.SetEmployeeAsync(r, hire: false, ct));
+        internalApi.MapPost("/economy/business/withdraw", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.WithdrawAsync(r, ct));
         internalApi.MapPost("/economy/deliver", (DeliverContractRequest r, EconomyService e, CancellationToken ct) => e.DeliverAsync(r, ct));
     }
 

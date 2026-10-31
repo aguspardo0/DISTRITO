@@ -110,6 +110,7 @@ public partial class Main : Node3D
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.Workshop, new Color(0.3f, 0.38f, 0.5f)));
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.ValentiOffice, new Color(0.45f, 0.12f, 0.15f)));
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.CoffeeCorner, new Color(0.35f, 0.22f, 0.12f)));
+        npcs.AddChild(NpcActor.Create(NpcInteractionRules.JazzClub, new Color(0.2f, 0.15f, 0.35f)));
     }
 
     private void StartDedicatedServer()

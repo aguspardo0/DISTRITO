@@ -5,7 +5,7 @@ using Npgsql;
 namespace Distrito.Backend.Economy;
 
 /// <summary>
-/// Negocios administrados por jugadores (primer tipo: puesto de café). Ver ADR-005.
+/// Negocios administrados por jugadores: puesto de café y club de jazz (ver ADR-005 y EconomyCatalog.BusinessTypes).
 /// Comprar la licencia, reponer y retirar son acciones del jugador; las ventas ocurren solas en cada
 /// ciclo económico (<see cref="RunBusinessCyclesAsync"/>), aunque el dueño esté desconectado.
 /// </summary>
@@ -15,94 +15,111 @@ public sealed partial class EconomyService
 
     public long CurrentCycle() => clock.GetUtcNow().ToUnixTimeSeconds() / CycleSeconds;
 
-    public Task<EconomyActionResult> BuyCoffeeStandLicenseAsync(BusinessActionRequest r, CancellationToken ct) =>
+    private static BusinessType TypeOf(BusinessActionRequest r) =>
+        EconomyCatalog.BusinessTypes.TryGetValue(r.Kind, out var type)
+            ? type
+            : throw new EconomyRejected("unknown_business", "Ese negocio no existe.");
+
+    public Task<EconomyActionResult> BuyLicenseAsync(BusinessActionRequest r, CancellationToken ct) =>
         RunAsync(r.CharacterId, r.RequestId, ct, async (c, tx) =>
         {
-            if (await BusinessOfAsync(c, tx, r.CharacterId, ct) is not null)
-                throw new EconomyRejected("already_owner", "Ya tenés un puesto de café.");
+            var type = TypeOf(r);
+            if (await BusinessOfAsync(c, tx, r.CharacterId, type.Code, ct) is not null)
+                throw new EconomyRejected("already_owner", $"Ya tenés un {type.Name.ToLowerInvariant()}.");
 
             var buyer = await EnsureCharacterAccountAsync(c, tx, r.CharacterId, ct);
             var valenti = await AccountIdByCodeAsync(c, tx, EconomyCatalog.ValentiOfficeNpc, ct);
             await LockAccountsAsync(c, tx, ct, buyer, valenti);
-            if (await BalanceAsync(c, tx, buyer, ct) < EconomyCatalog.CoffeeStandLicenseCents)
+            if (await BalanceAsync(c, tx, buyer, ct) < type.LicenseCents)
                 throw new EconomyRejected("insufficient_funds",
-                    $"La licencia cuesta {EconomyCatalog.FormatMoney(EconomyCatalog.CoffeeStandLicenseCents)}.");
+                    $"La licencia cuesta {EconomyCatalog.FormatMoney(type.LicenseCents)}.");
 
-            var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "business_license", "Licencia de puesto de café", ct);
-            await TransferMoneyAsync(c, tx, txId, from: buyer, to: valenti, EconomyCatalog.CoffeeStandLicenseCents, ct);
+            var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "business_license", $"Licencia de {type.Name.ToLowerInvariant()}", ct);
+            await TransferMoneyAsync(c, tx, txId, from: buyer, to: valenti, type.LicenseCents, ct);
 
             var accountId = Guid.CreateVersion7();
             await using var create = new NpgsqlCommand("""
                 INSERT INTO distrito.economic_accounts (id, kind, display_name)
-                SELECT @acc, 'business', 'Puesto de café de ' || ch.name FROM distrito.characters ch WHERE ch.id = @c;
+                SELECT @acc, 'business', @name || ' de ' || ch.name FROM distrito.characters ch WHERE ch.id = @c;
                 INSERT INTO distrito.businesses (id, kind, name, owner_character_id, account_id, location, last_cycle)
-                SELECT @id, 'puesto-cafe', 'Puesto de café de ' || ch.name, ch.id, @acc, @loc, @cycle FROM distrito.characters ch WHERE ch.id = @c;
+                SELECT @id, @kind, @name || ' de ' || ch.name, ch.id, @acc, @kind, @cycle FROM distrito.characters ch WHERE ch.id = @c;
                 """, c, tx);
             create.Parameters.AddWithValue("acc", accountId);
             create.Parameters.AddWithValue("id", Guid.CreateVersion7());
             create.Parameters.AddWithValue("c", r.CharacterId);
-            create.Parameters.AddWithValue("loc", EconomyCatalog.CoffeeStandLocation);
+            create.Parameters.AddWithValue("kind", type.Code);
+            create.Parameters.AddWithValue("name", type.Name);
             create.Parameters.AddWithValue("cycle", CurrentCycle());
             await create.ExecuteNonQueryAsync(ct);
 
-            return "¡Ya tenés tu puesto de café! Llevale bolsas de café para que empiece a vender.";
+            return $"¡Ya tenés tu {type.Name.ToLowerInvariant()}! Llevale {type.ItemName}s para que empiece a vender.";
         });
 
-    public Task<EconomyActionResult> RestockCoffeeStandAsync(BusinessActionRequest r, CancellationToken ct) =>
+    public Task<EconomyActionResult> RestockAsync(BusinessActionRequest r, CancellationToken ct) =>
         RunAsync(r.CharacterId, r.RequestId, ct, async (c, tx) =>
         {
-            var business = await BusinessOfAsync(c, tx, r.CharacterId, ct)
-                ?? throw new EconomyRejected("no_business", "No tenés un puesto de café.");
+            var type = TypeOf(r);
+            var business = await BusinessOfAsync(c, tx, r.CharacterId, type.Code, ct)
+                ?? throw new EconomyRejected("no_business", $"No tenés un {type.Name.ToLowerInvariant()}.");
             var owner = await EnsureCharacterAccountAsync(c, tx, r.CharacterId, ct);
             await LockAccountsAsync(c, tx, ct, owner, business.AccountId);
 
-            var carried = await QuantityAsync(c, tx, owner, EconomyCatalog.CoffeeBagItem, EconomyCatalog.CarriedLocation, ct);
+            var carried = await QuantityAsync(c, tx, owner, type.ItemCode, EconomyCatalog.CarriedLocation, ct);
             if (carried == 0)
-                throw new EconomyRejected("not_enough_items", "No llevás bolsas de café.");
+                throw new EconomyRejected("not_enough_items", $"No llevás {type.ItemName}s.");
 
-            var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "business_restock", $"Reposición de {carried} bolsas de café", ct);
-            await MoveItemsAsync(c, tx, txId, EconomyCatalog.CoffeeBagItem, carried,
-                from: (owner, EconomyCatalog.CarriedLocation), to: (business.AccountId, EconomyCatalog.CoffeeStandLocation),
-                notEnough: "No llevás bolsas de café.", ct);
-            return $"Repusiste {carried} bolsa(s) de café.";
+            var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "business_restock", $"Reposición de {carried} × {type.ItemName}", ct);
+            await MoveItemsAsync(c, tx, txId, type.ItemCode, carried,
+                from: (owner, EconomyCatalog.CarriedLocation), to: (business.AccountId, business.Location),
+                notEnough: $"No llevás {type.ItemName}s.", ct);
+            return $"Repusiste {carried} × {type.ItemName}.";
         });
 
-    public Task<EconomyActionResult> WithdrawCoffeeStandAsync(BusinessActionRequest r, CancellationToken ct) =>
+    public Task<EconomyActionResult> WithdrawAsync(BusinessActionRequest r, CancellationToken ct) =>
         RunAsync(r.CharacterId, r.RequestId, ct, async (c, tx) =>
         {
-            var business = await BusinessOfAsync(c, tx, r.CharacterId, ct)
-                ?? throw new EconomyRejected("no_business", "No tenés un puesto de café.");
+            var type = TypeOf(r);
+            var business = await BusinessOfAsync(c, tx, r.CharacterId, type.Code, ct)
+                ?? throw new EconomyRejected("no_business", $"No tenés un {type.Name.ToLowerInvariant()}.");
             var owner = await EnsureCharacterAccountAsync(c, tx, r.CharacterId, ct);
             await LockAccountsAsync(c, tx, ct, owner, business.AccountId);
 
             var cash = await BalanceAsync(c, tx, business.AccountId, ct);
             if (cash <= 0)
-                throw new EconomyRejected("no_cash", "La caja del puesto está vacía.");
+                throw new EconomyRejected("no_cash", "La caja del negocio está vacía.");
 
-            var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "business_withdrawal", "Retiro de ganancias del puesto de café", ct);
+            var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "business_withdrawal", $"Retiro de ganancias: {type.Name.ToLowerInvariant()}", ct);
             await TransferMoneyAsync(c, tx, txId, from: business.AccountId, to: owner, cash, ct);
-            return $"Retiraste {EconomyCatalog.FormatMoney(cash)} de la caja del puesto.";
+            return $"Retiraste {EconomyCatalog.FormatMoney(cash)} de la caja.";
         });
 
-    public Task<EconomyActionResult> SetCoffeeHelperAsync(BusinessActionRequest r, bool hire, CancellationToken ct) =>
+    /// <summary>Empleado opcional (ayudante del café, músico del club).</summary>
+    public Task<EconomyActionResult> SetEmployeeAsync(BusinessActionRequest r, bool hire, CancellationToken ct) =>
         RunAsync(r.CharacterId, r.RequestId, ct, async (c, tx) =>
         {
-            var business = await BusinessOfAsync(c, tx, r.CharacterId, ct)
-                ?? throw new EconomyRejected("no_business", "No tenés un puesto de café.");
+            var type = TypeOf(r);
+            var business = await BusinessOfAsync(c, tx, r.CharacterId, type.Code, ct)
+                ?? throw new EconomyRejected("no_business", $"No tenés un {type.Name.ToLowerInvariant()}.");
             await using var cmd = new NpgsqlCommand(
                 "UPDATE distrito.businesses SET has_helper = @h WHERE id = @id AND has_helper <> @h", c, tx);
             cmd.Parameters.AddWithValue("h", hire);
             cmd.Parameters.AddWithValue("id", business.Id);
             if (await cmd.ExecuteNonQueryAsync(ct) == 0)
-                throw new EconomyRejected(hire ? "already_hired" : "no_helper", hire ? "Ya tenés un ayudante." : "No tenés ayudante.");
+                throw new EconomyRejected(hire ? "already_hired" : "no_helper", hire ? $"Ya tenés un {type.EmployeeName}." : $"No tenés {type.EmployeeName}.");
 
             // La acción queda en el libro (sin movimiento de dinero) para que el reintento sea idempotente.
             await NewLedgerTransactionAsync(c, tx, r.RequestId, hire ? "business_hire" : "business_fire",
-                hire ? "Contratación de ayudante del puesto" : "Despido del ayudante del puesto", ct);
+                $"{(hire ? "Contratación" : "Despido")} de {type.EmployeeName}: {type.Name.ToLowerInvariant()}", ct);
             return hire
-                ? $"Contrataste un ayudante: cobra {EconomyCatalog.FormatMoney(EconomyCatalog.CoffeeHelperWageCents)} por ciclo abierto y el puesto puede vender hasta {EconomyCatalog.CoffeeDemandPerCycle + EconomyCatalog.CoffeeHelperExtraDemand} por ciclo."
-                : "Despediste al ayudante.";
+                ? $"Contrataste un {type.EmployeeName}: cobra {EconomyCatalog.FormatMoney(type.EmployeeWageCents)} por ciclo abierto y vende {type.EmployeeExtraDemand} más por ciclo."
+                : $"Despediste al {type.EmployeeName}.";
         });
+
+    // Nombres anteriores (puesto de café), usados por pruebas y endpoints existentes.
+    public Task<EconomyActionResult> BuyCoffeeStandLicenseAsync(BusinessActionRequest r, CancellationToken ct) => BuyLicenseAsync(r, ct);
+    public Task<EconomyActionResult> RestockCoffeeStandAsync(BusinessActionRequest r, CancellationToken ct) => RestockAsync(r, ct);
+    public Task<EconomyActionResult> WithdrawCoffeeStandAsync(BusinessActionRequest r, CancellationToken ct) => WithdrawAsync(r, ct);
+    public Task<EconomyActionResult> SetCoffeeHelperAsync(BusinessActionRequest r, bool hire, CancellationToken ct) => SetEmployeeAsync(r, hire, ct);
 
     /// <summary>
     /// Procesa los ciclos pendientes de todos los negocios hasta <paramref name="currentCycle"/>.
@@ -136,8 +153,10 @@ public sealed partial class EconomyService
         long lastCycle;
         bool hasHelper;
         Guid owner;
+        BusinessType type;
+        string location;
         await using (var lockBusiness = new NpgsqlCommand(
-            "SELECT account_id, last_cycle, has_helper, owner_character_id FROM distrito.businesses WHERE id = @id FOR UPDATE", c, tx))
+            "SELECT account_id, last_cycle, has_helper, owner_character_id, kind, location FROM distrito.businesses WHERE id = @id FOR UPDATE", c, tx))
         {
             lockBusiness.Parameters.AddWithValue("id", businessId);
             await using var reader = await lockBusiness.ExecuteReaderAsync(ct);
@@ -147,6 +166,8 @@ public sealed partial class EconomyService
             lastCycle = reader.GetInt64(1);
             hasHelper = reader.GetBoolean(2);
             owner = reader.GetGuid(3);
+            type = EconomyCatalog.BusinessTypes[reader.GetString(4)];
+            location = reader.GetString(5);
         }
         if (lastCycle >= currentCycle)
             return 0;
@@ -160,29 +181,31 @@ public sealed partial class EconomyService
         var totalSold = 0;
         for (var cycle = first; cycle <= currentCycle; cycle++)
         {
-            var stock = await QuantityAsync(c, tx, account, EconomyCatalog.CoffeeBagItem, EconomyCatalog.CoffeeStandLocation, ct);
+            var stock = await QuantityAsync(c, tx, account, type.ItemCode, location, ct);
             if (stock == 0)
                 break; // sin mercadería no hay ventas ni alquiler; se salta al final
 
-            // El ayudante trabaja solo si hay caja para pagarle al empezar el ciclo; si no, ese ciclo no trabaja.
-            var helperWorks = hasHelper && await BalanceAsync(c, tx, account, ct) >= EconomyCatalog.CoffeeHelperWageCents;
+            // El empleado trabaja solo si hay caja para pagarle al empezar el ciclo; si no, ese ciclo no trabaja.
+            var helperWorks = hasHelper && await BalanceAsync(c, tx, account, ct) >= type.EmployeeWageCents;
             // Administración del dueño (nivel 5: +1, nivel 10: +2), según su práctica al empezar el ciclo.
             var administration = (await LoadProgressAsync(c, tx, owner, ct)).AdministrationLevel;
-            var demand = EconomyCatalog.CoffeeDemandPerCycle + (helperWorks ? EconomyCatalog.CoffeeHelperExtraDemand : 0)
+            // De noche (hora del ciclo) los negocios nocturnos venden uno más.
+            var night = type.NightBonus && EconomyCatalog.IsNight(DateTimeOffset.FromUnixTimeSeconds(cycle * CycleSeconds)) ? 1 : 0;
+            var demand = type.BaseDemand + (helperWorks ? type.EmployeeExtraDemand : 0) + night
                          + ProgressionRules.ExtraSalesPerCycle(administration);
             var units = Math.Min(stock, demand);
-            var revenue = units * EconomyCatalog.CoffeeSalePriceCents;
-            var rent = Math.Min(EconomyCatalog.CoffeeStandRentCents, revenue);
-            var wages = helperWorks ? EconomyCatalog.CoffeeHelperWageCents : 0;
+            var revenue = units * type.SalePriceCents;
+            var rent = Math.Min(type.RentCents, revenue);
+            var wages = helperWorks ? type.EmployeeWageCents : 0;
 
             var txId = await NewLedgerTransactionAsync(c, tx, $"business-cycle:{businessId}:{cycle}", "business_cycle",
-                $"Ventas del ciclo {cycle}: {units} café(s){(helperWorks ? " con ayudante" : "")}", ct);
+                $"Ventas del ciclo {cycle} ({type.Name.ToLowerInvariant()}): {units} × {type.ItemName}{(helperWorks ? $" con {type.EmployeeName}" : "")}", ct);
             if (wages > 0)
                 await TransferMoneyAsync(c, tx, txId, from: account, to: population, wages, ct); // el sueldo vuelve a la población
             await TransferMoneyAsync(c, tx, txId, from: population, to: account, revenue, ct);
             await TransferMoneyAsync(c, tx, txId, from: account, to: valenti, rent, ct);
-            await MoveItemsAsync(c, tx, txId, EconomyCatalog.CoffeeBagItem, units,
-                from: (account, EconomyCatalog.CoffeeStandLocation), to: (population, "consumido"),
+            await MoveItemsAsync(c, tx, txId, type.ItemCode, units,
+                from: (account, location), to: (population, "consumido"),
                 notEnough: "Sin stock.", ct);
 
             await using var record = new NpgsqlCommand("""
@@ -212,15 +235,16 @@ public sealed partial class EconomyService
         return totalSold;
     }
 
-    private sealed record OwnedBusiness(Guid Id, Guid AccountId);
+    private sealed record OwnedBusiness(Guid Id, Guid AccountId, string Location);
 
-    private static async Task<OwnedBusiness?> BusinessOfAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, CancellationToken ct)
+    private static async Task<OwnedBusiness?> BusinessOfAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, string kind, CancellationToken ct)
     {
         await using var cmd = new NpgsqlCommand(
-            "SELECT id, account_id FROM distrito.businesses WHERE owner_character_id = @c", c, tx);
+            "SELECT id, account_id, location FROM distrito.businesses WHERE owner_character_id = @c AND kind = @k", c, tx);
         cmd.Parameters.AddWithValue("c", characterId);
+        cmd.Parameters.AddWithValue("k", kind);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
-        return await reader.ReadAsync(ct) ? new OwnedBusiness(reader.GetGuid(0), reader.GetGuid(1)) : null;
+        return await reader.ReadAsync(ct) ? new OwnedBusiness(reader.GetGuid(0), reader.GetGuid(1), reader.GetString(2)) : null;
     }
 
     private static async Task<int> QuantityAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid account, string item, string location, CancellationToken ct)

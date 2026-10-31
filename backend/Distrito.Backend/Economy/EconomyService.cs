@@ -536,6 +536,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         var completed = 0;
         var reputation = new List<ReputationView>();
         BusinessView? business = null;
+        var businesses = new List<BusinessView>();
 
         await using (var cmd = new NpgsqlCommand("""
             SELECT a.balance_cents FROM distrito.economic_accounts a WHERE a.character_id = @c;
@@ -552,21 +553,21 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
               LEFT JOIN distrito.character_reputation r ON r.family_code = f.code AND r.character_id = @c
              ORDER BY f.code;
             SELECT b.id, b.name,
-                   COALESCE((SELECT sum(quantity) FROM distrito.item_stacks s WHERE s.owner_account_id = b.account_id AND s.location = @stand), 0)::int,
+                   COALESCE((SELECT sum(quantity) FROM distrito.item_stacks s WHERE s.owner_account_id = b.account_id AND s.location = b.location), 0)::int,
                    a.balance_cents,
                    COALESCE((SELECT sum(revenue_cents) FROM distrito.business_cycles bc WHERE bc.business_id = b.id), 0)::bigint,
                    COALESCE((SELECT sum(rent_cents) FROM distrito.business_cycles bc WHERE bc.business_id = b.id), 0)::bigint,
                    COALESCE((SELECT sum(units_sold) FROM distrito.business_cycles bc WHERE bc.business_id = b.id), 0)::int,
                    COALESCE((SELECT units_sold FROM distrito.business_cycles bc WHERE bc.business_id = b.id ORDER BY cycle DESC LIMIT 1), 0),
                    b.has_helper,
-                   COALESCE((SELECT sum(wages_cents) FROM distrito.business_cycles bc WHERE bc.business_id = b.id), 0)::bigint
+                   COALESCE((SELECT sum(wages_cents) FROM distrito.business_cycles bc WHERE bc.business_id = b.id), 0)::bigint,
+                   b.kind
               FROM distrito.businesses b JOIN distrito.economic_accounts a ON a.id = b.account_id
-             WHERE b.owner_character_id = @c;
+             WHERE b.owner_character_id = @c ORDER BY b.created_at;
             """, c, tx))
         {
             cmd.Parameters.AddWithValue("c", characterId);
             cmd.Parameters.AddWithValue("carried", EconomyCatalog.CarriedLocation);
-            cmd.Parameters.AddWithValue("stand", EconomyCatalog.CoffeeStandLocation);
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             if (await reader.ReadAsync(ct)) balance = reader.GetInt64(0);
             await reader.NextResultAsync(ct);
@@ -580,12 +581,14 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             await reader.NextResultAsync(ct);
             while (await reader.ReadAsync(ct)) reputation.Add(new ReputationView(reader.GetString(0), reader.GetString(1), reader.GetInt32(2)));
             await reader.NextResultAsync(ct);
-            if (await reader.ReadAsync(ct))
-                business = new BusinessView(reader.GetGuid(0), reader.GetString(1), reader.GetInt32(2), reader.GetInt64(3),
-                    reader.GetInt64(4), reader.GetInt64(5), reader.GetInt32(6), reader.GetInt32(7), reader.GetBoolean(8), reader.GetInt64(9));
+            while (await reader.ReadAsync(ct))
+                businesses.Add(new BusinessView(reader.GetGuid(0), reader.GetString(1), reader.GetInt32(2), reader.GetInt64(3),
+                    reader.GetInt64(4), reader.GetInt64(5), reader.GetInt32(6), reader.GetInt32(7), reader.GetBoolean(8), reader.GetInt64(9),
+                    reader.GetString(10)));
+            business = businesses.FirstOrDefault(b => b.Kind == EconomyCatalog.CoffeeStandLocation);
         }
 
         var progress = await LoadProgressAsync(c, tx, characterId, ct);
-        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress);
+        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses);
     }
 }

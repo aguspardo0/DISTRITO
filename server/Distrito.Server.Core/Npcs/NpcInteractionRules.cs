@@ -30,7 +30,9 @@ public static class NpcInteractionRules
     public static readonly NpcDefinition ValentiOffice = new(EconomyCatalog.ValentiOfficeNpc, "Oficina Valenti", new Vector3(-11.5f, 0, -1.5f));
     public static readonly NpcDefinition CoffeeCorner = new(EconomyCatalog.CoffeeCornerNpc, "Esquina del café", new Vector3(-3f, 0, 8f));
 
-    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner];
+    public static readonly NpcDefinition JazzClub = new(EconomyCatalog.JazzClubNpc, "Club de jazz", new Vector3(8f, 0, -7f));
+
+    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner, JazzClub];
 
     public static NpcDefinition? Find(string code) => All.FirstOrDefault(n => n.Code == code);
 
@@ -48,7 +50,9 @@ public static class NpcInteractionRules
             EconomyCatalog.DepositNpc => DepositDialog(s),
             EconomyCatalog.WorkshopNpc => WorkshopDialog(s),
             EconomyCatalog.ValentiOfficeNpc => ValentiDialog(s),
-            EconomyCatalog.CoffeeCornerNpc => CornerDialog(s),
+            EconomyCatalog.CoffeeCornerNpc => BusinessDialog(EconomyCatalog.CoffeeStand, s, "Acá se instalan los puestos de café. La licencia la da la Oficina Valenti."),
+            EconomyCatalog.JazzClubNpc => BusinessDialog(EconomyCatalog.JazzClub, s,
+                "Un local vacío con escenario. Con licencia de la Oficina Valenti puede ser un club de jazz; las bebidas las vende el Almacén Moretti."),
             _ => ("…", new List<NpcOption>()),
         };
         return new NpcDialog(npc.Code, npc.Name, prefix is null ? text : $"{prefix}\n\n{text}", options);
@@ -95,24 +99,26 @@ public static class NpcInteractionRules
             text += $"\n\n¡Apurate con el pedido! Llevá {urgent.Quantity} bolsas de café a la Oficina Valenti.";
         }
         options.Add(CoffeeBagOption());
+        options.Add(new($"buy:{EconomyCatalog.DrinksCrateItem}",
+            $"Comprar un cajón de bebidas ({EconomyCatalog.FormatMoney(EconomyCatalog.JazzClub.ItemPriceCents)})"));
         return (text, options);
     }
 
     private static (string, List<NpcOption>) ValentiDialog(EconomySnapshot s)
     {
-        var license = EconomyCatalog.FormatMoney(EconomyCatalog.CoffeeStandLicenseCents);
         var options = new List<NpcOption>();
-        string text;
-        if (s.Business is null)
+        var offers = new List<string>();
+        foreach (var type in EconomyCatalog.BusinessTypes.Values)
         {
-            text = $"Los Valenti otorgamos las licencias de comercio en Bellmont. Un puesto de café en la esquina sale {license}, " +
-                   $"y nos pagás {EconomyCatalog.FormatMoney(EconomyCatalog.CoffeeStandRentCents)} de alquiler por cada ciclo con ventas.";
-            options.Add(new("license:puesto-cafe", $"Comprar licencia de puesto de café ({license})"));
+            if (s.BusinessOf(type.Code) is not null)
+                continue;
+            var license = EconomyCatalog.FormatMoney(type.LicenseCents);
+            offers.Add($"{type.Name.ToLowerInvariant()} sale {license} y {EconomyCatalog.FormatMoney(type.RentCents)} de alquiler por ciclo con ventas");
+            options.Add(new($"license:{type.Code}", $"Comprar licencia de {type.Name.ToLowerInvariant()} ({license})"));
         }
-        else
-        {
-            text = "Tu licencia está en regla. Que el negocio prospere… y el alquiler llegue a tiempo.";
-        }
+        var text = offers.Count > 0
+            ? $"Los Valenti otorgamos las licencias de comercio en Bellmont. Un {string.Join("; un ", offers)}."
+            : "Tus licencias están en regla. Que los negocios prosperen… y el alquiler llegue a tiempo.";
 
         // Pedido urgente de los Moretti: se entrega acá.
         var urgent = EconomyCatalog.UrgentCoffeeOrder;
@@ -150,29 +156,32 @@ public static class NpcInteractionRules
         return (text, options);
     }
 
-    private static (string, List<NpcOption>) CornerDialog(EconomySnapshot s)
+    private static (string, List<NpcOption>) BusinessDialog(BusinessType type, EconomySnapshot s, string noBusinessText)
     {
-        if (s.Business is not { } b)
-            return ("Acá se instalan los puestos de café. La licencia la da la Oficina Valenti.", new List<NpcOption>());
+        if (s.BusinessOf(type.Code) is not { } b)
+            return (noBusinessText, new List<NpcOption>());
 
         var m = EconomyCatalog.FormatMoney;
+        var maxSales = type.BaseDemand + (b.HasHelper ? type.EmployeeExtraDemand : 0)
+                       + Distrito.Shared.Progression.ProgressionRules.ExtraSalesPerCycle(s.ProgressOrEmpty.AdministrationLevel);
+        var night = type.NightBonus ? " (+1 de noche, de 20 a 4 hs)" : "";
         var text = $"{b.Name} — {b.OperatingState}\n" +
-                   $"Stock: {b.Stock} bolsa(s) · vende hasta {EconomyCatalog.CoffeeDemandPerCycle + (b.HasHelper ? EconomyCatalog.CoffeeHelperExtraDemand : 0) + Distrito.Shared.Progression.ProgressionRules.ExtraSalesPerCycle(s.ProgressOrEmpty.AdministrationLevel)} por ciclo a {m(EconomyCatalog.CoffeeSalePriceCents)}\n" +
+                   $"Stock: {b.Stock} × {type.ItemName} · vende hasta {maxSales} por ciclo{night} a {m(type.SalePriceCents)}\n" +
                    $"Caja: {m(b.CashCents)} · Patrimonio: {m(b.EquityCents)}\n" +
                    $"Vendidos: {b.UnitsSold} · Facturación: {m(b.RevenueCents)} · Alquiler: {m(b.RentCents)} · Sueldos: {m(b.WagesCents)} · Ganancia: {m(b.ProfitCents)}\n" +
-                   (b.HasHelper ? "Ayudante: contratado" : "Ayudante: no");
+                   $"{char.ToUpperInvariant(type.EmployeeName[0])}{type.EmployeeName[1..]}: {(b.HasHelper ? "contratado" : "no")}";
         var options = new List<NpcOption>();
-        var carrying = s.QuantityOf(EconomyCatalog.CoffeeBagItem);
+        var carrying = s.QuantityOf(type.ItemCode);
         if (carrying > 0)
-            options.Add(new NpcOption("restock:puesto-cafe", $"Reponer ({carrying} bolsa(s) que llevás)"));
+            options.Add(new NpcOption($"restock:{type.Code}", $"Reponer ({carrying} × {type.ItemName} que llevás)"));
         if (b.CashCents > 0)
-            options.Add(new NpcOption("withdraw:puesto-cafe", $"Retirar ganancias ({m(b.CashCents)})"));
+            options.Add(new NpcOption($"withdraw:{type.Code}", $"Retirar ganancias ({m(b.CashCents)})"));
         options.Add(b.HasHelper
-            ? new NpcOption("fire:puesto-cafe", "Despedir al ayudante")
-            : new NpcOption("hire:puesto-cafe",
-                $"Contratar ayudante ({m(EconomyCatalog.CoffeeHelperWageCents)} por ciclo abierto, vende hasta {EconomyCatalog.CoffeeDemandPerCycle + EconomyCatalog.CoffeeHelperExtraDemand})"));
+            ? new NpcOption($"fire:{type.Code}", $"Despedir al {type.EmployeeName}")
+            : new NpcOption($"hire:{type.Code}",
+                $"Contratar {type.EmployeeName} ({m(type.EmployeeWageCents)} por ciclo abierto, vende {type.EmployeeExtraDemand} más)"));
         if (b.Stock == 0 && carrying == 0)
-            text += "\n\nSin café no hay ventas: comprá bolsas en el Almacén Moretti.";
+            text += $"\n\nSin mercadería no hay ventas: comprá {type.ItemName}s en el Almacén Moretti.";
         return (text, options);
     }
 
