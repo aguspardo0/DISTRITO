@@ -1,6 +1,6 @@
 # Hito: Etapa A — Vertical slice (Hoja de ruta v0.2.1)
 
-Fecha: 2026-10-31 · Estado: **completo en CI, falta la prueba manual con dos personas**
+Fecha: 2026-10-31 · Estado: **completo** (CI en verde y prueba manual del equipo OK el 2026-10-31)
 
 ## 1. Qué se completó
 
@@ -14,7 +14,7 @@ Fecha: 2026-10-31 · Estado: **completo en CI, falta la prueba manual con dos pe
 | 6 | Familia y reputación persistente | ✅ Moretti, Caruso, Valenti; sube y baja; eventos auditables |
 | 7 | Ciclo completo | ✅ probado con dos bots de la misma cuadrilla (cobranza → pago repartido → reputación → guardado) |
 
-No completado: prueba manual del ciclo completo por dos personas.
+Prueba manual del ciclo completo por dos personas: OK (equipo, 2026-10-31).
 
 ## 2. Sistemas modificados en el hito
 

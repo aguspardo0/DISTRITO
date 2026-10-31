@@ -15,7 +15,7 @@ Cada etapa debe compilar, tener sus pruebas en verde en CI y quedar explicada an
 - [x] Movimiento validado y replicado por el servidor
 - [x] Prueba automática en CI: servidor + 2 clientes headless
 - [x] Ejecutable de Windows publicado automáticamente (release `prototipo`)
-- [ ] Prueba manual del equipo (cámara, controles, sensación)
+- [x] Prueba manual del equipo (cámara, controles, sensación)
 
 Deuda conocida del prototipo: sin predicción del lado del cliente (con latencia alta el movimiento propio se siente demorado), sin interés de red (todos ven a todos), sin login.
 
@@ -48,20 +48,20 @@ Deuda conocida del prototipo: sin predicción del lado del cliente (con latencia
 
 ## Hoja de ruta v0.2.1 — vertical slice
 Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y probados en CI (incluido el ciclo completo con dos bots de una cuadrilla).
-- [ ] Prueba manual con dos personas del ciclo completo
+- [x] Prueba manual con dos personas del ciclo completo (equipo, 2026-10-31: funciona)
 - [x] Ampliar la cuadrilla a 4 y 5 por contratos cumplidos y reputación de los integrantes
 
-## Etapa B — Estabilidad multijugador (en curso)
+## Etapa B — Estabilidad multijugador (completa)
 - [x] Prueba con latencia, variación y pérdida de paquetes (netem en CI)
 - [x] Prueba de colisiones (edificios y bordes del barrio; se agregaron bordes invisibles)
 - [x] Métricas: CPU, RAM, RTT, ancho de banda, desconexiones y errores
 - [x] Prueba de corte de cliente a mitad de partida (el resto sigue jugando, se guarda el progreso; un cliente colgado sale a los ~8 s)
 
-## Etapa C — Mundo y visibilidad (en curso)
+## Etapa C — Mundo y visibilidad (completa)
 - [x] Mapa del barrio (tecla M) separado del mundo 3D: nombre y posición redondeada (0,5 m) de todos, 1 vez por segundo
 - [x] Privacidad decidida por el equipo: todos ven a todos en el mapa (las opciones por grupo/familia quedan para cuando haya permisos)
 - [x] Prueba en CI: fuera del radio de interés no se cargan modelos, pero el mapa muestra a los dos
-- [ ] Prueba visual del mapa por el equipo
+- [x] Prueba visual del mapa por el equipo (2026-10-31: funciona)
 
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.
