@@ -39,3 +39,11 @@ Materiales PBR (Forward+). Reutilización por módulos y atlas antes que piezas 
 - **Preferir CC0** mientras el repositorio sea público (Kenney, Quaternius, Poly Haven, MakeHuman para personajes base).
 - Assets con licencias que prohíben redistribuir los archivos (por ejemplo, Mixamo) **no se suben** a un repositorio público.
 - Registrar en `assets/LICENSES.md` el origen y la licencia de cada pieza que se incorpore.
+
+## Personajes (2026-10-31)
+
+Cuatro láminas del equipo: El Ejecutivo, El Operativo, El Trabajador y El Asociado. Hoy el juego usa modelos
+provisionales armados con piezas (`game/scripts/Player/CharacterModel.cs`) con la silueta y la paleta de cada lámina,
+y los retratos en el menú de creación (`game/assets/portraits`). Para los modelos definitivos: un `.glb` por aspecto,
+con esqueleto humanoide y animaciones (quieto, caminar, correr, saltar), ~10–20 k triángulos, mirando a −Z,
+altura 1,8 m con el origen en los pies. Se reemplaza `CharacterModel.Build` por la carga del `.glb` sin tocar red ni datos.
