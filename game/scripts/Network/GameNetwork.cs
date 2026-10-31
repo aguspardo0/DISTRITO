@@ -373,8 +373,10 @@ public partial class GameNetwork : Node
         if (result.IsSuccess)
             GD.Print($"[DISTRITO] Guardado {session.CharacterName}: ({state.X:0.00}, {state.Y:0.00}, {state.Z:0.00})");
         else
+        {
             GD.PushError($"[DISTRITO] No se pudo guardar {session.CharacterName}: {result.Error!.Message}");
             ErrorReported?.Invoke();
+        }
     }
 
     // ---------- Cliente ----------

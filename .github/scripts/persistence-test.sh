@@ -215,14 +215,15 @@ crew_bot persist-cut-survivor.log bot_alfa "Bot Alfa" --bot --expect-visible-end
 crew_bot persist-cut-victim.log bot_corte "Bot Corte" --bot & b=$!
 sleep 14
 pkill -9 -f "Bot Corte" 2>/dev/null; wait $b 2>/dev/null # mata a Godot, no solo a la subshell
-cut_at=$(grep -c . persist-server.log)
 wait $a
 line=$(result_line persist-cut-survivor.log)
 if grep -q NET_TEST_OK persist-cut-survivor.log; then note "Corte de cliente (el otro sigue)" "${line#*\] }"
 else error "Corte de cliente (el otro sigue)" "${line:-sin resultado}"; fi
-if tail -n +"$cut_at" persist-server.log | grep -q "Guardado Bot Corte"; then
-  note "Corte de cliente (guardado)" "$(tail -n +"$cut_at" persist-server.log | grep "Guardado Bot Corte" | tail -1 | sed 's/.*\] //')"
-else error "Corte de cliente (guardado)" "el servidor no guardó al jugador cortado"; fi
+# El cortado caminó antes del corte: su posición guardada ya no es la de aparición (3, 0).
+cut_pos=$(PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -At -F ' ' -c "
+  SELECT round(pos_x::numeric, 2), round(pos_z::numeric, 2) FROM distrito.characters WHERE name = 'Bot Corte'")
+if [ -n "$cut_pos" ] && [ "$cut_pos" != "3.00 0.00" ]; then note "Corte de cliente (guardado)" "posición guardada de Bot Corte: $cut_pos"
+else error "Corte de cliente (guardado)" "el progreso del jugador cortado no se guardó (${cut_pos:-sin personaje})"; fi
 
 # --- Cliente sin cuenta contra servidor con cuentas ---
 timeout 60 "$GODOT" --headless --path game -- --client --host 127.0.0.1 --port "$PORT" --test-seconds 4 > persist-guest.log 2>&1
