@@ -163,14 +163,17 @@ jobs:
         run: |
           # deploy/target.env manda: la IP y el usuario no son secretos y así no quedan desactualizados en GitHub.
           if [ -f deploy/target.env ]; then
-            grep -E '^DEPLOY_(HOST|USER)=' deploy/target.env >> "$GITHUB_ENV"
+            # Se copian con otro nombre para que no los pise un secreto viejo con el mismo nombre.
+            grep -E '^DEPLOY_HOST=' deploy/target.env | sed 's/^DEPLOY_HOST=/TARGET_HOST=/' >> "$GITHUB_ENV"
+            grep -E '^DEPLOY_USER=' deploy/target.env | sed 's/^DEPLOY_USER=/TARGET_USER=/' >> "$GITHUB_ENV"
           fi
 
       - name: Apuntar el cliente al servidor oficial
-        if: env.DEPLOY_HOST != ''
+        if: env.TARGET_HOST != '' || env.DEPLOY_HOST != ''
         run: |
-          domain="$(echo "$DEPLOY_HOST" | tr . -).sslip.io"
-          printf '{"backendUrl":"https://%s","gameHost":"%s"}\n' "$domain" "$DEPLOY_HOST" > game/server_defaults.json
+          host="${TARGET_HOST:-$DEPLOY_HOST}"
+          domain="$(echo "$host" | tr . -).sslip.io"
+          printf '{"backendUrl":"https://%s","gameHost":"%s"}\n' "$domain" "$host" > game/server_defaults.json
           cat game/server_defaults.json
 
       - name: Exportar
@@ -211,12 +214,14 @@ jobs:
         run: |
           # deploy/target.env manda: la IP y el usuario no son secretos y así no quedan desactualizados en GitHub.
           if [ -f deploy/target.env ]; then
-            grep -E '^DEPLOY_(HOST|USER)=' deploy/target.env >> "$GITHUB_ENV"
+            # Se copian con otro nombre para que no los pise un secreto viejo con el mismo nombre.
+            grep -E '^DEPLOY_HOST=' deploy/target.env | sed 's/^DEPLOY_HOST=/TARGET_HOST=/' >> "$GITHUB_ENV"
+            grep -E '^DEPLOY_USER=' deploy/target.env | sed 's/^DEPLOY_USER=/TARGET_USER=/' >> "$GITHUB_ENV"
           fi
 
       - name: Verificar configuración
         run: |
-          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_SSH_KEY" ]; then
+          if [ -z "${TARGET_HOST:-$DEPLOY_HOST}" ] || [ -z "$DEPLOY_SSH_KEY" ]; then
             echo "::notice title=Despliegue::Falta el secreto DEPLOY_SSH_KEY (o el servidor). Se arma el release pero no se despliega."
           fi
 
@@ -248,13 +253,13 @@ jobs:
       - name: Detectar arquitectura del servidor
         run: |
           arch=x64
-          if [ -n "$DEPLOY_HOST" ] && [ -n "$DEPLOY_SSH_KEY" ]; then
+          if [ -n "${TARGET_HOST:-$DEPLOY_HOST}" ] && [ -n "$DEPLOY_SSH_KEY" ]; then
             key="$RUNNER_TEMP/k"
             .github/scripts/prepare-key.sh "$key" || exit 1
             machine=""
             for attempt in 1 2 3; do
               machine=$(ssh -i "$key" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -o BatchMode=yes \
-                "${DEPLOY_USER:-ubuntu}@$DEPLOY_HOST" uname -m 2>ssh-err.txt) && break
+                "${TARGET_USER:-${DEPLOY_USER:-ubuntu}}@${TARGET_HOST:-$DEPLOY_HOST}" uname -m 2>ssh-err.txt) && break
               sleep 15
             done
             rm -f "$key"
@@ -262,7 +267,7 @@ jobs:
             case "$machine" in
               aarch64|arm64) arch=arm64 ;;
               x86_64) arch=x64 ;;
-              *) echo "::error title=Despliegue::no se pudo conectar por SSH a ${DEPLOY_USER:-ubuntu}@$DEPLOY_HOST — $(tail -2 ssh-err.txt | tr '\n' ' ')"; exit 1 ;;
+              *) echo "::error title=Despliegue::no se pudo conectar por SSH a ${TARGET_USER:-${DEPLOY_USER:-ubuntu}}@${TARGET_HOST:-$DEPLOY_HOST} — $(tail -2 ssh-err.txt | tr '\n' ' ')"; exit 1 ;;
             esac
           fi
           echo "ARCH=$arch" >> "$GITHUB_ENV"
@@ -281,17 +286,17 @@ jobs:
           echo "::notice title=Release Linux $ARCH::backend $(du -sh build/release/backend | cut -f1), servidor $(du -sh build/release/server | cut -f1)"
 
       - name: Desplegar
-        if: env.DEPLOY_HOST != '' && env.DEPLOY_SSH_KEY != ''
+        if: (env.TARGET_HOST != '' || env.DEPLOY_HOST != '') && env.DEPLOY_SSH_KEY != ''
         run: .github/scripts/deploy.sh
 
       - name: Prueba contra el servidor real
-        if: env.DEPLOY_HOST != '' && env.DEPLOY_SSH_KEY != ''
+        if: (env.TARGET_HOST != '' || env.DEPLOY_HOST != '') && env.DEPLOY_SSH_KEY != ''
         run: |
           curl -fsS "https://$DEPLOY_DOMAIN/health/ready"; echo
           # cuenta de CI estable; la contraseña deriva de un secreto, no está en el repo
           pass=$(printf '%s' "$DEPLOY_SSH_KEY-ci" | sha256sum | cut -c1-32)
           timeout 90 "$GODOT" --headless --path game -- \
-            --client --host "$DEPLOY_HOST" --port 7777 --backend "https://$DEPLOY_DOMAIN" \
+            --client --host "${TARGET_HOST:-$DEPLOY_HOST}" --port 7777 --backend "https://$DEPLOY_DOMAIN" \
             --account ci_bot --password "$pass" --character "Bot Despliegue" \
             --bot --test-seconds 12 --expect-players 1 > prod-test.log 2>&1 || true
           line=$(grep -h "NET_TEST_" prod-test.log | tail -1)
