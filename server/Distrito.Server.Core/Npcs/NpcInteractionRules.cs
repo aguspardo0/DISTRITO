@@ -7,7 +7,7 @@ public sealed record NpcOption(string Id, string Label);
 
 public sealed record NpcDialog(string NpcCode, string Title, string Text, IReadOnlyList<NpcOption> Options);
 
-public enum NpcActionKind { AcceptContract, Buy, Deliver }
+public enum NpcActionKind { AcceptContract, Buy, Deliver, BuyLicense, Restock, Withdraw }
 
 public sealed record NpcAction(NpcActionKind Kind, string Code, Guid? ContractId = null);
 
@@ -27,7 +27,10 @@ public static class NpcInteractionRules
     public static readonly NpcDefinition Deposit = new(EconomyCatalog.DepositNpc, "Almacén Moretti", new Vector3(-8.5f, 0, -8.5f));
     public static readonly NpcDefinition Workshop = new(EconomyCatalog.WorkshopNpc, "Taller Caruso", new Vector3(10f, 0, 3f));
 
-    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop];
+    public static readonly NpcDefinition ValentiOffice = new(EconomyCatalog.ValentiOfficeNpc, "Oficina Valenti", new Vector3(-11.5f, 0, -1.5f));
+    public static readonly NpcDefinition CoffeeCorner = new(EconomyCatalog.CoffeeCornerNpc, "Esquina del café", new Vector3(-3f, 0, 8f));
+
+    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner];
 
     public static NpcDefinition? Find(string code) => All.FirstOrDefault(n => n.Code == code);
 
@@ -44,6 +47,8 @@ public static class NpcInteractionRules
         {
             EconomyCatalog.DepositNpc => DepositDialog(s),
             EconomyCatalog.WorkshopNpc => WorkshopDialog(s),
+            EconomyCatalog.ValentiOfficeNpc => ValentiDialog(s),
+            EconomyCatalog.CoffeeCornerNpc => CornerDialog(s),
             _ => ("…", new List<NpcOption>()),
         };
         return new NpcDialog(npc.Code, npc.Name, prefix is null ? text : $"{prefix}\n\n{text}", options);
@@ -60,13 +65,57 @@ public static class NpcInteractionRules
         {
             "accept" => new NpcAction(NpcActionKind.AcceptContract, parts[1]),
             "buy" => new NpcAction(NpcActionKind.Buy, parts[1]),
+            "license" => new NpcAction(NpcActionKind.BuyLicense, parts[1]),
+            "restock" => new NpcAction(NpcActionKind.Restock, parts[1]),
+            "withdraw" => new NpcAction(NpcActionKind.Withdraw, parts[1]),
             "deliver" when Guid.TryParse(parts[1], out var id) =>
                 new NpcAction(NpcActionKind.Deliver, s.ActiveContracts.First(c => c.Id == id).TemplateCode, id),
             _ => null,
         };
     }
 
+    private static NpcOption CoffeeBagOption() =>
+        new($"buy:{EconomyCatalog.CoffeeBagItem}", $"Comprar una bolsa de café ({EconomyCatalog.FormatMoney(EconomyCatalog.CoffeeBagPriceCents)})");
+
     private static (string, List<NpcOption>) DepositDialog(EconomySnapshot s)
+    {
+        var (text, options) = DepositContractDialog(s);
+        options.Add(CoffeeBagOption());
+        return (text, options);
+    }
+
+    private static (string, List<NpcOption>) ValentiDialog(EconomySnapshot s)
+    {
+        var license = EconomyCatalog.FormatMoney(EconomyCatalog.CoffeeStandLicenseCents);
+        if (s.Business is null)
+            return ($"Los Valenti otorgamos las licencias de comercio en Bellmont. Un puesto de café en la esquina sale {license}, " +
+                    $"y nos pagás {EconomyCatalog.FormatMoney(EconomyCatalog.CoffeeStandRentCents)} de alquiler por cada ciclo con ventas.",
+                new List<NpcOption> { new("license:puesto-cafe", $"Comprar licencia de puesto de café ({license})") });
+        return ("Tu licencia está en regla. Que el negocio prospere… y el alquiler llegue a tiempo.", new List<NpcOption>());
+    }
+
+    private static (string, List<NpcOption>) CornerDialog(EconomySnapshot s)
+    {
+        if (s.Business is not { } b)
+            return ("Acá se instalan los puestos de café. La licencia la da la Oficina Valenti.", new List<NpcOption>());
+
+        var m = EconomyCatalog.FormatMoney;
+        var text = $"{b.Name}\n" +
+                   $"Stock: {b.Stock} bolsa(s) · vende hasta {EconomyCatalog.CoffeeDemandPerCycle} por ciclo a {m(EconomyCatalog.CoffeeSalePriceCents)}\n" +
+                   $"Caja: {m(b.CashCents)} · Patrimonio: {m(b.EquityCents)}\n" +
+                   $"Vendidos: {b.UnitsSold} · Facturación: {m(b.RevenueCents)} · Alquiler: {m(b.RentCents)} · Ganancia: {m(b.ProfitCents)}";
+        var options = new List<NpcOption>();
+        var carrying = s.QuantityOf(EconomyCatalog.CoffeeBagItem);
+        if (carrying > 0)
+            options.Add(new NpcOption("restock:puesto-cafe", $"Reponer ({carrying} bolsa(s) que llevás)"));
+        if (b.CashCents > 0)
+            options.Add(new NpcOption("withdraw:puesto-cafe", $"Retirar ganancias ({m(b.CashCents)})"));
+        if (b.Stock == 0 && carrying == 0)
+            text += "\n\nSin café no hay ventas: comprá bolsas en el Almacén Moretti.";
+        return (text, options);
+    }
+
+    private static (string, List<NpcOption>) DepositContractDialog(EconomySnapshot s)
     {
         var template = EconomyCatalog.SparePartsDelivery;
         var active = s.ActiveContract(template.Code);

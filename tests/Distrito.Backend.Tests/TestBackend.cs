@@ -41,6 +41,13 @@ public static class TestBackend
             builder.UseSetting("Economy:BusinessWorkerEnabled", "false"); // los tests corren los ciclos a mano
         });
 
+    /// <summary>Servicio de economía conectado directo a la base de pruebas (para correr ciclos a mano).</summary>
+    public static Distrito.Backend.Economy.EconomyService Economy() =>
+        new(Npgsql.NpgsqlDataSource.Create(ConnectionString), TimeProvider.System,
+            new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["Economy:BusinessCycleSeconds"] = "300" })
+                .Build());
+
     public static DistritoApiClient Api(WebApplicationFactory<Program> factory) => new(factory.CreateClient());
 
     /// <summary>Nombre único por ejecución para no chocar con datos de otras pruebas.</summary>

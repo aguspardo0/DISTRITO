@@ -100,6 +100,8 @@ public partial class Main : Node3D
         AddChild(npcs);
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.Deposit, new Color(0.55f, 0.42f, 0.3f)));
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.Workshop, new Color(0.3f, 0.38f, 0.5f)));
+        npcs.AddChild(NpcActor.Create(NpcInteractionRules.ValentiOffice, new Color(0.45f, 0.12f, 0.15f)));
+        npcs.AddChild(NpcActor.Create(NpcInteractionRules.CoffeeCorner, new Color(0.35f, 0.22f, 0.12f)));
     }
 
     private void StartDedicatedServer()
@@ -160,6 +162,14 @@ public partial class Main : Node3D
                 AddChild(crewBot);
                 crewBot.Initialize(_network, _crews, Options.BotCrewCreate);
                 test.ExpectCrew(crewBot);
+            }
+
+            if (Options.BotBusiness)
+            {
+                var businessBot = new BusinessBot { Name = "BusinessBot" };
+                AddChild(businessBot);
+                businessBot.Initialize(_network, _economy);
+                test.ExpectBusiness(businessBot);
             }
 
             if (Options.BotContract)

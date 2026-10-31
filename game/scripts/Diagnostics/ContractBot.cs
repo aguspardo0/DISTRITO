@@ -95,7 +95,7 @@ public partial class ContractBot : Node
         if (_step == Step.TalkingToDeposit)
         {
             var next = dialog.Options.FirstOrDefault(o => o.Id.StartsWith("accept:", StringComparison.Ordinal))
-                       ?? dialog.Options.FirstOrDefault(o => o.Id.StartsWith("buy:", StringComparison.Ordinal));
+                       ?? dialog.Options.FirstOrDefault(o => o.Id == $"buy:{EconomyCatalog.SparePartsItem}");
             if (next is not null)
                 _economy.Choose(dialog.NpcCode, next.Id);
             else if (snapshot is not null && snapshot.QuantityOf(EconomyCatalog.SparePartsItem) > 0)

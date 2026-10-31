@@ -1,7 +1,5 @@
-using Distrito.Backend.Economy;
 using Distrito.Shared.Api;
 using Distrito.Shared.Economy;
-using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
 namespace Distrito.Backend.Tests;
@@ -30,7 +28,7 @@ public class BusinessApiTests
     {
         await using var factory = TestBackend.Create();
         var api = TestBackend.Api(factory);
-        var economy = factory.Services.GetRequiredService<EconomyService>();
+        var economy = TestBackend.Economy();
         var id = await NewCharacter(api);
 
         var license = (await api.BusinessActionAsync(Key, "license", Req(id))).Value!;
@@ -91,7 +89,7 @@ public class BusinessApiTests
     {
         await using var factory = TestBackend.Create();
         var api = TestBackend.Api(factory);
-        var economy = factory.Services.GetRequiredService<EconomyService>();
+        var economy = TestBackend.Economy();
         var id = await NewCharacter(api);
         await api.BusinessActionAsync(Key, "license", Req(id));
         for (var i = 0; i < 4; i++) await BuyBag(api, id);

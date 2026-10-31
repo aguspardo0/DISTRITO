@@ -18,6 +18,7 @@ error() { echo "::error title=$1::$2"; fail=1; }
 # --- Backend ---
 ConnectionStrings__Distrito="$DISTRITO_TEST_DB" \
 Internal__ServerKey="$DISTRITO_SERVER_KEY" \
+Economy__BusinessCycleSeconds=5 \
 ASPNETCORE_URLS="$BACKEND_URL" \
   dotnet backend/Distrito.Backend/bin/Debug/net10.0/Distrito.Backend.dll > persist-backend.log 2>&1 &
 backend_pid=$!
@@ -90,6 +91,19 @@ if grep -q NET_TEST_OK persist-contract.log; then
 else
   grep "bot-contrato" persist-contract.log | tail -8
   error "Contrato" "${line:-sin resultado}"
+fi
+
+# --- Negocio: licencia, reponer, ventas automáticas por ciclo y retiro ---
+timeout 150 "$GODOT" --headless --path game -- \
+  --client --host 127.0.0.1 --port "$PORT" --backend "$BACKEND_URL" \
+  --account bot_negocio --password "clave-de-bot-123" --character "Bot Cafetero" \
+  --bot-business --test-seconds 90 --expect-players 1 > persist-business.log 2>&1
+line=$(result_line persist-business.log)
+if grep -q NET_TEST_OK persist-business.log; then
+  note "Negocio" "${line#*\] }"
+else
+  grep "bot-negocio" persist-business.log | tail -6
+  error "Negocio" "${line:-sin resultado}"
 fi
 
 ledger=$(PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -At -F ' ' -c "

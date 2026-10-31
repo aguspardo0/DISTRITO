@@ -179,3 +179,14 @@ public class LaunchOptionsScaleTests
         Assert.Equal(Distrito.Shared.Networking.NetworkDefaults.InterestRadius, LaunchOptions.Parse([]).InterestRadius);
     }
 }
+
+public class LaunchOptionsBusinessBotTests
+{
+    [Fact]
+    public void Bot_de_negocio()
+    {
+        var options = LaunchOptions.Parse(["--bot-business"]);
+        Assert.True(options.Bot);
+        Assert.True(options.BotBusiness);
+    }
+}

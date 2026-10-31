@@ -28,6 +28,10 @@ public partial class NetworkSelfTest : Node
     private double _graceAfterContract = 1.0;
 
     private CrewBot? _crewBot;
+    private BusinessBot? _businessBot;
+
+    /// <summary>Si se asigna, la prueba exige que el bot cierre el ciclo del negocio con el saldo esperado.</summary>
+    public void ExpectBusiness(BusinessBot bot) => _businessBot = bot;
     private int? _expectVisibleAtEnd;
     private double _rttSum;
     private int _rttSamples;
@@ -64,9 +68,10 @@ public partial class NetworkSelfTest : Node
         SampleRtt();
 
         _remaining -= delta;
-        var scriptedDone = (_contractBot ?? (object?)_crewBot) is not null
+        var scriptedDone = (_contractBot ?? _crewBot ?? (object?)_businessBot) is not null
                            && (_contractBot is null || _contractBot.Completed)
-                           && (_crewBot is null || _crewBot.Completed);
+                           && (_crewBot is null || _crewBot.Completed)
+                           && (_businessBot is null || _businessBot.Completed);
         if (scriptedDone)
             _graceAfterContract -= delta;
         if (_remaining > 0 && _graceAfterContract > 0)
@@ -92,7 +97,14 @@ public partial class NetworkSelfTest : Node
             + (predictionError is null ? "" : $" prediccion_error={predictionError:0.00}m") + (_contractBot is null
             ? ""
             : $" contrato={_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance} reputacion_caruso={_contractBot.ReputationCaruso}")
-            + (_crewBot is null ? "" : $" cuadrilla=\"{_crewBot.State}\"");
+            + (_crewBot is null ? "" : $" cuadrilla=\"{_crewBot.State}\"")
+            + (_businessBot is null ? "" : $" negocio={_businessBot.StepName} saldo={_businessBot.StartBalance}->{_businessBot.FinalBalance}");
+
+        var expectedBusinessBalance = Distrito.Shared.Economy.EconomyCatalog.StartingFundsCents
+            - Distrito.Shared.Economy.EconomyCatalog.CoffeeStandLicenseCents
+            - Distrito.Shared.Economy.EconomyCatalog.CoffeeBagPriceCents
+            + Distrito.Shared.Economy.EconomyCatalog.CoffeeSalePriceCents
+            - Distrito.Shared.Economy.EconomyCatalog.CoffeeStandRentCents;
         var summary = string.Create(CultureInfo.InvariantCulture,
             $"id={Multiplayer.GetUniqueId()} nombre=\"{local?.DisplayName}\" conectado={connected} " +
             $"jugadores_max={_maxPlayersSeen}/{_expectedPlayers} desplazamiento={_maxDisplacement:0.00}m " +
@@ -109,6 +121,9 @@ public partial class NetworkSelfTest : Node
             spawnError > SpawnTolerance ? $"apareció a {spawnError:0.00}m del lugar guardado" :
             predictionError > MaxPredictionError ? $"la predicción local quedó a {predictionError:0.00}m del servidor" :
             _expectVisibleAtEnd is { } v && visibleNow != v ? $"al final ve {visibleNow} jugadores y se esperaban {v}" :
+            _businessBot is { Completed: false } ? $"el negocio no cerró el ciclo (quedó en {_businessBot.StepName})" :
+            _businessBot is not null && _businessBot.FinalBalance != expectedBusinessBalance
+                ? $"saldo final {_businessBot.FinalBalance}, se esperaba {expectedBusinessBalance}" :
             _crewBot is { Completed: false } ? $"la cuadrilla no se formó (quedó: {_crewBot.State})" :
             _contractBot is { Completed: false } ? $"el contrato no se completó (quedó en {_contractBot.StepName})" :
             _contractBot is not null && _contractBot.FinalBalance - _contractBot.StartBalance != expectedGain

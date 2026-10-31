@@ -25,8 +25,8 @@ public class NpcInteractionRulesTests
     public void Con_el_contrato_y_sin_caja_el_deposito_ofrece_comprar()
     {
         var dialog = NpcInteractionRules.DialogFor(EconomyCatalog.DepositNpc, State(contract: true));
-        var option = Assert.Single(dialog.Options);
-        Assert.Equal($"buy:{Contract.ItemCode}", option.Id);
+        Assert.Contains(dialog.Options, o => o.Id == $"buy:{Contract.ItemCode}");
+        Assert.DoesNotContain(dialog.Options, o => o.Id.StartsWith("accept:"));
     }
 
     [Fact]
@@ -67,6 +67,41 @@ public class NpcInteractionRulesTests
     public void Resolver_rechaza_npcs_desconocidos()
     {
         Assert.Null(NpcInteractionRules.Resolve("npc:inventado", $"accept:{Contract.Code}", State()));
+    }
+
+    private static EconomySnapshot WithBusiness(int stock = 0, long cash = 0, int carriedBags = 0) => new(
+        2000,
+        carriedBags > 0 ? [new InventoryItem(EconomyCatalog.CoffeeBagItem, "Bolsa de café", carriedBags)] : [],
+        [], 0, null,
+        new BusinessView(Guid.NewGuid(), "Puesto de prueba", stock, cash, 0, 0, 0, 0));
+
+    [Fact]
+    public void Valenti_vende_licencia_solo_a_quien_no_tiene_negocio()
+    {
+        Assert.Contains(NpcInteractionRules.DialogFor(EconomyCatalog.ValentiOfficeNpc, State()).Options, o => o.Id == "license:puesto-cafe");
+        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.ValentiOfficeNpc, WithBusiness()).Options);
+    }
+
+    [Fact]
+    public void La_esquina_ofrece_reponer_y_retirar_segun_corresponda()
+    {
+        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, State()).Options);
+        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, WithBusiness()).Options);
+
+        var both = NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, WithBusiness(cash: 400, carriedBags: 2)).Options;
+        Assert.Contains(both, o => o.Id == "restock:puesto-cafe");
+        Assert.Contains(both, o => o.Id == "withdraw:puesto-cafe");
+
+        Assert.Equal(NpcActionKind.Withdraw,
+            NpcInteractionRules.Resolve(EconomyCatalog.CoffeeCornerNpc, "withdraw:puesto-cafe", WithBusiness(cash: 400))!.Kind);
+        Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.CoffeeCornerNpc, "withdraw:puesto-cafe", WithBusiness(cash: 0)));
+    }
+
+    [Fact]
+    public void El_almacen_siempre_vende_bolsas_de_cafe()
+    {
+        Assert.Contains(NpcInteractionRules.DialogFor(EconomyCatalog.DepositNpc, State()).Options, o => o.Id == $"buy:{EconomyCatalog.CoffeeBagItem}");
+        Assert.Contains(NpcInteractionRules.DialogFor(EconomyCatalog.DepositNpc, State(contract: true, boxes: 1)).Options, o => o.Id == $"buy:{EconomyCatalog.CoffeeBagItem}");
     }
 
     [Fact]

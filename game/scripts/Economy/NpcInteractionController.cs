@@ -87,6 +87,9 @@ public partial class NpcInteractionController : Node
             ? string.Join(" · ", s.Reputation.Select(r => $"{r.FamilyName.Replace("Familia ", "")} {r.Value}"))
             : "—";
         _status.Text = $"Dinero: {EconomyCatalog.FormatMoney(s.BalanceCents)}\nLlevás: {carried}\nContrato: {contract}\n" +
-                       $"Contratos cumplidos: {s.CompletedContracts}\nReputación: {reputation}";
+                       $"Contratos cumplidos: {s.CompletedContracts}\nReputación: {reputation}" +
+                       (s.Business is { } b
+                           ? $"\nPuesto de café: stock {b.Stock} · caja {EconomyCatalog.FormatMoney(b.CashCents)} · ganancia {EconomyCatalog.FormatMoney(b.ProfitCents)}"
+                           : "");
     }
 }

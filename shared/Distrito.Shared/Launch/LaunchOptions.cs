@@ -30,6 +30,7 @@ public enum LaunchMode
 /// <param name="MetricsIntervalSeconds">Servidor: cada cuántos segundos imprime métricas (0 = nunca).</param>
 /// <param name="BotGoto">El bot camina hasta este punto (X, Z) y se queda ahí.</param>
 /// <param name="ExpectVisibleAtEnd">La prueba exige ver exactamente esta cantidad de jugadores al final (incluido uno mismo).</param>
+/// <param name="BotBusiness">El bot abre un puesto de café, lo repone, espera ventas y retira la ganancia.</param>
 /// <param name="BotContract">El bot cumple el contrato de prueba (depósito → taller) y la prueba verifica el cobro.</param>
 public sealed record LaunchOptions(
     LaunchMode Mode,
@@ -51,7 +52,8 @@ public sealed record LaunchOptions(
     float InterestRadius = NetworkDefaults.InterestRadius,
     int MetricsIntervalSeconds = 0,
     (float X, float Z)? BotGoto = null,
-    int? ExpectVisibleAtEnd = null)
+    int? ExpectVisibleAtEnd = null,
+    bool BotBusiness = false)
 {
     public static LaunchOptions Default { get; } = new(
         LaunchMode.Client,
@@ -104,6 +106,9 @@ public sealed record LaunchOptions(
                     break;
                 case "--expect-visible-end":
                     options = options with { ExpectVisibleAtEnd = ParseInt(RequireValue(args, ref i), args[i - 1], 0, NetworkDefaults.MaxPlayersPerZone) };
+                    break;
+                case "--bot-business":
+                    options = options with { Bot = true, BotBusiness = true };
                     break;
                 case "--bot-contract":
                     options = options with { Bot = true, BotContract = true };
