@@ -1,4 +1,4 @@
-[gd_scene load_steps=29 format=3]
+[gd_scene load_steps=31 format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.cs" id="1_main"]
 
@@ -89,6 +89,12 @@ size = Vector3(12, 5, 5)
 
 [sub_resource type="StandardMaterial3D" id="Mat_b6"]
 albedo_color = Color(0.38, 0.3, 0.27, 1)
+
+[sub_resource type="BoxShape3D" id="Shape_edge_x"]
+size = Vector3(1, 10, 62)
+
+[sub_resource type="BoxShape3D" id="Shape_edge_z"]
+size = Vector3(62, 10, 1)
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -190,6 +196,30 @@ surface_material_override/0 = SubResource("Mat_b6")
 
 [node name="Collision" type="CollisionShape3D" parent="World/Building6"]
 shape = SubResource("Shape_b6")
+
+[node name="EdgeEast" type="StaticBody3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.5, 5, 0)
+
+[node name="Collision" type="CollisionShape3D" parent="World/EdgeEast"]
+shape = SubResource("Shape_edge_x")
+
+[node name="EdgeWest" type="StaticBody3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30.5, 5, 0)
+
+[node name="Collision" type="CollisionShape3D" parent="World/EdgeWest"]
+shape = SubResource("Shape_edge_x")
+
+[node name="EdgeSouth" type="StaticBody3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 30.5)
+
+[node name="Collision" type="CollisionShape3D" parent="World/EdgeSouth"]
+shape = SubResource("Shape_edge_z")
+
+[node name="EdgeNorth" type="StaticBody3D" parent="World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, -30.5)
+
+[node name="Collision" type="CollisionShape3D" parent="World/EdgeNorth"]
+shape = SubResource("Shape_edge_z")
 
 [node name="Players" type="Node3D" parent="."]
 

@@ -54,7 +54,7 @@ public partial class ServerMetrics : Node
         var cpuPct = (cpu - _lastCpu).TotalSeconds / seconds * 100.0;
         _lastCpu = cpu;
         var line = string.Create(CultureInfo.InvariantCulture,
-            $"jugadores={_network.PlayerCount} fps={Engine.GetFramesPerSecond():0} fisica_ms_max={_maxPhysicsMs:0.00} " +
+            $"jugadores={_network.PlayerCount} fps={Engine.GetFramesPerSecond():0} fisica_ms_max={_maxPhysicsMs:0.00} cpu_pct={cpuPct:0} " +
             $"ram_mb={_process.WorkingSet64 / 1048576.0:0} enviado_kbps={sentKbps:0.0} recibido_kbps={receivedKbps:0.0} " +
             $"pares_visibles={_network.Interest?.VisiblePairs ?? 0} desconexiones={_disconnections} errores={_errors}");
         GD.Print($"[DISTRITO] METRICS {line}");

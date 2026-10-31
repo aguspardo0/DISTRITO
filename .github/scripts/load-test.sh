@@ -29,6 +29,25 @@ for x in a b; do
   if grep -q NET_TEST_OK "interest-$x.log"; then note "Interés de red ($x)" "${line#*\] }"; else error "Interés de red ($x)" "${line:-sin resultado}"; fi
 done
 
+# ---------- 1b. Colisiones: un bot intenta atravesar un edificio, otro salir del barrio ----------
+# Edificio 0 ocupa x,z en [-18,-10]; el suelo termina en ±30 (bordes invisibles).
+PORT=7803
+"$GODOT" --headless --path game -- --server --port $PORT > walls-server.log 2>&1 &
+srv=$!
+sleep 4
+client walls-a.log $PORT --bot-goto -14,-14 --test-seconds 20 --expect-players 2 & a=$!
+client walls-b.log $PORT --bot-goto 45,0 --test-seconds 20 --expect-players 2 & b=$!
+wait $a; wait $b
+kill $srv 2>/dev/null; wait $srv 2>/dev/null
+pos_of() { grep -h NET_TEST_ "$1" | tail -1 | grep -o ' pos=[-0-9.,]*' | cut -d= -f2; }
+pa=$(pos_of walls-a.log); pb=$(pos_of walls-b.log)
+if grep -q NET_TEST_OK walls-a.log && echo "$pa" | awk -F, '{ dx=$1+14; dz=$2+14; if (dx<0) dx=-dx; if (dz<0) dz=-dz; exit !(dx > 4.2 || dz > 4.2) }'; then
+  note "Colisión con edificio" "el bot quedó afuera, en ${pa}"
+else error "Colisión con edificio" "posición final ${pa:-?}: atravesó el edificio o falló ($(grep -h NET_TEST_ walls-a.log | tail -1))"; fi
+if grep -q NET_TEST_OK walls-b.log && echo "$pb" | awk -F, '{ x=$1; if (x<0) x=-x; exit !(x <= 30) }'; then
+  note "Borde del barrio" "el bot no pudo salir del mapa: quedó en ${pb}"
+else error "Borde del barrio" "posición final ${pb:-?} ($(grep -h NET_TEST_ walls-b.log | tail -1 | cut -c1-200))"; fi
+
 # ---------- 2. Red mala: latencia, variación y pérdida de paquetes ----------
 # netem sobre la interfaz local: 60 ms ± 20 ms por sentido (≈120 ms de ida y vuelta) y 3 % de pérdida.
 # Dos bots caminan; se exige que sigan conectados, se vean y que la predicción local converja con el servidor.
@@ -75,7 +94,7 @@ for n in "$@"; do
   phys=$(echo "$full" | num fisica_ms_max | sort -n | tail -1)
   ram=$(echo "$full" | num ram_mb | sort -n | tail -1)
   cpu=$(echo "$full" | num cpu_pct | sort -n | tail -1)
-  disc=$(grep METRICS "load-server-$n.log" | num desconexiones | sort -n | tail -1)
+  disc=$(echo "$full" | num desconexiones | sort -n | tail -1) # mientras estaban todos conectados
   sent=$(echo "$full" | num enviado_kbps | sort -n | tail -1)
   recv=$(echo "$full" | num recibido_kbps | sort -n | tail -1)
   per=$(awk -v s="${sent:-0}" -v n="$n" 'BEGIN {printf "%.1f", s/n}')
