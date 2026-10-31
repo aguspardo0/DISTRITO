@@ -51,3 +51,9 @@ Volver a un release anterior: `sudo ln -sfn /opt/distrito/releases/<commit> /opt
 
 - Oracle puede **recuperar instancias Always Free inactivas** y dar de baja cuentas sin uso. Conviene entrar a la consola de vez en cuando.
 - Sin copias de seguridad de la base todavía. Pendiente antes de que haya datos que importen.
+
+## Prueba visual de la interfaz
+
+En cada push, CI abre el juego con pantalla virtual (Xvfb + OpenGL) en 1280×720, 1920×1080 pantalla completa y 1024×600,
+y saca capturas del menú, el juego, el diálogo, la cuadrilla, el mapa y las opciones (`--ui-snapshot <carpeta>`).
+Las capturas quedan en la rama `ui-capturas` del repositorio.

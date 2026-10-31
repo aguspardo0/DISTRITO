@@ -44,7 +44,7 @@ public partial class PauseMenu : Control
         box.AddChild(Button("Seguir jugando", Close));
 
         _fullscreen = new CheckButton { Text = "Pantalla completa (F11 / Alt+Enter)" };
-        _fullscreen.Toggled += on => { if (on != GameSettings.Fullscreen) GameSettings.SetFullscreen(on); };
+        _fullscreen.Toggled += GameSettings.SetFullscreen;
         box.AddChild(_fullscreen);
 
         _vsync = new CheckButton { Text = "Sincronización vertical" };
@@ -63,7 +63,7 @@ public partial class PauseMenu : Control
 
     public void Open()
     {
-        _fullscreen.SetPressedNoSignal(GameSettings.Fullscreen);
+        _fullscreen.SetPressedNoSignal(DisplayServer.WindowGetMode() is DisplayServer.WindowMode.Fullscreen or DisplayServer.WindowMode.ExclusiveFullscreen);
         _vsync.SetPressedNoSignal(GameSettings.VSync);
         _sensitivity.SetValueNoSignal(GameSettings.MouseSensitivity);
         Visible = true;
