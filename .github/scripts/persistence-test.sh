@@ -12,8 +12,10 @@ PORT=7790
 export DISTRITO_SERVER_KEY="clave-ci-$RANDOM$RANDOM"
 fail=0
 
-note()  { echo "::notice title=$1::$2"; }
-error() { echo "::error title=$1::$2"; fail=1; }
+# GitHub muestra solo 10 anotaciones por paso: cada resultado también va al resumen de la corrida.
+summary() { [ -n "${GITHUB_STEP_SUMMARY:-}" ] && echo "- $1 **$2**: ${3:0:400}" >> "$GITHUB_STEP_SUMMARY"; return 0; }
+note()  { echo "::notice title=$1::$2"; summary "✅" "$1" "$2"; }
+error() { echo "::error title=$1::$2"; summary "❌" "$1" "$2"; fail=1; }
 
 # --- Backend ---
 ConnectionStrings__Distrito="$DISTRITO_TEST_DB" \
