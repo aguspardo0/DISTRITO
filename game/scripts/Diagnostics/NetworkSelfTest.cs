@@ -65,11 +65,13 @@ public partial class NetworkSelfTest : Node
         var first = _firstPosition ?? Vector3.Zero;
         var spawnError = _expectedSpawn is { } e ? new Vector2(first.X - e.X, first.Z - e.Z).Length() : 0f;
 
+        var contractInfo = _contractBot is null
+            ? ""
+            : $" contrato={_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance}";
         var summary = string.Create(CultureInfo.InvariantCulture,
             $"id={Multiplayer.GetUniqueId()} nombre=\"{local?.DisplayName}\" conectado={connected} " +
             $"jugadores_max={_maxPlayersSeen}/{_expectedPlayers} desplazamiento={_maxDisplacement:0.00}m " +
-            $"aparicion={first.X:0.00},{first.Z:0.00} pos={final.X:0.00},{final.Z:0.00}" +
-            (_contractBot is null ? "" : $" contrato={_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance}"));
+            $"aparicion={first.X:0.00},{first.Z:0.00} pos={final.X:0.00},{final.Z:0.00}{contractInfo}");
 
         var expectedGain = Distrito.Shared.Economy.EconomyCatalog.SparePartsDelivery.RewardCents
                            - Distrito.Shared.Economy.EconomyCatalog.SparePartsPriceCents;
