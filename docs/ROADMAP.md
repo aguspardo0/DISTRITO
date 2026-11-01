@@ -93,8 +93,8 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
 - [x] Etapa 1 — clases de objeto (armas, munición, herramientas, mercancías, materias primas, productos, documentos, equipamiento, misión) con descripción y propiedades opcionales; ventana de inventario (I) con peso y volumen
 - [x] Etapa 2 — dar en mano a alguien cerca (3 m), soltar en la calle (bulto que otro levanta), separar cantidades, equipar armas desde el inventario; capacidad configurable (`config/inventario.json`, por ahora sin límite)
 - [x] Etapa 3 — depósito de la cuadrilla en La Oficina (aprobado: $20 de la caja, $1 por ciclo mientras haya algo guardado, 300 kg); permisos del jefe (ver, guardar, retirar); con alquiler adeudado no se retira; si la cuadrilla se disuelve, lo guardado pasa al último miembro
-- [~] Etapa 4 — historial: visible en el depósito (quién guardó o retiró qué y cuándo); falta el historial personal
-- [ ] Etapa 5 — proveedores y pedidos con tiempo de preparación
+- [x] Etapa 4 — historial: personal (qué entró y salió, cuánto, cuándo y por qué) y del depósito (quién guardó o retiró qué)
+- [x] Etapa 5 — pedidos por mayor al Almacén Moretti (aprobado: precio de mostrador, 10 % menos desde 20, mín. 5, 1 ciclo cada 10 unidades, 50 por ciclo en cola; retiro gratis o envío al depósito +10 % mín. $1 y 1 ciclo más; cancelar con reintegro mientras se prepara)
 - [ ] Etapa 6 — vehículos con carga
 - [ ] Etapa 7 — existencias visibles en el mundo (cajas, barriles, estanterías)
 - [ ] Etapa 8 — integración con negocios, contratos y economía

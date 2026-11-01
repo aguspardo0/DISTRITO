@@ -165,7 +165,7 @@ public partial class SupplierPanel : PanelContainer
             var cycles = SupplierRules.PrepCycles(_quantity, view.UnitsInQueue) + (_delivery ? SupplierRules.DeliveryExtraCycles : 0);
             summary.Text = $"Total: {EconomyCatalog.FormatMoney(goods + fee)}"
                            + (_quantity >= SupplierRules.VolumeDiscountFrom ? $"  ({SupplierRules.VolumeDiscountPercent} % menos por volumen)" : $"  ({SupplierRules.VolumeDiscountPercent} % menos desde {SupplierRules.VolumeDiscountFrom})")
-                           + $"\n{(_delivery ? "Llega" : "Listo")} en unos {cycles} ciclos · {_quantity * chosen.UnitWeightKg:0.#} kg";
+                           + $"\n{(_delivery ? "Llega" : "Listo")} en {(cycles == 1 ? "1 ciclo" : $"unos {cycles} ciclos")} (5 min c/u) · {_quantity * chosen.UnitWeightKg:0.#} kg";
         }
         qty.ValueChanged += _ => Update();
         mode.ItemSelected += _ => Update();

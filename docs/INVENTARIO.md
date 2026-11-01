@@ -40,3 +40,17 @@
 - Para guardar o retirar hay que estar en La Oficina (lo valida el servidor). Ver lo guardado y el historial se puede desde cualquier lado.
 - Si la cuadrilla se disuelve, lo guardado pasa a manos del último que se va.
 - En el juego: pestaña **Depósito** del inventario (con ● si estás en el lugar), **Historial** y **Permisos** (el jefe).
+
+## Historial (etapa 4)
+- Botón **Historial** en la pestaña Encima: los últimos 20 movimientos de lo que llevás (qué, cuánto, cuándo y el motivo del libro).
+- En el depósito: quién guardó o retiró qué y cuándo.
+
+## Pedidos a proveedores (etapa 5)
+- En el mostrador del **Almacén Moretti** (E) → «Pedidos por mayor». Reglas en `SupplierRules` (`shared/.../Suppliers.cs`),
+  aprobadas 2026-11-01: precio de mostrador, **10 % menos desde 20 unidades**, mínimo 5 y máximo 500 por pedido.
+- Se paga al pedir; la mercadería sale del stock real del proveedor y queda apartada (`pedido:<id>`), no aparece en el inventario.
+- Preparación: 1 ciclo cada 10 unidades; el proveedor prepara 50 unidades por ciclo entre todos los pedidos (cola).
+- **Retiro** en el mostrador, gratis, cuando está listo. **Envío** al depósito de la cuadrilla: +10 % (mínimo $1), llega 1 ciclo
+  después de listo. Si al llegar el depósito ya no existe o no entra, se devuelve el envío y queda para retirar.
+- Se puede cancelar con reintegro completo mientras se prepara. Pedir y retirar se hacen en el mostrador (lo valida el servidor).
+- Para sumar un proveedor o un producto: agregarlo a `SupplierRules.Catalog` (y su stock en la ubicación del proveedor).
