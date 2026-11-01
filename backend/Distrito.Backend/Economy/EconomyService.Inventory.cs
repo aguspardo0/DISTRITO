@@ -164,7 +164,7 @@ public sealed partial class EconomyService
         return new DropItemResult(result, result.Ok && result.Message != "Ya estaba hecho." ? drop : null);
     }
 
-    private async Task<DateTimeOffset> PlaceDropAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid dropId, Guid characterId,
+    private async Task<DateTimeOffset> PlaceDropAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid dropId, Guid? characterId,
         double x, double y, double z, int seconds, string reason, CancellationToken ct)
     {
         var expires = clock.GetUtcNow().AddSeconds(Math.Clamp(seconds, 10, 86400));
@@ -173,7 +173,7 @@ public sealed partial class EconomyService
             ON CONFLICT (id) DO NOTHING
             """, c, tx);
         place.Parameters.AddWithValue("id", dropId);
-        place.Parameters.AddWithValue("v", characterId);
+        place.Parameters.AddWithValue("v", (object?)characterId ?? DBNull.Value);
         place.Parameters.AddWithValue("x", x);
         place.Parameters.AddWithValue("y", y);
         place.Parameters.AddWithValue("z", z);

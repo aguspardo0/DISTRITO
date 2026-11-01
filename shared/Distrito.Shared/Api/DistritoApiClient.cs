@@ -150,6 +150,21 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<EconomyActionResult>> AdminGrantAsync(string serverKey, AdminGrantRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/admin/grant", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<int>> PveLoadAsync(string serverKey, PveLoadRequest request, CancellationToken ct = default) =>
+        SendAsync<int>(HttpMethod.Post, "internal/pve/load", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<object>> PveUnloadAsync(string serverKey, PveUnloadRequest request, CancellationToken ct = default) =>
+        SendAsync<object>(HttpMethod.Post, "internal/pve/unload", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<DropItemResult>> PveRobGoodsAsync(string serverKey, PveRobGoodsRequest request, CancellationToken ct = default) =>
+        SendAsync<DropItemResult>(HttpMethod.Post, "internal/pve/rob-goods", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> PveRobCashAsync(string serverKey, PveRobCashRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/pve/rob-cash", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<DropView>> PveContrabandAsync(string serverKey, PveContrabandRequest request, CancellationToken ct = default) =>
+        SendAsync<DropView>(HttpMethod.Post, "internal/pve/contraband", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<WorldStockView>> GetWorldStockAsync(string serverKey, CancellationToken ct = default) =>
         SendAsync<WorldStockView>(HttpMethod.Get, "internal/world/stock", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

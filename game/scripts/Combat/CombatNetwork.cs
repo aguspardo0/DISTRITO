@@ -138,6 +138,9 @@ public partial class CombatNetwork : Node
             GD.Print($"[DISTRITO] {result.Value.Count} bultos recuperados de la calle");
     }
 
+    /// <summary>El backend mandó config/eventos-pve.json (lo toma PveNetwork).</summary>
+    public event Action<string>? PveRulesChanged;
+
     private async Task RefreshStateAsync(Distrito.Shared.Api.DistritoApiClient backend)
     {
         var result = await backend.GetCombatStateAsync(_network.ServerKey);
@@ -150,6 +153,8 @@ public partial class CombatNetwork : Node
                 else GD.PushWarning($"[DISTRITO] zonas.json con errores, se mantienen las reglas anteriores: {string.Join(" | ", errors)}");
             }
             _state = new CombatState(result.Value.DisputedZones.ToHashSet(), result.Value.EventZones.ToHashSet(), _rules);
+            if (result.Value.PveRulesJson is { } pve)
+                PveRulesChanged?.Invoke(pve);
             _wars = result.Value.Wars ?? [];
             _warMembers = result.Value.WarMembers ?? new();
         }

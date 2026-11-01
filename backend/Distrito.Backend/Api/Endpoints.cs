@@ -70,6 +70,12 @@ public static class Endpoints
         internalApi.MapPost("/supplier/pickup", (SupplierOrderActionRequest r, EconomyService e, CancellationToken ct) => e.PickupSupplierOrderAsync(r, ct));
         internalApi.MapGet("/admin/{characterId:guid}", (Guid characterId, EconomyService e, CancellationToken ct) => e.AdminAsync(characterId, ct));
         internalApi.MapPost("/admin/grant", (AdminGrantRequest r, EconomyService e, CancellationToken ct) => e.AdminGrantAsync(r, ct));
+        internalApi.MapPost("/pve/load", (PveLoadRequest r, EconomyService e, CancellationToken ct) => e.PveLoadAsync(r, ct));
+        internalApi.MapPost("/pve/unload", async (PveUnloadRequest r, EconomyService e, CancellationToken ct) => { await e.PveUnloadAsync(r, ct); return Results.NoContent(); });
+        internalApi.MapPost("/pve/rob-goods", (PveRobGoodsRequest r, EconomyService e, CancellationToken ct) => e.PveRobGoodsAsync(r, ct));
+        internalApi.MapPost("/pve/rob-cash", (PveRobCashRequest r, EconomyService e, CancellationToken ct) => e.PveRobCashAsync(r, ct));
+        internalApi.MapPost("/pve/contraband", async (PveContrabandRequest r, EconomyService e, CancellationToken ct) =>
+            await e.PveContrabandAsync(r, ct) is { } drop ? Results.Ok(drop) : Results.NoContent());
         internalApi.MapGet("/world/stock", (EconomyService e, CancellationToken ct) => e.WorldStockAsync(ct));
         internalApi.MapGet("/vehicles", (EconomyService e, CancellationToken ct) => e.VehiclesAsync(ct));
         internalApi.MapPost("/vehicles/buy", (VehicleBuyRequest r, EconomyService e, CancellationToken ct) => e.BuyVehicleAsync(r, ct));

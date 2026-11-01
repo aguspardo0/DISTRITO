@@ -32,6 +32,7 @@ public partial class Main : Node3D
     private Distrito.Game.Transport.VehicleShopPanel? _vehicleShop;
     private Distrito.Game.World.VisualStock _stock = null!;
     private Vector3 _previewNear;
+    private Distrito.Game.Pve.PveNetwork _pve = null!;
     private Distrito.Game.Admin.AdminPanel? _adminPanel;
     private Distrito.Game.Map.MapNetwork _map = null!;
     private Distrito.Game.Combat.CombatNetwork _combat = null!;
@@ -104,6 +105,10 @@ public partial class Main : Node3D
         _stock = new Distrito.Game.World.VisualStock { Name = "VisualStock" };
         AddChild(_stock);
         _stock.Initialize(_network);
+
+        _pve = new Distrito.Game.Pve.PveNetwork { Name = "Pve" };
+        AddChild(_pve);
+        _pve.Initialize(_network, _economy, _combat);
 
         _vehicles = new Distrito.Game.Transport.VehicleNetwork { Name = "Vehicles" };
         AddChild(_vehicles);
@@ -545,6 +550,14 @@ public partial class Main : Node3D
             {
                 if (_network.LocalPlayer is { } me)
                     me.GlobalPosition = _previewNear + new Vector3(0, 0, 1.5f); // los vehículos de ejemplo, con carga
+            }),
+            ("asaltos", () =>
+            {
+                if (_network.LocalPlayer is { } me)
+                {
+                    me.GlobalPosition = new Vector3(40f, 0.2f, 6f); // Los Muelles, con lugar
+                    _pve.Preview(new Vector3(40f, 0, 6f));
+                }
             }),
             ("admin", () => { _adminPanel?.Toggle(); _admin.Preview(); }),
             ("opciones", () => { _adminPanel?.Toggle(); _pause?.Open(); }),

@@ -19,7 +19,9 @@ public sealed partial class EconomyService
         var now = clock.GetUtcNow();
         var events = DistrictEvents.Occurrences(DistrictEventList(), now, now.AddSeconds(1)).Where(e => e.IsActive(now)).Select(e => e.Zone).Distinct().ToList();
         var rulesFile = config.GetValue<string>("Zones:File") ?? Path.Combine(AppContext.BaseDirectory, "zonas.json");
-        return new CombatStateView(disputed, events, ZoneRulesJson: File.Exists(rulesFile) ? await File.ReadAllTextAsync(rulesFile, ct) : null);
+        var pveFile = config.GetValue<string>("Pve:File") ?? Path.Combine(AppContext.BaseDirectory, "eventos-pve.json");
+        return new CombatStateView(disputed, events, ZoneRulesJson: File.Exists(rulesFile) ? await File.ReadAllTextAsync(rulesFile, ct) : null,
+            PveRulesJson: File.Exists(pveFile) ? await File.ReadAllTextAsync(pveFile, ct) : null);
     }
 
     public async Task<DropView> KnockoutAsync(KnockoutRequest r, CancellationToken ct)

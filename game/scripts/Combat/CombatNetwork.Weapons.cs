@@ -255,6 +255,15 @@ public partial class CombatNetwork
         shooter.AimPitch = Mathf.Clamp(Mathf.Asin(Mathf.Clamp(direction.Y, -1, 1)), -1.2f, 1.2f);
         var (target, distance) = FirstPlayerOnRay(shooter, muzzle, direction, weapon.Range);
         var wallDistance = WallDistance(muzzle, direction, weapon.Range);
+        // NPC de los asaltos (chofer, cobrador, guardias): si el tiro les llega antes que a una pared o a un jugador.
+        if (NpcShot?.Invoke(muzzle, direction, weapon.Range) is { } npc && npc.Distance < wallDistance && (target is null || npc.Distance < distance))
+        {
+            ShotFxEverywhere(peer, muzzle, muzzle + direction * npc.Distance);
+            SendAmmo(peer);
+            SendHit(peer);
+            NpcHit?.Invoke(npc.Id, shooter, weapon.DamageAt(npc.Distance));
+            return;
+        }
         var end = muzzle + direction * Math.Min(weapon.Range, Math.Min(wallDistance, target is null ? float.MaxValue : distance));
         ShotFxEverywhere(peer, muzzle, end);
         SendAmmo(peer);
@@ -304,7 +313,7 @@ public partial class CombatNetwork
     }
 
     /// <summary>Distancia mínima entre un rayo y un segmento (devuelve el avance sobre el rayo y la distancia).</summary>
-    private static (float T, float Distance) RaySegmentDistance(Vector3 o, Vector3 d, Vector3 a, Vector3 b)
+    public static (float T, float Distance) RaySegmentDistance(Vector3 o, Vector3 d, Vector3 a, Vector3 b)
     {
         var u = b - a;
         var w = o - a;
@@ -328,7 +337,8 @@ public partial class CombatNetwork
         // Los vehículos en marcha no frenan las balas (se le dispara al que maneja y él dispara por la ventanilla);
         // los estacionados sí sirven de cobertura.
         query.Exclude = new Godot.Collections.Array<Rid>(_network.AllPlayers.Select(p => p.GetRid())
-            .Concat(Distrito.Game.Transport.VehicleNetwork.DrivenBodies()));
+            .Concat(Distrito.Game.Transport.VehicleNetwork.DrivenBodies())
+            .Concat(ShotTransparent?.Invoke() ?? []));
         var hit = GetViewport().World3D.DirectSpaceState.IntersectRay(query);
         return hit.Count > 0 ? origin.DistanceTo((Vector3)hit["position"]) : float.MaxValue;
     }
@@ -392,6 +402,50 @@ public partial class CombatNetwork
             foreach (var w in Weapons.All)
                 _ammo.Remove((s.CharacterId, w.AmmoItem));
         }
+    }
+
+    /// <summary>Prueba de impacto contra NPC de asaltos (la registra PveNetwork): id y distancia, o null.</summary>
+    public Func<Vector3, Vector3, float, (string Id, float Distance)?>? NpcShot { get; set; }
+
+    /// <summary>Cuerpos que no frenan balas (el camión de reparto: el tiro le llega al chofer).</summary>
+    public Func<IEnumerable<Rid>>? ShotTransparent { get; set; }
+
+    /// <summary>Un jugador le pegó un tiro a un NPC de asaltos.</summary>
+    public Action<string, PlayerCharacter, int>? NpcHit { get; set; }
+
+    /// <summary>¿Hay pared entre dos puntos? (para que los guardias no tiren a través de los muros)</summary>
+    public bool ClearShot(Vector3 from, Vector3 to) => WallDistance(from, (to - from).Normalized(), from.DistanceTo(to)) >= from.DistanceTo(to) - 0.3f;
+
+    /// <summary>Servidor: un NPC (guardia) le dispara a un jugador.</summary>
+    public void NpcAttack(PlayerCharacter target, int damage, string attackerName, Vector3 from)
+    {
+        if (damage <= 0 || target.Dead || target.Health <= 0 && !target.Downed)
+            return;
+        ShotFxEverywhere(0, from, target.GlobalPosition + Vector3.Up * 1.2f);
+        if (target.Downed)
+        {
+            Kill(target, null);
+            return;
+        }
+        target.Health = Math.Max(0, target.Health - damage);
+        if (target.Health > 0)
+            return;
+        target.Downed = true;
+        _bleedUntil[target.PeerId] = _clock + CombatRules.BleedSeconds;
+        GD.Print($"[DISTRITO] COMBAT_KO {attackerName} dejó herido a {target.DisplayName}");
+        SendMessage(target.PeerId, $"{attackerName} te dejó herido. Si en {CombatRules.BleedSeconds:0} s no te levanta un compañero, morís.");
+    }
+
+    /// <summary>Servidor: avisa algo a un jugador (asaltos, eventos).</summary>
+    public void Notify(long peer, string text) => SendMessage(peer, text);
+
+    /// <summary>Servidor: avisa algo a todos los conectados.</summary>
+    public void NotifyAll(string text)
+    {
+        foreach (var p in Multiplayer.GetPeers())
+            RpcId(p, MethodName.ShowMessage, text);
+        if (_network.GetPlayer(Multiplayer.GetUniqueId()) is not null)
+            ShowMessage(text);
     }
 
     private void SendAmmo(long peer)
