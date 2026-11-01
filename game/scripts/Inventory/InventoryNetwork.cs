@@ -173,9 +173,13 @@ public partial class InventoryNetwork : Node
     /// <summary>¿El jugador está en el lugar del depósito (cerca de algún NPC de esa zona)?</summary>
     private bool IsAtPlace(long peer, string place) =>
         _network.GetPlayer(peer) is { } p && (
+            (place == "sede" && Distrito.Game.Crews.BaseNetwork.ShedOf(p.CrewName.Replace(" (en formación)", "")) is { } shed
+                && Distrito.Shared.Crews.CrewBaseRules.AtBase(shed, p.GlobalPosition.X, p.GlobalPosition.Z))
+            || place == "sede" && Distrito.Game.World.VisualStock.AtShed(p.GlobalPosition) // también desde el galpón de Valenti
+            || (
             (place == TerritoryRules.Office && Distrito.Game.World.VisualStock.AtShed(p.GlobalPosition)) // el galpón de depósitos
             || NpcInteractionRules.All.Any(n => TerritoryRules.ZoneOfNpc(n.Code) == place
-                && NpcInteractionRules.InRange(new System.Numerics.Vector3(p.GlobalPosition.X, p.GlobalPosition.Y, p.GlobalPosition.Z), n)));
+                && NpcInteractionRules.InRange(new System.Numerics.Vector3(p.GlobalPosition.X, p.GlobalPosition.Y, p.GlobalPosition.Z), n))));
 
     private async Task WarehouseActionAsync(long peer, bool needsPlace,
         Func<DistritoApiClient, Guid, Task<ApiResult<EconomyActionResult>>> action)

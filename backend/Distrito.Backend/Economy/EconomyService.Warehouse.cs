@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Distrito.Backend.Crews;
+using Distrito.Shared.Crews;
 using Distrito.Shared.Economy;
 using Npgsql;
 
@@ -244,12 +245,13 @@ public sealed partial class EconomyService
             await using var tx = await c.BeginTransactionAsync(ct);
             Guid crewId;
             long last, debt;
-            await using (var lockRow = new NpgsqlCommand("SELECT crew_id, last_rent_cycle, debt_cents FROM distrito.warehouses WHERE id = @id FOR UPDATE", c, tx))
+            string place;
+            await using (var lockRow = new NpgsqlCommand("SELECT crew_id, last_rent_cycle, debt_cents, place FROM distrito.warehouses WHERE id = @id FOR UPDATE", c, tx))
             {
                 lockRow.Parameters.AddWithValue("id", id);
                 await using var r = await lockRow.ExecuteReaderAsync(ct);
                 if (!await r.ReadAsync(ct)) continue;
-                crewId = r.GetGuid(0); last = r.GetInt64(1); debt = r.GetInt64(2);
+                crewId = r.GetGuid(0); last = r.GetInt64(1); debt = r.GetInt64(2); place = r.GetString(3);
             }
             if (last >= currentCycle)
                 continue;
@@ -262,7 +264,11 @@ public sealed partial class EconomyService
                 stock.Parameters.AddWithValue("a", box);
                 stock.Parameters.AddWithValue("l", $"almacen:{id}");
                 // Sin nada guardado no se cobra (como el puesto sin mercadería). No se acumulan más ciclos que el tope de recuperación.
-                if ((bool)(await stock.ExecuteScalarAsync(ct))!)
+                // Con sede, el alquiler es el de la sede ($2 por ciclo) y se paga siempre: es el local de la cuadrilla.
+                var hasStock = (bool)(await stock.ExecuteScalarAsync(ct))!;
+                if (place == "sede")
+                    debt += CrewBaseRules.RentCents * Math.Min(currentCycle - last, EconomyCatalog.MaxCatchUpCycles);
+                else if (hasStock)
                     debt += rent * Math.Min(currentCycle - last, EconomyCatalog.MaxCatchUpCycles);
             }
             var paid = Math.Min(debt, await BalanceAsync(c, tx, box, ct));

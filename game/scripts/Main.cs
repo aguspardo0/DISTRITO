@@ -18,7 +18,7 @@ namespace Distrito.Game;
 public partial class Main : Node3D
 {
     private const string ControlsHelp =
-        "WASD: moverse   Shift: correr   Clic: piña/disparar   1-4: arma   Mouse: cámara   Espacio: saltar   E: hablar   G: subir/bajar del vehículo   I: inventario   C: cuadrilla   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
+        "WASD: moverse   Shift: correr   Clic: piña/disparar   1-4: arma   Mouse: cámara   Espacio: saltar   E: hablar   G: subir/bajar del vehículo   I: inventario   C: cuadrilla   J: tablero   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
 
     private GameNetwork _network = null!;
     private EconomyNetwork _economy = null!;
@@ -33,6 +33,8 @@ public partial class Main : Node3D
     private Distrito.Game.World.VisualStock _stock = null!;
     private Vector3 _previewNear;
     private Distrito.Game.Pve.PveNetwork _pve = null!;
+    private BaseNetwork _bases = null!;
+    private CrewBoardPanel? _boardPanel;
     private Distrito.Game.Admin.AdminPanel? _adminPanel;
     private Distrito.Game.Map.MapNetwork _map = null!;
     private Distrito.Game.Combat.CombatNetwork _combat = null!;
@@ -109,6 +111,10 @@ public partial class Main : Node3D
         _pve = new Distrito.Game.Pve.PveNetwork { Name = "Pve" };
         AddChild(_pve);
         _pve.Initialize(_network, _economy, _combat);
+
+        _bases = new BaseNetwork { Name = "Bases" };
+        AddChild(_bases);
+        _bases.Initialize(_network, _economy, _combat, _pve);
 
         _vehicles = new Distrito.Game.Transport.VehicleNetwork { Name = "Vehicles" };
         AddChild(_vehicles);
@@ -300,6 +306,10 @@ public partial class Main : Node3D
         layer.AddChild(UiAnchor.Wrap(_supplierPanel, UiAnchor.Center, UiAnchor.Center, name: "SupplierArea"));
         _supplierPanel.Initialize(_inventory);
         interaction.SupplierRequested += npc => _supplierPanel.Open(npc);
+
+        _boardPanel = new CrewBoardPanel { Name = "CrewBoard" };
+        layer.AddChild(UiAnchor.Wrap(_boardPanel, UiAnchor.Center, UiAnchor.Center, name: "CrewBoardArea"));
+        _boardPanel.Initialize(_bases, () => _network.LocalPlayer?.GlobalPosition);
 
         _vehicleShop = new Distrito.Game.Transport.VehicleShopPanel { Name = "VehicleShop" };
         layer.AddChild(UiAnchor.Wrap(_vehicleShop, UiAnchor.Center, UiAnchor.Center, name: "VehicleShopArea"));
@@ -559,7 +569,8 @@ public partial class Main : Node3D
                     _pve.Preview(new Vector3(40f, 0, 6f));
                 }
             }),
-            ("admin", () => { _adminPanel?.Toggle(); _admin.Preview(); }),
+            ("tablero", () => { _boardPanel?.Toggle(); _bases.Preview(); }),
+            ("admin", () => { _boardPanel?.Toggle(); _adminPanel?.Toggle(); _admin.Preview(); }),
             ("opciones", () => { _adminPanel?.Toggle(); _pause?.Open(); }),
         ]);
     }
@@ -571,6 +582,7 @@ public partial class Main : Node3D
         if (_mapPanel is { Visible: true }) _mapPanel.Toggle();
         if (_inventoryPanel is { IsOpen: true }) _inventoryPanel.Toggle();
         if (_adminPanel is { IsOpen: true }) _adminPanel.Toggle();
+        if (_boardPanel is { IsOpen: true }) _boardPanel.Toggle();
         _supplierPanel?.Close();
         _vehicleShop?.Close();
         _interaction?.Dialog.Close();
@@ -608,6 +620,7 @@ public partial class Main : Node3D
             if (_crewPanel is { IsOpen: true }) _crewPanel.Toggle();
             else if (_inventoryPanel is { IsOpen: true }) _inventoryPanel.Toggle();
             else if (_adminPanel is { IsOpen: true }) _adminPanel.Toggle();
+            else if (_boardPanel is { IsOpen: true }) _boardPanel.Toggle();
             else if (_mapPanel is { Visible: true }) _mapPanel.Toggle();
             else if (_pause.IsOpen) _pause.Close();
             else _pause.Open();
@@ -619,6 +632,8 @@ public partial class Main : Node3D
 
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.C } && _network.LocalPlayer is not null)
             _crewPanel?.Toggle();
+        if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.J } && _network.LocalPlayer is not null)
+            _boardPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.F10 } && _network.LocalPlayer is not null)
             _adminPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.I } && _network.LocalPlayer is not null)

@@ -1,3 +1,4 @@
+using Distrito.Shared.Crews;
 using Distrito.Shared.Economy;
 using Distrito.Shared.Progression;
 using Npgsql;
@@ -122,6 +123,15 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             var itemName = pack?.Name ?? loadedName;
             var basePrice = pack?.PriceCents ?? loadedPrice;
             var unitPrice = FamilyRules.SellPrice(basePrice, await MoodOfNpcAsync(c, tx, request.NpcCode, ct));
+            // Prestigio de cuadrilla: descuentos en Moretti (rango 3) y en el Taller Caruso (rango 5).
+            var rankForDiscount = await RankOfCharacterAsync(c, tx, request.CharacterId, ct);
+            var discount = request.NpcCode switch
+            {
+                EconomyCatalog.DepositNpc => PrestigeRules.MorettiDiscountPercent(rankForDiscount),
+                EconomyCatalog.WorkshopNpc => PrestigeRules.CarusoDiscountPercent(rankForDiscount),
+                _ => 0,
+            };
+            unitPrice = unitPrice * (100 - discount) / 100;
             var buyer = await EnsureCharacterAccountAsync(c, tx, request.CharacterId, ct);
             var seller = await AccountIdByCodeAsync(c, tx, request.NpcCode, ct);
             var sellerLocation = request.NpcCode.Replace("npc:", "");

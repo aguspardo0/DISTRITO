@@ -5,8 +5,13 @@ using Distrito.Shared.Economy;
 namespace Distrito.Server.Core.Combat;
 
 /// <summary>Estado de PvP del barrio que el servidor de juego consulta al backend cada pocos segundos.</summary>
-public sealed record CombatState(IReadOnlySet<string> DisputedZones, IReadOnlySet<string> EventZones, ZoneRules? Rules = null)
+public sealed record CombatState(IReadOnlySet<string> DisputedZones, IReadOnlySet<string> EventZones, ZoneRules? Rules = null,
+    IReadOnlyList<int>? BaseSheds = null)
 {
+    /// <summary>¿Está adentro de una sede de cuadrilla? (zona segura, decisión del equipo 2026-11-01)</summary>
+    public bool InsideBase(Vector3 p) =>
+        BaseSheds is { } sheds && sheds.Any(s => Distrito.Shared.Crews.CrewBaseRules.IsInside(s, p.X, p.Z));
+
     public static CombatState None { get; } = new(new HashSet<string>(), new HashSet<string>());
 }
 
@@ -52,7 +57,7 @@ public static class CombatRules
     public static ZonePermissions PermissionsAt(Vector3 p, ZoneRules rules, CombatState state, bool war = false)
     {
         var zone = ZoneAt(p);
-        return rules.For(zone, new ZoneContext(InSafeZone(p, rules.SafeRadius), state.DisputedZones.Contains(zone), state.EventZones.Contains(zone), war));
+        return rules.For(zone, new ZoneContext(InSafeZone(p, rules.SafeRadius) || state.InsideBase(p), state.DisputedZones.Contains(zone), state.EventZones.Contains(zone), war));
     }
 
     /// <summary>¿El golpe llega? (distancia y que el objetivo esté adelante del que pega). Yaw: rotación Y; el frente es −Z.</summary>
@@ -79,6 +84,8 @@ public static class CombatRules
         var rules = local ? ZoneRules.LocalDefault : state.Rules ?? ZoneRules.ServerDefault;
         var at = PermissionsAt(attacker, rules, state, atWar);
         var to = PermissionsAt(target, rules, state, atWar);
+        if (state.InsideBase(attacker) || state.InsideBase(target))
+            return "Adentro de una sede no se pelea (zona segura).";
         if (InSafeZone(attacker, rules.SafeRadius) || InSafeZone(target, rules.SafeRadius))
         {
             if (!at.Pvp || !to.Pvp)

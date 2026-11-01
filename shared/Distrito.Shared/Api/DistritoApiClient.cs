@@ -150,6 +150,21 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<EconomyActionResult>> AdminGrantAsync(string serverKey, AdminGrantRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/admin/grant", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<CrewBoardView>> GetCrewBoardAsync(string serverKey, Guid characterId, CancellationToken ct = default) =>
+        SendAsync<CrewBoardView>(HttpMethod.Get, $"internal/crews/board/{characterId}", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<List<CrewBaseView>>> GetCrewBasesAsync(string serverKey, CancellationToken ct = default) =>
+        SendAsync<List<CrewBaseView>>(HttpMethod.Get, "internal/crews/bases", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> BuyCrewBaseAsync(string serverKey, CrewBaseBuyRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/crews/base", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> TurnInCrewMissionAsync(string serverKey, CrewMissionTurnInRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/crews/missions/turnin", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> CrewMissionProgressAsync(string serverKey, CrewMissionProgressRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/crews/missions/progress", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<int>> PveLoadAsync(string serverKey, PveLoadRequest request, CancellationToken ct = default) =>
         SendAsync<int>(HttpMethod.Post, "internal/pve/load", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

@@ -70,6 +70,11 @@ public static class Endpoints
         internalApi.MapPost("/supplier/pickup", (SupplierOrderActionRequest r, EconomyService e, CancellationToken ct) => e.PickupSupplierOrderAsync(r, ct));
         internalApi.MapGet("/admin/{characterId:guid}", (Guid characterId, EconomyService e, CancellationToken ct) => e.AdminAsync(characterId, ct));
         internalApi.MapPost("/admin/grant", (AdminGrantRequest r, EconomyService e, CancellationToken ct) => e.AdminGrantAsync(r, ct));
+        internalApi.MapGet("/crews/board/{characterId:guid}", (Guid characterId, EconomyService e, CancellationToken ct) => e.CrewBoardAsync(characterId, ct));
+        internalApi.MapGet("/crews/bases", (EconomyService e, CancellationToken ct) => e.CrewBasesAsync(ct));
+        internalApi.MapPost("/crews/base", (CrewBaseBuyRequest r, EconomyService e, CancellationToken ct) => e.BuyCrewBaseAsync(r, ct));
+        internalApi.MapPost("/crews/missions/turnin", (CrewMissionTurnInRequest r, EconomyService e, CancellationToken ct) => e.TurnInCrewMissionAsync(r, ct));
+        internalApi.MapPost("/crews/missions/progress", (CrewMissionProgressRequest r, EconomyService e, CancellationToken ct) => e.CrewMissionProgressAsync(r, ct));
         internalApi.MapPost("/pve/load", (PveLoadRequest r, EconomyService e, CancellationToken ct) => e.PveLoadAsync(r, ct));
         internalApi.MapPost("/pve/unload", async (PveUnloadRequest r, EconomyService e, CancellationToken ct) => { await e.PveUnloadAsync(r, ct); return Results.NoContent(); });
         internalApi.MapPost("/pve/rob-goods", (PveRobGoodsRequest r, EconomyService e, CancellationToken ct) => e.PveRobGoodsAsync(r, ct));

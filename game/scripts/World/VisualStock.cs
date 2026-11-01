@@ -33,6 +33,7 @@ public partial class VisualStock : Node3D
     private readonly Node3D[] _bays = new Node3D[StockVisualRules.WarehouseBays];
     private Node3D _shelves = null!;
     private Node3D _pallets = null!;
+    private readonly Dictionary<int, Node3D> _baseStock = new();
 
     /// <summary>Pide actualizar pronto (después de guardar, retirar, cargar, pedir…).</summary>
     public static void RequestRefresh()
@@ -176,6 +177,22 @@ public partial class VisualStock : Node3D
                 StockProps.Layout(area, w.Items, BayWidth, BayDepth - 0.6f, levels: 3);
             }
             _bays[i].AddChild(sign);
+        }
+
+        // Depósitos de sede: la mercadería se ve apilada al fondo del galpón.
+        foreach (var node in _baseStock.Values) node.QueueFree();
+        _baseStock.Clear();
+        foreach (var w in view.Warehouses.Where(w => w.Shed is not null))
+        {
+            var shed = w.Shed!.Value;
+            if (shed < 0 || shed >= Distrito.Shared.Crews.CrewBaseRules.Sheds.Count)
+                continue;
+            var s = Distrito.Shared.Crews.CrewBaseRules.Sheds[shed];
+            var side = Distrito.Shared.Crews.CrewBaseRules.DoorSide(shed);
+            var area = new Node3D { Position = new Vector3(s.X, 0.05f, s.Z - side * (s.Depth / 2 - 2.2f)) };
+            AddChild(area);
+            _baseStock[shed] = area;
+            StockProps.Layout(area, w.Items, s.Width - 2f, 3.2f, levels: 3);
         }
 
         foreach (var child in _shelves.GetChildren()) child.QueueFree();

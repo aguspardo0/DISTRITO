@@ -78,6 +78,13 @@ public partial class MapPanel : Control
             DrawRect(new Rect2(corner, new Vector2(b.Width * scale, b.Depth * scale)), Building);
         }
 
+        // Sedes de cuadrilla en Los Muelles.
+        foreach (var b in Distrito.Game.Crews.BaseNetwork.Bases)
+        {
+            var s = Distrito.Shared.Crews.CrewBaseRules.Sheds[b.Shed];
+            DrawString(font, ToMap(s.X - s.Width / 2, s.Z), $"«{b.CrewName}»", HorizontalAlignment.Left, s.Width * MapScale, 11, Brass);
+        }
+
         var territory = Economy?.Invoke()?.Territory;
         foreach (var npc in NpcInteractionRules.All)
         {

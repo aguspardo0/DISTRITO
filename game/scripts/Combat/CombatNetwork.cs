@@ -138,6 +138,22 @@ public partial class CombatNetwork : Node
             GD.Print($"[DISTRITO] {result.Value.Count} bultos recuperados de la calle");
     }
 
+    /// <summary>Dónde reaparece un jugador (la sede de su cuadrilla); null = su punto de aparición.</summary>
+    public Func<long, Vector3?>? RespawnPoint { get; set; }
+
+    private IReadOnlyList<int> _baseSheds = [];
+
+    /// <summary>Galpones que son sede (adentro es zona segura). Lo actualiza BaseNetwork.</summary>
+    public IReadOnlyList<int> BaseSheds
+    {
+        get => _baseSheds;
+        set
+        {
+            _baseSheds = value;
+            _state = _state with { BaseSheds = value };
+        }
+    }
+
     /// <summary>El backend mandó config/eventos-pve.json (lo toma PveNetwork).</summary>
     public event Action<string>? PveRulesChanged;
 
@@ -152,7 +168,7 @@ public partial class CombatNetwork : Node
                 if (rules is not null) { _rules = rules; _rulesJson = json; }
                 else GD.PushWarning($"[DISTRITO] zonas.json con errores, se mantienen las reglas anteriores: {string.Join(" | ", errors)}");
             }
-            _state = new CombatState(result.Value.DisputedZones.ToHashSet(), result.Value.EventZones.ToHashSet(), _rules);
+            _state = new CombatState(result.Value.DisputedZones.ToHashSet(), result.Value.EventZones.ToHashSet(), _rules, _baseSheds);
             if (result.Value.PveRulesJson is { } pve)
                 PveRulesChanged?.Invoke(pve);
             _wars = result.Value.Wars ?? [];
@@ -357,7 +373,7 @@ public partial class CombatNetwork : Node
         if (_network.GetPlayer(peer) is not { } player)
             return;
         player.Velocity = Vector3.Zero;
-        player.GlobalPosition = player.SpawnPoint;
+        player.GlobalPosition = RespawnPoint?.Invoke(peer) ?? player.SpawnPoint; // con sede, se reaparece adentro
         player.Health = CombatRules.MaxHealth;
         player.Downed = false;
         player.Dead = false;

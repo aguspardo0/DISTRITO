@@ -56,7 +56,7 @@ public static class TerritoryRules
         (Warehouse, "Calle del Almacén"), (Workshops, "Los Talleres"), (Office, "La Oficina"), (Corner, "La Esquina"),
     ];
 
-    public static string NameOf(string zone) => zone == Docks ? "Los Muelles" : Zones.FirstOrDefault(z => z.Code == zone).Name ?? zone;
+    public static string NameOf(string zone) => zone == Docks ? "Los Muelles" : zone == "sede" ? "la sede de la cuadrilla" : Zones.FirstOrDefault(z => z.Code == zone).Name ?? zone;
 
     public static string? ZoneOfNpc(string npcCode) => npcCode switch
     {

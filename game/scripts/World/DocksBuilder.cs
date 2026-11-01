@@ -26,6 +26,13 @@ public static class DocksBuilder
         var i = 0;
         foreach (var b in MapPresence.DocksBuildings)
         {
+            var shed = Distrito.Shared.Crews.CrewBaseRules.Sheds.ToList().FindIndex(s => s.X == b.X && s.Z == b.Z);
+            if (shed >= 0)
+            {
+                BuildHollowShed(docks, shed, b, i % 2 == 0 ? new Color(0.38f, 0.24f, 0.2f) : new Color(0.33f, 0.33f, 0.3f));
+                i++;
+                continue;
+            }
             var crates = b.Width < 4 && b.Depth < 4;
             var height = crates ? 1.6f : 5.5f + i % 3;
             var color = crates ? new Color(0.48f, 0.36f, 0.22f) : (i % 2 == 0 ? new Color(0.38f, 0.24f, 0.2f) : new Color(0.33f, 0.33f, 0.3f));
@@ -45,6 +52,48 @@ public static class DocksBuilder
             FontSize = 48, OutlineSize = 10, Modulate = new Color(0.95f, 0.55f, 0.4f),
             Position = new Vector3(MapPresence.DocksStartX + 1.5f, 3.2f, -4),
         });
+    }
+
+    public const float ShedHeight = 5.5f;
+    public const float DoorWidth = 3.6f;
+
+    /// <summary>
+    /// Galpón hueco que puede ser sede de cuadrilla: paredes, techo y un portón abierto hacia la calle (entran personas y
+    /// vehículos). Adentro hay una lamparita y el cartel de la puerta lo actualiza BaseNetwork (dueño o «se vende»).
+    /// </summary>
+    private static void BuildHollowShed(Node3D parent, int shed, MapBuilding b, Color color)
+    {
+        var node = new Node3D { Name = $"Shed{shed}", Position = new Vector3(b.X, 0, b.Z) };
+        parent.AddChild(node);
+        const float t = 0.3f;
+        var side = Distrito.Shared.Crews.CrewBaseRules.DoorSide(shed); // +1: la puerta mira a +z
+        float w = b.Width, d = b.Depth, h = ShedHeight;
+        Solid(node, "Back", new Vector3(w, h, t), new Vector3(0, h / 2, -side * (d / 2 - t / 2)), color);
+        Solid(node, "Left", new Vector3(t, h, d), new Vector3(-w / 2 + t / 2, h / 2, 0), color);
+        Solid(node, "Right", new Vector3(t, h, d), new Vector3(w / 2 - t / 2, h / 2, 0), color);
+        var front = (w - DoorWidth) / 2;
+        Solid(node, "FrontL", new Vector3(front, h, t), new Vector3(-w / 2 + front / 2, h / 2, side * (d / 2 - t / 2)), color);
+        Solid(node, "FrontR", new Vector3(front, h, t), new Vector3(w / 2 - front / 2, h / 2, side * (d / 2 - t / 2)), color);
+        Solid(node, "Lintel", new Vector3(DoorWidth, 1.5f, t), new Vector3(0, h - 0.75f, side * (d / 2 - t / 2)), color);
+        Solid(node, "Roof", new Vector3(w, 0.25f, d), new Vector3(0, h + 0.12f, 0), color.Darkened(0.3f));
+        Visual(node, "Floor", new Vector3(w - 2 * t, 0.03f, d - 2 * t), new Vector3(0, 0.02f, 0), new Color(0.3f, 0.27f, 0.23f));
+        node.AddChild(new OmniLight3D { Position = new Vector3(0, h - 0.8f, 0), LightColor = new Color(1f, 0.82f, 0.55f), LightEnergy = 1.6f, OmniRange = Mathf.Max(w, d) });
+        node.AddChild(new Label3D
+        {
+            Name = "Sign", Text = "SE VENDE\nSede de cuadrilla — $250",
+            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, FontSize = 40, OutlineSize = 8,
+            Modulate = new Color(0.9f, 0.85f, 0.7f), Position = new Vector3(0, h + 0.9f, side * (d / 2 + 0.3f)),
+        });
+    }
+
+    /// <summary>Cambia el cartel de un galpón (lo llama BaseNetwork en todos los equipos).</summary>
+    public static void SetShedSign(Node world, int shed, string text, Color color)
+    {
+        if (world.GetNodeOrNull<Label3D>($"Docks/Shed{shed}/Sign") is { } sign)
+        {
+            sign.Text = text;
+            sign.Modulate = color;
+        }
     }
 
     private static StandardMaterial3D Material(Color color) => new() { AlbedoColor = color };

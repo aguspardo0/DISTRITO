@@ -55,6 +55,9 @@ public partial class PveNetwork : Node
     private Node3D? _contrabandCrates;
     private double _clock, _nextState, _nextNotice;
 
+    /// <summary>Algo que cuenta para misiones de cuadrilla (jugador, tipo de misión). Lo atiende BaseNetwork.</summary>
+    public event Action<long, string, string?>? MissionEvent;
+
     public void Initialize(GameNetwork network, EconomyNetwork economy, CombatNetwork combat)
     {
         _network = network;
@@ -311,12 +314,13 @@ public partial class PveNetwork : Node
             if (a.Body is Distrito.Game.Transport.VehicleBody truck)
                 truck.SetCargo([]);
             _combat.NotifyAll($"¡Asaltaron el camión de reparto de Moretti! La carga quedó tirada en la calle.");
+            MissionEvent?.Invoke(peer, Distrito.Shared.Crews.MissionKinds.TruckJob, null);
             _economy.RefreshPeer(peer);
         }
     }
 
     private async Task RobCashAsync(DistritoApiClient api, long peer, Guid character, string name, string account, long min, long max,
-        string family, int reputation, string reason, string requestId)
+        string family, int reputation, string reason, string requestId, string? shopCode = null)
     {
         var result = await api.PveRobCashAsync(_network.ServerKey, new PveRobCashRequest(character, account, min, max, family, reputation, reason, requestId));
         if (!result.IsSuccess)
@@ -328,6 +332,8 @@ public partial class PveNetwork : Node
         if (result.Value.Ok)
         {
             GD.Print($"[DISTRITO] PVE_ROBBED {name}: {reason} — {result.Value.Message}");
+            if (shopCode is not null)
+                MissionEvent?.Invoke(peer, Distrito.Shared.Crews.MissionKinds.Shop, shopCode);
             _economy.RefreshPeer(peer);
         }
     }
@@ -393,7 +399,7 @@ public partial class PveNetwork : Node
                 _shopCooldown[code] = _clock + s.CooldownMinutes * 60;
                 var family = FamilyRules.FamilyOfNpc(code) ?? "";
                 _ = RobCashAsync(api, p.PeerId, me.CharacterId, me.CharacterName, code, s.MinCents, s.MaxCents, family, s.Reputation,
-                    $"Asalto a la caja de {npc.Name}", $"caja-{code}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60}:{me.CharacterId}");
+                    $"Asalto a la caja de {npc.Name}", $"caja-{code}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60}:{me.CharacterId}", code);
                 break;
             }
         }
@@ -431,6 +437,7 @@ public partial class PveNetwork : Node
                 if (a.Health > 0)
                     return;
                 GD.Print($"[DISTRITO] PVE_GUARD_DOWN {shooter.DisplayName} venció a un guardia");
+                MissionEvent?.Invoke(shooter.PeerId, Distrito.Shared.Crews.MissionKinds.Contraband, null);
                 a.LeaveAt = _clock + 1;
                 _combat.Notify(shooter.PeerId, "Bajaste a un guardia.");
                 if (_actors.Values.Where(x => x.Kind == Kind.Guard && x != a).All(x => x.Health <= 0))

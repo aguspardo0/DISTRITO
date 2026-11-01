@@ -111,7 +111,7 @@ public sealed record AdminGrantRequest(Guid CharacterId, long Cents, string? Ite
 public sealed record StockPile(string ItemCode, string Kind, int Quantity, double WeightKg);
 
 /// <summary>Depósito de cuadrilla en el galpón de Valenti: bahía asignada por orden de apertura.</summary>
-public sealed record WarehouseStock(Guid Id, string CrewName, int Bay, List<StockPile> Items, double? CapacityKg);
+public sealed record WarehouseStock(Guid Id, string CrewName, int Bay, List<StockPile> Items, double? CapacityKg, string Place = "", int? Shed = null);
 
 /// <summary>Existencias de un proveedor y sus pedidos apartados (listos y en preparación).</summary>
 public sealed record SupplierStock(string SupplierCode, List<StockPile> Items, int ReadyOrders, int PreparingOrders);
