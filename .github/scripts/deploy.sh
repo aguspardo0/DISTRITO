@@ -22,5 +22,6 @@ ssh "${ssh_opts[@]}" "$user@$host" "set -e
 backups=$(ssh "${ssh_opts[@]}" "$user@$host" "systemctl is-active distrito-backup.timer; sudo ls -1t /var/backups/distrito | head -3; sudo du -sh /var/backups/distrito | cut -f1" || true)
 echo "::notice title=Copias de seguridad::$(echo "$backups" | tr '\n' ' ')"
 echo "$backups" | grep -q '^active$' || { echo "::error::El timer de copias de seguridad no está activo"; exit 1; }
+echo "$backups" | grep -q '\.dump$' || { echo "::error::No hay ninguna copia de seguridad en el servidor"; exit 1; }
 
 echo "DEPLOY_DOMAIN=$domain" >> "$GITHUB_ENV"

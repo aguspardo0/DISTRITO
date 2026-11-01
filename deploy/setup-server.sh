@@ -103,7 +103,7 @@ EOF
 systemctl daemon-reload
 systemctl enable --now distrito-backup.timer >/dev/null
 # Antes de instalar el release nuevo (el backend aplica migraciones al arrancar), copia de lo que hay.
-if [ "$(sudo -u postgres psql -d distrito -tAc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'")" -gt 0 ]; then
+if [ "$(sudo -u postgres psql -d distrito -tAc "SELECT count(*) FROM pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema')")" -gt 0 ]; then
   log "Copia de seguridad antes del despliegue"
   /usr/local/sbin/distrito-backup predespliegue
 fi
@@ -192,5 +192,8 @@ systemctl is-active --quiet distrito-gameserver || { journalctl -u distrito-game
 
 # --- Limpieza: se conservan los últimos 3 releases ---
 ls -1dt "$APP"/releases/* | tail -n +4 | xargs -r rm -rf
+
+# Siempre tiene que haber al menos una copia (instalación nueva o servidor que venía sin copias).
+ls /var/backups/distrito/*.dump >/dev/null 2>&1 || /usr/local/sbin/distrito-backup manual
 
 log "OK — https://$DOMAIN  ·  juego UDP 7777  ·  release $COMMIT"
