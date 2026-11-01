@@ -37,9 +37,25 @@ public sealed partial class EconomyService
         await using var tx = await c.BeginTransactionAsync(ct);
         var account = await EnsureCharacterAccountAsync(c, tx, characterId, ct);
         var items = await EntriesAtAsync(c, tx, account, EconomyCatalog.CarriedLocation, ct);
+        var history = new List<InventoryMovement>();
+        await using (var cmd = new NpgsqlCommand("""
+            SELECT m.created_at, d.name, m.quantity, (m.to_account_id = @a AND m.to_location = @l), t.description
+              FROM distrito.item_movements m
+              JOIN distrito.item_definitions d ON d.code = m.item_code
+              JOIN distrito.ledger_transactions t ON t.id = m.transaction_id
+             WHERE (m.to_account_id = @a AND m.to_location = @l) OR (m.from_account_id = @a AND m.from_location = @l)
+             ORDER BY m.id DESC LIMIT 20
+            """, c, tx))
+        {
+            cmd.Parameters.AddWithValue("a", account);
+            cmd.Parameters.AddWithValue("l", EconomyCatalog.CarriedLocation);
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
+                history.Add(new InventoryMovement(r.GetFieldValue<DateTimeOffset>(0), r.GetString(1), r.GetInt32(2), r.GetBoolean(3), r.GetString(4)));
+        }
         await tx.CommitAsync(ct);
         var limits = Limits();
-        return new InventoryView(items, limits.PersonalKg, limits.PersonalL);
+        return new InventoryView(items, limits.PersonalKg, limits.PersonalL, history);
     }
 
     private static async Task<List<InventoryEntry>> EntriesAtAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid account, string location, CancellationToken ct)

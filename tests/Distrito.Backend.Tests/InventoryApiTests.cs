@@ -37,6 +37,10 @@ public class InventoryApiTests
         Assert.Equal(3, coffee.Quantity);
         Assert.Equal(15, view.WeightKg, 3); // 3 × 5 kg
         Assert.Null(view.CapacityKg);       // decisión del equipo: por ahora sin límite
+        var bought = Assert.Single(view.History!);
+        Assert.True(bought.In);
+        Assert.Equal(3, bought.Quantity);
+        Assert.Contains("Compra", bought.Reason);
     }
 
     [Fact]

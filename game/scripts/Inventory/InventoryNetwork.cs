@@ -51,7 +51,11 @@ public partial class InventoryNetwork : Node
             new("bala-pistola", "Bala de pistola", "Bala para pistola. Se gasta al disparar.", ItemKinds.Ammo, "municion", 14, 0.02, 0, "illegal", 29),
             new("cajon-bebidas", "Cajón de bebidas", "Un cajón de bebidas para la barra del club.", ItemKinds.Goods, "alimentos", 3, 15, 20, "legal", 400),
             new("bolsa-cafe", "Bolsa de café", "Café en grano. Con esto el puesto de café prepara lo que vende.", ItemKinds.RawMaterial, "alimentos", 2, 5, 8, "legal", 300),
-        ], null, null);
+        ], null, null,
+        [
+            new(DateTimeOffset.UtcNow, "Bala de pistola", 7, true, "Compra de 1 × Caja de balas de pistola a npc:taller-caruso"),
+            new(DateTimeOffset.UtcNow.AddMinutes(-5), "Cajón de bebidas", 3, true, "Compra de 3 × Cajón de bebidas a npc:deposito-delgado"),
+        ]);
         Nearby = [new NearbyPlayer(0, "Sal Moretti")];
         Warehouse = new WarehouseView(Guid.Empty, "Los del Puerto", true, TerritoryRules.Office, "La Oficina",
         [

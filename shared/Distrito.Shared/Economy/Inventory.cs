@@ -47,11 +47,14 @@ public sealed record InventoryEntry(
 }
 
 /// <summary>Contenido de un contenedor (por ahora: lo que el personaje lleva encima). Capacidad null = sin límite.</summary>
-public sealed record InventoryView(List<InventoryEntry> Items, double? CapacityKg, double? CapacityL)
+public sealed record InventoryView(List<InventoryEntry> Items, double? CapacityKg, double? CapacityL, List<InventoryMovement>? History = null)
 {
     public double WeightKg => Items.Sum(i => i.WeightKg);
     public double VolumeL => Items.Sum(i => i.VolumeL);
 }
+
+/// <summary>Un movimiento de lo que lleva el personaje: qué entró o salió, cuánto, cuándo y por qué (motivo del libro).</summary>
+public sealed record InventoryMovement(DateTimeOffset At, string ItemName, int Quantity, bool In, string Reason);
 
 /// <summary>Capacidad de cada tipo de contenedor (config/inventario.json). Null = sin límite (decisión del equipo: por ahora sin límite).</summary>
 public sealed record InventoryLimits(double? PersonalKg, double? PersonalL)

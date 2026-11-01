@@ -220,7 +220,23 @@ public partial class InventoryPanel : PanelContainer
             return;
         }
         _totals.Text = Totals(view.WeightKg, view.CapacityKg, view.VolumeL, view.CapacityL);
-        if (BuildList(view.Items, "No llevás nada encima.") is not { } item)
+        var item = BuildList(view.Items, "No llevás nada encima.");
+        var historyButton = new Button { Text = "Historial", ToggleMode = true, ButtonPressed = _showHistory };
+        historyButton.Pressed += () => { _showHistory = !_showHistory; Rebuild(); };
+        _list.AddChild(new HSeparator());
+        _list.AddChild(historyButton);
+        if (_showHistory)
+        {
+            var title = new Label { Text = "Lo que entró y salió" };
+            title.AddThemeColorOverride("font_color", Gold);
+            _detail.AddChild(title);
+            if (view.History is not { Count: > 0 })
+                _detail.AddChild(Muted_("Todavía no hubo movimientos."));
+            foreach (var m in view.History ?? [])
+                _detail.AddChild(Muted_($"{m.At.ToLocalTime():dd/MM HH:mm} · {(m.In ? "+" : "−")}{m.Quantity} {m.ItemName} — {m.Reason}"));
+            return;
+        }
+        if (item is null)
             return;
 
         var behavior = ItemKinds.Of(item.Kind);
