@@ -55,6 +55,7 @@ public static class Endpoints
             return state with { Wars = wars, WarMembers = members };
         });
         internalApi.MapPost("/crews/war", (DeclareWarRequest r, CrewService s, CancellationToken ct) => s.DeclareWarAsync(r, ct));
+        internalApi.MapGet("/combat/drops", (EconomyService e, CancellationToken ct) => e.ActiveDropsAsync(ct));
         internalApi.MapPost("/combat/knockout", (KnockoutRequest r, EconomyService e, CancellationToken ct) => e.KnockoutAsync(r, ct));
         internalApi.MapPost("/combat/ammo", async (AmmoUseRequest r, EconomyService e, CancellationToken ct) => Results.Ok(await e.UseAmmoAsync(r, ct)));
         internalApi.MapPost("/combat/pickup", (PickupRequest r, EconomyService e, CancellationToken ct) => e.PickupAsync(r, ct));

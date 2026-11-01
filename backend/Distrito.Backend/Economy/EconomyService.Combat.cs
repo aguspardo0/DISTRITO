@@ -18,7 +18,8 @@ public sealed partial class EconomyService
         var disputed = standings.Where(z => z.Value.Count(s => s.Points >= DisputeInfluence) >= 2).Select(z => z.Key).ToList();
         var now = clock.GetUtcNow();
         var events = DistrictEvents.Occurrences(DistrictEventList(), now, now.AddSeconds(1)).Where(e => e.IsActive(now)).Select(e => e.Zone).Distinct().ToList();
-        return new CombatStateView(disputed, events);
+        var rulesFile = config.GetValue<string>("Zones:File") ?? Path.Combine(AppContext.BaseDirectory, "zonas.json");
+        return new CombatStateView(disputed, events, ZoneRulesJson: File.Exists(rulesFile) ? await File.ReadAllTextAsync(rulesFile, ct) : null);
     }
 
     public async Task<DropView> KnockoutAsync(KnockoutRequest r, CancellationToken ct)
@@ -45,15 +46,60 @@ public sealed partial class EconomyService
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct)) carried.Add(new InventoryItem(reader.GetString(0), reader.GetString(1), reader.GetInt32(2)));
         }
+        // Las armas y la munición se pierden siempre al morir; la mercadería depende de la regla de zona.
+        if (!r.IncludeGoods)
+            carried = carried.Where(i => Weapons.Find(i.ItemCode) is not null || Weapons.All.Any(w => w.AmmoItem == i.ItemCode)).ToList();
+        DateTimeOffset? expires = null;
         if (carried.Count > 0)
         {
-            var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "combat_drop", "Mercadería tirada al quedar herido", ct);
+            var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "combat_drop", "Objetos tirados al morir", ct);
             foreach (var item in carried)
                 await MoveItemsAsync(c, tx, txId, item.ItemCode, item.Quantity,
                     from: (victim, EconomyCatalog.CarriedLocation), to: (ground, $"bulto:{r.DropId}"), notEnough: "Sin mercadería.", ct);
+            expires = clock.GetUtcNow().AddSeconds(Math.Clamp(r.Seconds, 10, 86400));
+            await using var place = new NpgsqlCommand("""
+                INSERT INTO distrito.world_drops (id, victim_id, x, y, z, created_at, expires_at) VALUES (@id, @v, @x, @y, @z, @now, @exp)
+                ON CONFLICT (id) DO NOTHING
+                """, c, tx);
+            place.Parameters.AddWithValue("id", r.DropId);
+            place.Parameters.AddWithValue("v", r.VictimId);
+            place.Parameters.AddWithValue("x", r.X);
+            place.Parameters.AddWithValue("y", r.Y);
+            place.Parameters.AddWithValue("z", r.Z);
+            place.Parameters.AddWithValue("now", clock.GetUtcNow());
+            place.Parameters.AddWithValue("exp", expires.Value);
+            await place.ExecuteNonQueryAsync(ct);
         }
         await tx.CommitAsync(ct);
-        return new DropView(r.DropId, carried);
+        return new DropView(r.DropId, carried, r.X, r.Y, r.Z, expires);
+    }
+
+    /// <summary>Bultos que siguen en la calle (para el servidor de juego al arrancar).</summary>
+    public async Task<List<DropView>> ActiveDropsAsync(CancellationToken ct)
+    {
+        var ground = Guid.Empty;
+        var drops = new List<(Guid Id, double X, double Y, double Z, DateTimeOffset Exp)>();
+        await using (var c = await db.OpenConnectionAsync(ct))
+        {
+            await using var cmd = new NpgsqlCommand("""
+                SELECT id, x, y, z, expires_at FROM distrito.world_drops WHERE picked_at IS NULL AND expires_at > @now ORDER BY created_at;
+                SELECT id FROM distrito.economic_accounts WHERE code = 'system:suelo';
+                """, c);
+            cmd.Parameters.AddWithValue("now", clock.GetUtcNow());
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+                drops.Add((reader.GetGuid(0), reader.GetDouble(1), reader.GetDouble(2), reader.GetDouble(3), reader.GetFieldValue<DateTimeOffset>(4)));
+            await reader.NextResultAsync(ct);
+            if (await reader.ReadAsync(ct)) ground = reader.GetGuid(0);
+        }
+        var result = new List<DropView>();
+        foreach (var d in drops)
+        {
+            var items = await ItemsAtAsync(ground, $"bulto:{d.Id}", ct);
+            if (items.Count > 0)
+                result.Add(new DropView(d.Id, items, d.X, d.Y, d.Z, d.Exp));
+        }
+        return result;
     }
 
     public Task<EconomyActionResult> PickupAsync(PickupRequest r, CancellationToken ct) =>
@@ -63,6 +109,12 @@ public sealed partial class EconomyService
             var ground = await AccountIdByCodeAsync(c, tx, GroundAccount, ct);
             await LockAccountsAsync(c, tx, ct, picker, ground);
             var location = $"bulto:{r.DropId}";
+            await using (var expiry = new NpgsqlCommand("SELECT expires_at FROM distrito.world_drops WHERE id = @id FOR UPDATE", c, tx))
+            {
+                expiry.Parameters.AddWithValue("id", r.DropId);
+                if (await expiry.ExecuteScalarAsync(ct) is DateTime exp && new DateTimeOffset(DateTime.SpecifyKind(exp, DateTimeKind.Utc)) <= clock.GetUtcNow())
+                    throw new EconomyRejected("drop_expired", "Eso ya no está: se lo llevó la calle.");
+            }
             var items = new List<(string Code, int Qty)>();
             await using (var cmd = new NpgsqlCommand(
                 "SELECT item_code, sum(quantity)::int FROM distrito.item_stacks WHERE owner_account_id = @g AND location = @l AND quantity > 0 GROUP BY item_code", c, tx))
@@ -74,7 +126,14 @@ public sealed partial class EconomyService
             }
             if (items.Count == 0)
                 throw new EconomyRejected("drop_empty", "Ya no queda nada: alguien lo levantó antes.");
-            var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "combat_pickup", "Mercadería levantada de la calle", ct);
+            var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "combat_pickup", "Objetos levantados de la calle", ct);
+            await using (var mark = new NpgsqlCommand("UPDATE distrito.world_drops SET picked_by = @c, picked_at = @now WHERE id = @id", c, tx))
+            {
+                mark.Parameters.AddWithValue("c", r.CharacterId);
+                mark.Parameters.AddWithValue("now", clock.GetUtcNow());
+                mark.Parameters.AddWithValue("id", r.DropId);
+                await mark.ExecuteNonQueryAsync(ct);
+            }
             foreach (var (code, qty) in items)
                 await MoveItemsAsync(c, tx, txId, code, qty, from: (ground, location), to: (picker, EconomyCatalog.CarriedLocation), notEnough: "Sin mercadería.", ct);
             return $"Levantaste {string.Join(", ", items.Select(i => $"{i.Qty} × {i.Code.Replace('-', ' ')}"))}.";

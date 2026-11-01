@@ -107,6 +107,9 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<CombatStateView>> GetCombatStateAsync(string serverKey, CancellationToken ct = default) =>
         SendAsync<CombatStateView>(HttpMethod.Get, "internal/combat/state", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<List<DropView>>> GetDropsAsync(string serverKey, CancellationToken ct = default) =>
+        SendAsync<List<DropView>>(HttpMethod.Get, "internal/combat/drops", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<DropView>> KnockoutAsync(string serverKey, KnockoutRequest request, CancellationToken ct = default) =>
         SendAsync<DropView>(HttpMethod.Post, "internal/combat/knockout", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

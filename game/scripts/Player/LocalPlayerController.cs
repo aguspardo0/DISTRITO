@@ -108,6 +108,8 @@ public partial class LocalPlayerController : Node
             (direction, jump, sprint) = (Vector2.Zero, false, false);
         _player.SubmitLocalInput(direction.X, direction.Y, jump, sprint);
         _prediction?.SetInput(direction.X, direction.Y, jump, sprint);
+        if (_prediction is not null)
+            _prediction.AimYaw = _player.Weapon != Distrito.Shared.Economy.Weapons.Fists && !UseBot ? _yaw.GlobalRotation.Y : null;
     }
 
     private (Vector2 Direction, bool Jump) KeyboardInput()

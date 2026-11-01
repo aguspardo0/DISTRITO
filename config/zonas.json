@@ -1,0 +1,35 @@
+{
+  "_ayuda": "Reglas de combate y conflicto por zona. Se pueden editar sin tocar código: cada zona tiene sus permisos base y las 'excepciones' los cambian mientras pasa algo (zona en disputa, evento, guerra entre cuadrillas). La 'zonaSegura' (alrededor de cada local) gana siempre. Valores: true/false; segundosBulto = cuánto tarda en desaparecer lo que queda tirado. Al guardar en GitHub, las pruebas validan el archivo y el servidor lo toma solo.",
+  "base": {
+    "pvp": false,
+    "armas": true,
+    "cuerpoACuerpo": true,
+    "saqueo": true,
+    "robos": false,
+    "persecuciones": false,
+    "vehiculos": true,
+    "recogida": true,
+    "actividades": true,
+    "perderMercaderiaAlMorir": true,
+    "segundosBulto": 300
+  },
+  "zonas": {
+    "calle-almacen": {},
+    "los-talleres": {},
+    "la-oficina": { "perderMercaderiaAlMorir": false },
+    "la-esquina": {}
+  },
+  "excepciones": {
+    "disputa": { "pvp": true, "robos": true, "persecuciones": true },
+    "evento": { "pvp": true, "robos": true },
+    "guerra": { "pvp": true, "persecuciones": true }
+  },
+  "zonaSegura": {
+    "radio": 5,
+    "pvp": false,
+    "armas": false,
+    "cuerpoACuerpo": false,
+    "robos": false,
+    "saqueo": false
+  }
+}

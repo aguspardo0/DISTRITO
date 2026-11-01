@@ -696,6 +696,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         var territory = await LoadTerritoryAsync(c, tx, characterId, ct);
         var events = UpcomingEvents(TimeSpan.FromHours(24));
         var pacts = await LoadPactsAsync(c, tx, characterId, ct);
-        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory, events, pacts);
+        var faction = await FactionOfCrewAsync(c, tx, await CrewOfCharacterAsync(c, tx, characterId, ct), ct);
+        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory, events, pacts, faction);
     }
 }

@@ -38,6 +38,12 @@ properties/6/replication_mode = 2
 properties/7/path = NodePath(".:Weapon")
 properties/7/spawn = true
 properties/7/replication_mode = 2
+properties/8/path = NodePath(".:Dead")
+properties/8/spawn = true
+properties/8/replication_mode = 2
+properties/9/path = NodePath(".:AimPitch")
+properties/9/spawn = true
+properties/9/replication_mode = 1
 
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource("1_player")

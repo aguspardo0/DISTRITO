@@ -42,9 +42,20 @@ public partial class PlayerCharacter : CharacterBody3D
     [Export]
     public string Weapon { get; set; } = Distrito.Shared.Economy.Weapons.Fists;
 
-    /// <summary>Herido: no se mueve hasta reaparecer.</summary>
+    /// <summary>Fuera de combate (herido o muerto): no se mueve.</summary>
     [Export]
     public bool Downed { get; set; }
+
+    /// <summary>Ángulo vertical de la puntería (radianes, + arriba). Con arma, el brazo apunta así.</summary>
+    [Export]
+    public float AimPitch { get; set; }
+
+    /// <summary>Servidor: hacia dónde mira con el arma (yaw). Con arma el cuerpo gira hacia la mira, no hacia donde camina.</summary>
+    public float AimYaw { get; set; }
+
+    /// <summary>Muerto (además de Downed): reaparece a los 10 s. Herido = Downed sin Dead.</summary>
+    [Export]
+    public bool Dead { get; set; }
 
     private CharacterModel? _model;
     private Vector3 _lastVisualPosition;
@@ -90,8 +101,10 @@ public partial class PlayerCharacter : CharacterBody3D
     {
         var name = DisplayName.Length > 0 ? DisplayName : $"Jugador {PeerId}";
         var tag = CrewName.Length > 0 ? $"{name}\n«{CrewName}»" : name;
-        if (Downed)
-            tag += "\n(herido)";
+        if (Dead)
+            tag += "\n(muerto)";
+        else if (Downed)
+            tag += "\n(herido — un compañero lo levanta con E)";
         else if (Health < Distrito.Server.Core.Combat.CombatRules.MaxHealth)
             tag += $"\n♥ {Health}";
         if (tag == _shownTag)
@@ -147,6 +160,8 @@ public partial class PlayerCharacter : CharacterBody3D
 
     /// <summary>Animación de piña (la manda el servidor a todos).</summary>
     public void PlayPunch() => _model?.Punch();
+    public void PlayRecoil() => _model?.Recoil();
+    public void PlayReload(float seconds) => _model?.Reload(seconds);
 
     public override void _PhysicsProcess(double delta)
     {
@@ -174,7 +189,9 @@ public partial class PlayerCharacter : CharacterBody3D
         Velocity = velocity;
         MoveAndSlide();
 
-        if (horizontal.LengthSquared() > 0.01f)
+        if (Weapon != Distrito.Shared.Economy.Weapons.Fists)
+            Rotation = new Vector3(0, AimYaw, 0);
+        else if (horizontal.LengthSquared() > 0.01f)
             Rotation = new Vector3(0, Mathf.Atan2(-horizontal.X, -horizontal.Y), 0);
 
         if (GlobalPosition.Y < MovementRules.KillPlaneY)
@@ -191,6 +208,7 @@ public partial class PlayerCharacter : CharacterBody3D
             return;
         _model.SetDowned(Downed);
         _model.SetWeapon(Weapon);
+        _model.SetAimPitch(AimPitch);
         var now = _visual.GlobalPosition;
         var moved = new Vector2(now.X - _lastVisualPosition.X, now.Z - _lastVisualPosition.Z).Length();
         _lastVisualPosition = now;

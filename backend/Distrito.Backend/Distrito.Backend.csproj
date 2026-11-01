@@ -15,5 +15,6 @@
     <None Include="..\..\database\migrations\*.sql" LinkBase="migrations" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <!-- Eventos de distrito editables (config/eventos.json) -->
     <None Include="..\..\config\eventos.json" Link="eventos.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\config\zonas.json" Link="zonas.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -55,6 +55,9 @@ public partial class LocalPrediction : CharacterBody3D
 
     private Vector3 _lastServerPosition;
 
+    /// <summary>Con arma, el cuerpo mira hacia la cámara (lo fija el controlador).</summary>
+    public float? AimYaw { get; set; }
+
     public override void _PhysicsProcess(double delta)
     {
         var dt = (float)delta;
@@ -70,7 +73,9 @@ public partial class LocalPrediction : CharacterBody3D
         velocity.Z = horizontal.Y;
         Velocity = velocity;
         MoveAndSlide();
-        if (horizontal.LengthSquared() > 0.01f)
+        if (AimYaw is { } aim)
+            Rotation = new Vector3(0, aim, 0);
+        else if (horizontal.LengthSquared() > 0.01f)
             Rotation = new Vector3(0, Mathf.Atan2(-horizontal.X, -horizontal.Y), 0);
 
         // 2. Reconciliar con la posición autoritativa del servidor.

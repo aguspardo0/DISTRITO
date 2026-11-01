@@ -40,6 +40,14 @@ public partial class CharacterModel : Node3D
         _armR.AddChild(_gun);
     }
 
+    private float _aimPitch, _recoil, _reload;
+
+    public void SetAimPitch(float pitch) => _aimPitch = Mathf.Clamp(pitch, -1.2f, 1.2f);
+    /// <summary>Retroceso: el brazo salta hacia arriba y vuelve.</summary>
+    public void Recoil() => _recoil = 0.12f;
+    /// <summary>Recarga: el brazo baja un rato.</summary>
+    public void Reload(float seconds) => _reload = seconds;
+
     /// <summary>Piña: el brazo derecho sale hacia adelante un instante.</summary>
     public void Punch() => _punch = 0.3f;
 
@@ -144,7 +152,15 @@ public partial class CharacterModel : Node3D
         _armL.Rotation = new Vector3(-swing * 0.7f, 0, 0);
         _armR.Rotation = new Vector3(swing * 0.7f, 0, 0);
         if (_weapon != Distrito.Shared.Economy.Weapons.Fists && !_downed)
-            _armR.Rotation = new Vector3(Mathf.DegToRad(85f), 0, 0); // apuntando
+        {
+            // Apuntando: el brazo sigue el ángulo vertical de la mira; el izquierdo acompaña; retroceso y recarga.
+            var angle = Mathf.DegToRad(90f) + _aimPitch;
+            if (_recoil > 0) { _recoil -= delta; angle += Mathf.DegToRad(14f) * (_recoil / 0.12f); }
+            if (_reload > 0) { _reload -= delta; angle = Mathf.DegToRad(35f); }
+            _armR.Rotation = new Vector3(angle, 0, 0);
+            if (_weapon != "pistola")
+                _armL.Rotation = new Vector3(angle - 0.15f, 0, 0.35f);
+        }
         if (_punch > 0)
         {
             _punch -= delta;

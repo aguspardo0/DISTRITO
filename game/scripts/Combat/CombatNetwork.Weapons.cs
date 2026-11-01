@@ -65,6 +65,21 @@ public partial class CombatNetwork
             RpcId(1, MethodName.ServerShoot, aimPoint);
     }
 
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered)]
+    public void ServerAim(float yaw, float pitch)
+    {
+        if (Multiplayer.IsServer())
+            HandleAim(Multiplayer.GetRemoteSenderId(), yaw, pitch);
+    }
+
+    private void HandleAim(long peer, float yaw, float pitch)
+    {
+        if (!float.IsFinite(yaw) || !float.IsFinite(pitch) || _network.GetPlayer(peer) is not { Downed: false } player)
+            return;
+        player.AimYaw = yaw;
+        player.AimPitch = Mathf.Clamp(pitch, -1.2f, 1.2f);
+    }
+
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerWeapon(string code)
     {
@@ -80,10 +95,22 @@ public partial class CombatNetwork
     }
 
     /// <summary>Cliente: clic con un arma en la mano dispara (las automáticas, mientras se mantiene apretado).</summary>
+    private double _nextAimSend;
+
     private void ProcessLocalShooting(double delta)
     {
         if (_myWeapon == Weapons.Fists || Weapons.Find(_myWeapon) is not { } weapon || _network.LocalPlayer is not { Downed: false })
             return;
+        // La cámara orienta la puntería: se le avisa al servidor 10 veces por segundo para girar el cuerpo y el brazo.
+        if (_clock >= _nextAimSend && GetViewport().GetCamera3D() is { } aimCamera)
+        {
+            _nextAimSend = _clock + 0.1;
+            var f = -aimCamera.GlobalBasis.Z;
+            var yaw = Mathf.Atan2(-f.X, -f.Z);
+            var pitch = Mathf.Asin(Mathf.Clamp(f.Y, -1, 1)) + 0.12f; // la cámara va un poco arriba: se compensa
+            if (Multiplayer.IsServer()) HandleAim(Multiplayer.GetUniqueId(), yaw, pitch);
+            else RpcId(1, MethodName.ServerAim, yaw, pitch);
+        }
         if (Input.MouseMode != Input.MouseModeEnum.Captured || !Input.IsMouseButtonPressed(MouseButton.Left))
         {
             if (!weapon.Automatic)
@@ -189,6 +216,9 @@ public partial class CombatNetwork
             _reloadUntil[peer] = _clock + Weapons.ReloadSeconds;
             _loaded[key] = Math.Min(weapon.Magazine, available);
             SendMessage(peer, "Recargando…");
+            foreach (var p in Multiplayer.GetPeers())
+                RpcId(p, MethodName.ReloadFx, peer);
+            ReloadFx(peer);
             GetTree().CreateTimer(Weapons.ReloadSeconds).Timeout += () => SendAmmo(peer);
             return;
         }
@@ -202,20 +232,35 @@ public partial class CombatNetwork
             _pending[ammoKey] = _pending.GetValueOrDefault(ammoKey) + 1;
         }
 
+        // El cuerpo gira hacia la mira y el tiro sale del cañón del arma (no de la cámara).
         var eye = shooter.GlobalPosition + Vector3.Up * EyeHeight;
-        var direction = (aimPoint - eye).Normalized();
+        var flat = new Vector3(aimPoint.X - eye.X, 0, aimPoint.Z - eye.Z);
+        if (flat.LengthSquared() > 0.01f)
+        {
+            shooter.AimYaw = Mathf.Atan2(-flat.X, -flat.Z);
+            shooter.Rotation = new Vector3(0, shooter.AimYaw, 0);
+        }
+        var muzzle = MuzzleOf(shooter, weapon);
+        var direction = (aimPoint - muzzle).Normalized();
         if (direction.LengthSquared() < 0.5f)
             return;
-        var (target, distance) = FirstPlayerOnRay(shooter, eye, direction, weapon.Range);
-        var wallDistance = WallDistance(eye, direction, weapon.Range);
-        var end = eye + direction * Math.Min(weapon.Range, Math.Min(wallDistance, target is null ? float.MaxValue : distance));
-        ShotFxEverywhere(peer, eye, end);
+        // Línea de vista: entre los ojos y el cañón no puede haber pared (sacar el arma a través de un muro).
+        if (WallDistance(eye, (muzzle - eye).Normalized(), eye.DistanceTo(muzzle)) < eye.DistanceTo(muzzle))
+        {
+            SendMessage(peer, "Estás pegado a la pared: no hay línea de tiro.");
+            return;
+        }
+        shooter.AimPitch = Mathf.Clamp(Mathf.Asin(Mathf.Clamp(direction.Y, -1, 1)), -1.2f, 1.2f);
+        var (target, distance) = FirstPlayerOnRay(shooter, muzzle, direction, weapon.Range);
+        var wallDistance = WallDistance(muzzle, direction, weapon.Range);
+        var end = muzzle + direction * Math.Min(weapon.Range, Math.Min(wallDistance, target is null ? float.MaxValue : distance));
+        ShotFxEverywhere(peer, muzzle, end);
         SendAmmo(peer);
 
         if (target is null || wallDistance < distance)
             return;
         if (CombatRules.WhyNot(N(shooter.GlobalPosition), N(target.GlobalPosition), LevelOf(peer), LevelOf(target.PeerId), _state,
-                AtWar(peer, target.PeerId)) is { } reason)
+                AtWar(peer, target.PeerId), AttackKind.Weapon) is { } reason)
         {
             if (!_lastRefusal.TryGetValue(peer, out var said) || _clock - said > 3)
             {
@@ -227,6 +272,16 @@ public partial class CombatNetwork
         ApplyDamage(shooter, target, weapon.DamageAt(distance));
     }
 
+    /// <summary>Posición del cañón: mano derecha, a la altura del pecho, hacia adelante según el largo del arma.</summary>
+    private static Vector3 MuzzleOf(PlayerCharacter shooter, WeaponType weapon)
+    {
+        var yaw = shooter.AimYaw;
+        var forward = new Vector3(-Mathf.Sin(yaw), 0, -Mathf.Cos(yaw));
+        var right = new Vector3(Mathf.Cos(yaw), 0, -Mathf.Sin(yaw));
+        var reach = weapon.Code == "pistola" ? 0.75f : 0.95f;
+        return shooter.GlobalPosition + Vector3.Up * 1.4f + right * 0.27f + forward * reach;
+    }
+
     /// <summary>El jugador más cercano cuya cápsula (radio 0,45 m, de 0,2 a 1,7 m de alto) cruza el rayo.</summary>
     private (PlayerCharacter? Target, float Distance) FirstPlayerOnRay(PlayerCharacter shooter, Vector3 origin, Vector3 dir, float range)
     {
@@ -234,10 +289,11 @@ public partial class CombatNetwork
         var bestT = float.MaxValue;
         foreach (var p in _network.AllPlayers)
         {
-            if (p == shooter || p.Downed)
+            if (p == shooter || p.Dead)
                 continue;
-            var bottom = p.GlobalPosition + Vector3.Up * 0.2f;
-            var top = p.GlobalPosition + Vector3.Up * 1.7f;
+            // Un herido está tirado: su cápsula es baja (se lo puede rematar).
+            var bottom = p.GlobalPosition + Vector3.Up * (p.Downed ? 0.05f : 0.2f);
+            var top = p.GlobalPosition + Vector3.Up * (p.Downed ? 0.45f : 1.7f);
             var (t, dist) = RaySegmentDistance(origin, dir, bottom, top);
             if (t >= 0 && t <= range && dist <= 0.45f && t < bestT)
                 (best, bestT) = (p, t);
@@ -325,6 +381,7 @@ public partial class CombatNetwork
         var code = _armed.GetValueOrDefault(peer, Weapons.Fists);
         var text = Weapons.Find(code) is { } w
             ? $"{w.Name}: {_loaded.GetValueOrDefault((peer, code))}/{w.Magazine} · {(_network.Backend is null ? "∞" : Available(peer, w).ToString())} {w.AmmoName}"
+              + (_reloadUntil.TryGetValue(peer, out var until) && _clock < until ? " · recargando…" : "")
             : "";
         if (peer == Multiplayer.GetUniqueId())
             ReceiveAmmo(code, text);
@@ -350,8 +407,12 @@ public partial class CombatNetwork
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered)]
+    public void ReloadFx(long shooter) => _network.GetPlayer(shooter)?.PlayReload(Weapons.ReloadSeconds);
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered)]
     public void ShotFx(long shooter, Vector3 from, Vector3 to)
     {
+        _network.GetPlayer(shooter)?.PlayRecoil();
         if (DisplayServer.GetName() == "headless")
             return;
         var mesh = new ImmediateMesh();

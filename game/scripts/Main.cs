@@ -274,6 +274,22 @@ public partial class Main : Node3D
         ammo.AddThemeColorOverride("font_color", new Color(0.95f, 0.8f, 0.45f));
         ammo.AddThemeColorOverride("font_shadow_color", Colors.Black);
         layer.AddChild(UiAnchor.Wrap(ammo, UiAnchor.End, UiAnchor.End, right: 20, bottom: 20, name: "AmmoArea"));
+        // Vida y estado propio (abajo a la derecha, arriba de las balas).
+        var health = new Label();
+        health.AddThemeFontSizeOverride("font_size", 18);
+        health.AddThemeColorOverride("font_shadow_color", Colors.Black);
+        layer.AddChild(UiAnchor.Wrap(health, UiAnchor.End, UiAnchor.End, right: 20, bottom: 46, name: "HealthArea"));
+        GetTree().ProcessFrame += () =>
+        {
+            if (!IsInstanceValid(health))
+                return;
+            var me = _network.LocalPlayer;
+            health.Text = me is null ? "" : me.Dead ? "Muerto — volvés en unos segundos"
+                : me.Downed ? "Herido — esperá que te levante un compañero"
+                : $"♥ {me.Health}";
+            health.AddThemeColorOverride("font_color", me is { Downed: true } || me?.Health < 40 ? new Color(0.9f, 0.35f, 0.3f) : new Color(0.92f, 0.88f, 0.8f));
+        };
+
         _combat.AmmoChanged += () =>
         {
             ammo.Text = _combat.AmmoText;

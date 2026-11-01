@@ -29,6 +29,8 @@ public partial class CombatNetwork : Node
     private readonly Dictionary<Guid, Node3D> _dropVisuals = new();
     private readonly HashSet<Guid> _pickingUp = new();
     private CombatState _state = CombatState.None;
+    private ZoneRules? _rules;
+    private string? _rulesJson;
     private List<WarPair> _wars = [];
     private Dictionary<Guid, Guid> _warMembers = new();
     private double _clock, _nextState, _nextLevels, _nextPickupCheck;
@@ -85,10 +87,17 @@ public partial class CombatNetwork : Node
     {
         _clock += delta;
         ProcessLocalShooting(delta);
+        ProcessLocalRevive();
         if (Multiplayer.MultiplayerPeer is not ENetMultiplayerPeer || !Multiplayer.IsServer())
             return;
+        ProcessBleeding();
         if (_network.Backend is { } backend)
         {
+            if (!_dropsLoaded)
+            {
+                _dropsLoaded = true;
+                _ = LoadDropsAsync(backend);
+            }
             if (_clock >= _nextState)
             {
                 _nextState = _clock + StateRefreshSeconds;
@@ -111,12 +120,35 @@ public partial class CombatNetwork : Node
                 RemoveDropEverywhere(id);
     }
 
+    private bool _dropsLoaded;
+
+    /// <summary>Al arrancar el servidor de juego, vuelve a poner en la calle los bultos que quedaron (persistencia).</summary>
+    private async Task LoadDropsAsync(Distrito.Shared.Api.DistritoApiClient backend)
+    {
+        var result = await backend.GetDropsAsync(_network.ServerKey);
+        if (!result.IsSuccess)
+        {
+            _dropsLoaded = false;
+            return;
+        }
+        foreach (var drop in result.Value!)
+            AddDrop(drop, ((drop.ExpiresAt ?? DateTimeOffset.UtcNow) - DateTimeOffset.UtcNow).TotalSeconds);
+        if (result.Value.Count > 0)
+            GD.Print($"[DISTRITO] {result.Value.Count} bultos recuperados de la calle");
+    }
+
     private async Task RefreshStateAsync(Distrito.Shared.Api.DistritoApiClient backend)
     {
         var result = await backend.GetCombatStateAsync(_network.ServerKey);
         if (result.IsSuccess)
         {
-            _state = new CombatState(result.Value!.DisputedZones.ToHashSet(), result.Value.EventZones.ToHashSet());
+            if (result.Value!.ZoneRulesJson is { } json && json != _rulesJson)
+            {
+                var (rules, errors) = ZoneRules.Parse(json);
+                if (rules is not null) { _rules = rules; _rulesJson = json; }
+                else GD.PushWarning($"[DISTRITO] zonas.json con errores, se mantienen las reglas anteriores: {string.Join(" | ", errors)}");
+            }
+            _state = new CombatState(result.Value.DisputedZones.ToHashSet(), result.Value.EventZones.ToHashSet(), _rules);
             _wars = result.Value.Wars ?? [];
             _warMembers = result.Value.WarMembers ?? new();
         }
@@ -161,7 +193,7 @@ public partial class CombatNetwork : Node
         PlayPunchEverywhere(peer);
 
         var target = _network.AllPlayers
-            .Where(p => p != attacker && !p.Downed && CombatRules.InReach(N(attacker.GlobalPosition), attacker.GlobalRotation.Y, N(p.GlobalPosition)))
+            .Where(p => p != attacker && !p.Dead && CombatRules.InReach(N(attacker.GlobalPosition), attacker.GlobalRotation.Y, N(p.GlobalPosition)))
             .OrderBy(p => p.GlobalPosition.DistanceTo(attacker.GlobalPosition))
             .FirstOrDefault();
         if (target is null)
@@ -181,22 +213,126 @@ public partial class CombatNetwork : Node
         ApplyDamage(attacker, target, CombatRules.PunchDamage);
     }
 
+    // ---------- Daño, herido y muerte (Player Death System) ----------
+
+    private readonly Dictionary<long, double> _bleedUntil = new();
+    private readonly Dictionary<(long Reviver, long Target), (double Progress, double LastTick)> _revives = new();
+
     private void ApplyDamage(PlayerCharacter attacker, PlayerCharacter target, int damage)
     {
-        if (damage <= 0 || target.Downed)
+        if (damage <= 0 || target.Dead)
             return;
-        target.Health = Math.Max(0, target.Health - damage);
         SendHit(attacker.PeerId);
+        if (target.Downed)
+        {
+            Kill(target, attacker); // rematar a un herido
+            return;
+        }
+        target.Health = Math.Max(0, target.Health - damage);
         if (target.Health > 0)
             return;
 
         target.Downed = true;
+        _bleedUntil[target.PeerId] = _clock + CombatRules.BleedSeconds;
         GD.Print($"[DISTRITO] COMBAT_KO {attacker.DisplayName} dejó herido a {target.DisplayName}");
         SendMessage(attacker.PeerId, $"Dejaste herido a {target.DisplayName}.");
-        SendMessage(target.PeerId, $"{attacker.DisplayName} te dejó herido. Volvés en {CombatRules.RespawnSeconds:0} segundos.");
-        _ = DropGoodsAsync(target);
-        var victimPeer = target.PeerId;
+        SendMessage(target.PeerId, $"{attacker.DisplayName} te dejó herido. Si en {CombatRules.BleedSeconds:0} s no te levanta un compañero, morís.");
+    }
+
+    private void Kill(PlayerCharacter victim, PlayerCharacter? killer)
+    {
+        if (victim.Dead)
+            return;
+        _bleedUntil.Remove(victim.PeerId);
+        victim.Downed = true;
+        victim.Dead = true;
+        victim.Health = 0;
+        GD.Print($"[DISTRITO] COMBAT_KILL {victim.DisplayName}{(killer is null ? " se desangró" : $" rematado por {killer.DisplayName}")}");
+        if (killer is not null)
+            SendMessage(killer.PeerId, $"Remataste a {victim.DisplayName}.");
+        SendMessage(victim.PeerId, $"Moriste. Tus armas quedaron tiradas. Volvés en {CombatRules.RespawnSeconds:0} segundos.");
+        _ = DropOnDeathAsync(victim);
+        var victimPeer = victim.PeerId;
         GetTree().CreateTimer(CombatRules.RespawnSeconds).Timeout += () => Respawn(victimPeer);
+    }
+
+    private void Revive(PlayerCharacter target, PlayerCharacter by)
+    {
+        _bleedUntil.Remove(target.PeerId);
+        target.Downed = false;
+        target.Health = CombatRules.ReviveHealth;
+        GD.Print($"[DISTRITO] COMBAT_REVIVE {by.DisplayName} levantó a {target.DisplayName}");
+        SendMessage(by.PeerId, $"Levantaste a {target.DisplayName}.");
+        SendMessage(target.PeerId, $"{by.DisplayName} te levantó.");
+    }
+
+    /// <summary>Mismo bando: misma cuadrilla o coalición (en partidas locales, cualquiera).</summary>
+    private bool SameSide(long a, long b)
+    {
+        if (_network.Backend is null)
+            return true;
+        if (!_network.TryGetSession(a, out var sa) || !_network.TryGetSession(b, out var sb))
+            return false;
+        return _snapshots.TryGetValue(sa.CharacterId, out var x) && _snapshots.TryGetValue(sb.CharacterId, out var y)
+               && x.FactionId is { } fa && fa == y.FactionId;
+    }
+
+    /// <summary>Cliente: mantener E cerca de un compañero herido manda "levantando" cada 0,25 s.</summary>
+    private double _nextReviveTick;
+    private void ProcessLocalRevive()
+    {
+        if (_network.LocalPlayer is not { Downed: false } me || !Input.IsPhysicalKeyPressed(Key.E) || _clock < _nextReviveTick)
+            return;
+        var target = _network.AllPlayers.FirstOrDefault(p => p != me && p.Downed && !p.Dead && p.GlobalPosition.DistanceTo(me.GlobalPosition) <= CombatRules.ReviveRange);
+        if (target is null)
+            return;
+        _nextReviveTick = _clock + 0.25;
+        if (Multiplayer.IsServer())
+            HandleReviveTick(Multiplayer.GetUniqueId(), target.PeerId);
+        else
+            RpcId(1, MethodName.ServerReviveTick, target.PeerId);
+    }
+
+    /// <summary>Pruebas: empezar a levantar al herido más cercano (como si se mantuviera E).</summary>
+    public void RequestReviveTick(long target)
+    {
+        if (Multiplayer.IsServer())
+            HandleReviveTick(Multiplayer.GetUniqueId(), target);
+        else
+            RpcId(1, MethodName.ServerReviveTick, target);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered)]
+    public void ServerReviveTick(long target)
+    {
+        if (Multiplayer.IsServer())
+            HandleReviveTick(Multiplayer.GetRemoteSenderId(), target);
+    }
+
+    private void HandleReviveTick(long reviver, long targetPeer)
+    {
+        if (_network.GetPlayer(reviver) is not { Downed: false } by || _network.GetPlayer(targetPeer) is not { Downed: true, Dead: false } target)
+            return;
+        if (by.GlobalPosition.DistanceTo(target.GlobalPosition) > CombatRules.ReviveRange || !SameSide(reviver, targetPeer))
+            return;
+        var key = (reviver, targetPeer);
+        var (progress, lastTick) = _revives.GetValueOrDefault(key);
+        if (_clock - lastTick > 0.6)
+            progress = 0; // soltó la tecla: empieza de nuevo
+        progress += Math.Min(0.35, _clock - lastTick is > 0 and < 0.6 ? _clock - lastTick : 0.25);
+        _revives[key] = (progress, _clock);
+        if (progress >= CombatRules.ReviveSeconds)
+        {
+            _revives.Remove(key);
+            Revive(target, by);
+        }
+    }
+
+    private void ProcessBleeding()
+    {
+        foreach (var (peer, until) in _bleedUntil.ToList())
+            if (_clock >= until && _network.GetPlayer(peer) is { } victim)
+                Kill(victim, null);
     }
 
     private void Respawn(long peer)
@@ -207,26 +343,37 @@ public partial class CombatNetwork : Node
         player.GlobalPosition = player.SpawnPoint;
         player.Health = CombatRules.MaxHealth;
         player.Downed = false;
+        player.Dead = false;
         SendMessage(peer, "Volviste. Cuidate.");
     }
 
-    private async Task DropGoodsAsync(PlayerCharacter victim)
+    private async Task DropOnDeathAsync(PlayerCharacter victim)
     {
         await BeforeKnockoutAsync(victim);
         if (_network.Backend is not { } backend || !_network.TryGetSession(victim.PeerId, out var session))
             return;
         var id = Guid.NewGuid();
         var position = victim.GlobalPosition;
-        var result = await backend.KnockoutAsync(_network.ServerKey, new KnockoutRequest(session.CharacterId, id, Guid.NewGuid().ToString()));
+        var rules = CombatRules.PermissionsAt(N(position), _rules ?? ZoneRules.ServerDefault, _state, false);
+        var result = await backend.KnockoutAsync(_network.ServerKey,
+            new KnockoutRequest(session.CharacterId, id, Guid.NewGuid().ToString(), rules.LoseGoodsOnDeath,
+                position.X, position.Y, position.Z, rules.DropSeconds));
         if (!result.IsSuccess || result.Value!.Items.Count == 0)
             return;
-        var label = string.Join(", ", result.Value.Items.Select(i => $"{i.Name} ×{i.Quantity}"));
-        _drops[id] = (position, label, _clock);
-        foreach (var p in Multiplayer.GetPeers())
-            RpcId(p, MethodName.ShowDrop, id.ToString(), position, label);
-        if (_network.GetPlayer(Multiplayer.GetUniqueId()) is not null)
-            ShowDrop(id.ToString(), position, label);
+        AddDrop(result.Value, rules.DropSeconds);
         _economy.RefreshPeer(victim.PeerId);
+    }
+
+    /// <summary>Muestra un bulto a todos y lo recuerda hasta que vence (en segundos desde ahora).</summary>
+    private void AddDrop(DropView drop, double secondsLeft)
+    {
+        var position = new Vector3((float)drop.X, (float)drop.Y, (float)drop.Z);
+        var label = string.Join(", ", drop.Items.Select(i => $"{i.Name} ×{i.Quantity}"));
+        _drops[drop.DropId] = (position, label, _clock - DropLifetimeSeconds + secondsLeft);
+        foreach (var p in Multiplayer.GetPeers())
+            RpcId(p, MethodName.ShowDrop, drop.DropId.ToString(), position, label);
+        if (_network.GetPlayer(Multiplayer.GetUniqueId()) is not null)
+            ShowDrop(drop.DropId.ToString(), position, label);
     }
 
     private void CheckPickups(Distrito.Shared.Api.DistritoApiClient backend)
@@ -234,6 +381,10 @@ public partial class CombatNetwork : Node
         foreach (var (id, drop) in _drops.ToList())
         {
             if (_pickingUp.Contains(id))
+                continue;
+            // Reglas de zona: hace falta poder recoger y saquear donde quedó el bulto.
+            var here = CombatRules.PermissionsAt(N(drop.Position), _rules ?? ZoneRules.ServerDefault, _state, false);
+            if (!here.Pickup || !here.Looting)
                 continue;
             var picker = _network.AllPlayers.FirstOrDefault(p => !p.Downed && p.GlobalPosition.DistanceTo(drop.Position) <= PickupRadius);
             if (picker is null || !_network.TryGetSession(picker.PeerId, out var session))
