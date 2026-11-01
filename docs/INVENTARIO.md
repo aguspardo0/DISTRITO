@@ -65,3 +65,14 @@
 - Al bajarse o si el conductor queda herido, el vehículo queda estacionado con la carga. Uno ajeno puede **forzar la caja**
   (5 segundos al lado) solo donde la zona permite robos (disputa, eventos, Los Muelles): la carga cae a la calle en un bulto.
 - Persiste dónde quedó estacionado. Si una cuadrilla se disuelve, sus vehículos y la carga pasan al último miembro.
+
+## Existencias visibles (etapa 7)
+- El servidor de juego consulta `GET /internal/world/stock` (cada 5 s y enseguida después de guardar, retirar, cargar,
+  pedir o forzar) y manda los datos a todos solo si cambiaron. Los clientes dibujan; no deciden nada.
+- **Depósitos Valenti**: galpón techado en el borde oeste (al lado de La Oficina) con 6 bahías. Cada depósito de cuadrilla
+  ocupa una bahía por orden de apertura, con cartel («nombre» y kg / capacidad) y su mercadería apilada. Guardar y retirar
+  también se puede parado en el galpón, además de en la Oficina Valenti.
+- **Almacén Moretti**: un estante por producto, con 3, 2 o 1 tablas llenas según el stock; los pedidos listos para retirar
+  aparecen en pallets al lado, con cartel de listos y en preparación.
+- **Vehículos**: caja abierta (baranda en la camioneta, estacas en el camión) con la carga real adentro.
+- Bultos agrupados: un cajón o bolsa por unidad hasta 12 por tipo; la munición en cajas de 50 (`StockVisualRules`).
