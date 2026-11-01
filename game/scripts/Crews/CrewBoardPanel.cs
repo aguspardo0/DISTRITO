@@ -55,9 +55,12 @@ public partial class CrewBoardPanel : PanelContainer
         var columns = new HBoxContainer();
         columns.AddThemeConstantOverride("separation", 14);
         box.AddChild(columns);
+        // Las dos columnas se desplazan: con todos los beneficios y la sede, la izquierda no entra en pantallas chicas.
+        var leftScroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(260, 380) };
         _left = new VBoxContainer { CustomMinimumSize = new Vector2(250, 0) };
         _left.AddThemeConstantOverride("separation", 5);
-        columns.AddChild(_left);
+        leftScroll.AddChild(_left);
+        columns.AddChild(leftScroll);
         columns.AddChild(new VSeparator());
         var scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(420, 380) };
         _right = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };

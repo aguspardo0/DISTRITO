@@ -150,11 +150,11 @@ public static class MissionGenerator
     public static long SlotOf(DateTimeOffset now) => now.ToUnixTimeSeconds() / (long)Period.TotalSeconds;
     public static DateTimeOffset SlotEnd(long slot) => DateTimeOffset.FromUnixTimeSeconds((slot + 1) * (long)Period.TotalSeconds);
 
-    private static readonly (string Npc, string Name, string Family)[] Places =
+    private static readonly (string Npc, string Name, string Family, string To)[] Places =
     [
-        (EconomyCatalog.DepositNpc, "el Almacén Moretti", EconomyCatalog.Moretti),
-        (EconomyCatalog.WorkshopNpc, "el Taller Caruso", EconomyCatalog.Caruso),
-        (EconomyCatalog.ValentiOfficeNpc, "la Oficina Valenti", EconomyCatalog.Valenti),
+        (EconomyCatalog.DepositNpc, "el Almacén Moretti", EconomyCatalog.Moretti, "al Almacén Moretti"),
+        (EconomyCatalog.WorkshopNpc, "el Taller Caruso", EconomyCatalog.Caruso, "al Taller Caruso"),
+        (EconomyCatalog.ValentiOfficeNpc, "la Oficina Valenti", EconomyCatalog.Valenti, "a la Oficina Valenti"),
     ];
 
     private static readonly (string Item, string Name)[] Goods =
@@ -190,7 +190,7 @@ public static class MissionGenerator
             case MissionKinds.Delivery:
             {
                 var n = 2 + level + rng.Next(0, 3);
-                return new(kind, $"Entrega: {n} {goods.Name} a {place.Name}", $"Conseguilas y llevalas a {place.Name}; ahí la entregás desde el tablero (C).",
+                return new(kind, $"Entrega: {n} {goods.Name} {place.To}", $"Conseguilas y llevalas {place.To}; ahí las entregás desde el tablero (J).",
                     goods.Item, place.Npc, n, Pay(1), Fame(1), place.Family);
             }
             case MissionKinds.Gather:

@@ -92,6 +92,12 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Los Muelles: zona libre al este del barrio (PvP y robos siempre; se configura en `config/zonas.json`), con galpones, cajones y muelle
 - [x] Panel de administración (F10) para pruebas: plata, objetos, nivel, ir a lugares y curarse; solo cuentas de `config/admins.json` o `Admin__Accounts`
 
+### Cuadrillas: sede, prestigio y misiones; casino (pedido del equipo, 2026-11-01)
+- [x] Sede en los galpones de Los Muelles ($250 + $2/ciclo; zona segura adentro; depósito 500 kg; reaparición)
+- [x] Prestigio de cuadrilla con 10 rangos y beneficios; misiones generadas cada 3 h (7 tipos), tablero con J
+- [x] Casino «El Trébol»: ruleta, blackjack y dados ($1–$50, VIP hasta $200 desde rango 6). Ver `docs/CUADRILLAS-SEDE.md`
+- [ ] Árbol de habilidades con pantalla propia (siguiente)
+
 ### Eventos PvE (pedido del equipo, 2026-11-01)
 - [x] Asaltos a NPC: camión de reparto de Moretti, cobrador de Valenti, contrabando en Los Muelles con guardias armados y caja de locales. Amenazar apuntando; botín real; −10 de reputación (y ánimo) con la familia asaltada. Ver `docs/ASALTOS.md` y `config/eventos-pve.json`
 
