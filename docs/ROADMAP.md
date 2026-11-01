@@ -81,7 +81,11 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] PvP regulado a piñas: zonas en disputa y eventos, zona segura cerca de los locales, nivel 3+, herido 10 s, mercadería al suelo
 - [x] Correr (Shift)
 - [x] Guerras declaradas entre cuadrillas: empiezan a los 10 min, duran 24 h, PvP en todo el barrio entre las dos salvo zonas seguras
-- [x] Armas de fuego: pistola (nivel 3), escopeta (5), Thompson (8); munición por cajas; se pierden al quedar herido
+- [x] Armas de fuego: pistola (nivel 3), escopeta (5), Thompson (8); munición por cajas
+- [x] Documento PvP, etapas 1–4: el disparo sale del cañón (el cuerpo gira y apunta, retroceso, recarga, paredes); herido 30 s → rematar o desangrarse = muerto; un compañero levanta con E 3 s (vuelve con 30 de salud); reaparición a los 10 s
+- [x] Al morir (no al quedar herido) caen armas y munición siempre, la mercadería según la zona; la plata nunca. El bulto queda en la calle con su lugar y vencimiento, sobrevive a reinicios y se levanta una sola vez
+- [x] Reglas por zona editables sin tocar código (`config/zonas.json`, ver `docs/ZONAS.md`): PvP, armas, piñas, saqueo, robos, persecuciones, vehículos, recogida, actividades, excepciones por disputa/evento/guerra
+- [ ] Documento PvP, etapas siguientes: sistema general de actividades PvP, visibilidad de objetivos en el mapa por actividad, integración con inventario e historial de pérdidas, ganchos de consecuencias, interfaz de actividad
 - [ ] Prueba manual del equipo de la Etapa E
 
 ## Más adelante (sin orden fijado)
