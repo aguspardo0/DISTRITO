@@ -54,6 +54,11 @@ public partial class NpcInteractionController : Node
                 _dialog.Close();
                 SupplierRequested?.Invoke(npc);
             }
+            else if (option == NpcInteractionRules.VehicleShopOption)
+            {
+                _dialog.Close();
+                VehicleShopRequested?.Invoke();
+            }
             else
                 _economy.Choose(npc, option);
         };
@@ -63,6 +68,9 @@ public partial class NpcInteractionController : Node
 
     /// <summary>El jugador eligió «Pedidos por mayor» en un proveedor: se abre la ventana de pedidos.</summary>
     public event Action<string>? SupplierRequested;
+
+    /// <summary>El jugador eligió «Vehículos» en el Taller Caruso.</summary>
+    public event Action? VehicleShopRequested;
 
     private double _timerRefresh;
 

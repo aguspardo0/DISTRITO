@@ -70,6 +70,13 @@ public static class Endpoints
         internalApi.MapPost("/supplier/pickup", (SupplierOrderActionRequest r, EconomyService e, CancellationToken ct) => e.PickupSupplierOrderAsync(r, ct));
         internalApi.MapGet("/admin/{characterId:guid}", (Guid characterId, EconomyService e, CancellationToken ct) => e.AdminAsync(characterId, ct));
         internalApi.MapPost("/admin/grant", (AdminGrantRequest r, EconomyService e, CancellationToken ct) => e.AdminGrantAsync(r, ct));
+        internalApi.MapGet("/vehicles", (EconomyService e, CancellationToken ct) => e.VehiclesAsync(ct));
+        internalApi.MapPost("/vehicles/buy", (VehicleBuyRequest r, EconomyService e, CancellationToken ct) => e.BuyVehicleAsync(r, ct));
+        internalApi.MapPost("/vehicles/park", async (VehicleParkRequest r, EconomyService e, CancellationToken ct) => { await e.ParkVehicleAsync(r, ct); return Results.NoContent(); });
+        internalApi.MapGet("/vehicles/{vehicleId:guid}/cargo/{characterId:guid}", async (Guid vehicleId, Guid characterId, EconomyService e, CancellationToken ct) =>
+            await e.VehicleCargoAsync(vehicleId, characterId, ct) is { } view ? Results.Ok(view) : Results.NotFound());
+        internalApi.MapPost("/vehicles/cargo", (VehicleCargoRequest r, EconomyService e, CancellationToken ct) => e.MoveVehicleCargoAsync(r, ct));
+        internalApi.MapPost("/vehicles/force", (VehicleForceRequest r, EconomyService e, CancellationToken ct) => e.ForceVehicleAsync(r, ct));
         internalApi.MapPost("/inventory/give", (GiveItemRequest r, EconomyService e, CancellationToken ct) => e.GiveAsync(r, ct));
         internalApi.MapPost("/inventory/drop", (DropItemRequest r, EconomyService e, CancellationToken ct) => e.DropAsync(r, ct));
         internalApi.MapPost("/combat/pickup", (PickupRequest r, EconomyService e, CancellationToken ct) => e.PickupAsync(r, ct));

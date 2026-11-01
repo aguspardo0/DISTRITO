@@ -33,6 +33,10 @@ public partial class InventoryNetwork : Node
     public WarehouseView? Warehouse { get; private set; }
     /// <summary>¿Está parado en el lugar del depósito? (lo decide el servidor)</summary>
     public bool AtWarehouse { get; private set; }
+    /// <summary>El vehículo que manejás o el que tenés al lado (null si no hay).</summary>
+    public VehicleCargoView? Vehicle { get; private set; }
+    private Distrito.Game.Transport.VehicleNetwork? _vehicles;
+    public void UseVehicles(Distrito.Game.Transport.VehicleNetwork vehicles) => _vehicles = vehicles;
     public IReadOnlyList<NearbyPlayer> Nearby { get; private set; } = [];
 
     public void Initialize(GameNetwork network, EconomyNetwork economy, CombatNetwork combat)
@@ -64,6 +68,8 @@ public partial class InventoryNetwork : Node
         ], 300, null, 0, new WarehousePermissions(true, true, true, true), true, true, true, true,
         [new(DateTimeOffset.UtcNow, "Sal Moretti", "Caja de repuestos", 6, true)], 2000, 100);
         AtWarehouse = true;
+        Vehicle = new VehicleCargoView(Guid.Empty, Vehicles.Pickup.Code, "Sal Moretti", true,
+            [new("cajon-bebidas", "Cajón de bebidas", "Un cajón de bebidas para la barra del club.", ItemKinds.Goods, "alimentos", 8, 15, 20, "legal", 400)], Vehicles.Pickup.CapacityKg);
         InventoryReceived?.Invoke();
     }
 
@@ -73,6 +79,7 @@ public partial class InventoryNetwork : Node
     public void Give(long targetPeer, string itemCode, int quantity) => Send(MethodName.ServerGive, targetPeer, itemCode, quantity);
     public void Drop(string itemCode, int quantity) => Send(MethodName.ServerDrop, itemCode, quantity);
     public void OpenWarehouse() => Send(MethodName.ServerWarehouseOpen);
+    public void MoveVehicleCargo(string itemCode, int quantity, bool load) => Send(MethodName.ServerVehicleCargo, itemCode, quantity, load);
     public void MoveWarehouse(string itemCode, int quantity, bool deposit) => Send(MethodName.ServerWarehouseMove, itemCode, quantity, deposit);
     public void SetWarehousePermissions(WarehousePermissions p) =>
         Send(MethodName.ServerWarehousePerms, p.MemberCanView, p.MemberCanDeposit, p.MemberCanWithdraw, p.SecondCanWithdraw);
@@ -104,6 +111,32 @@ public partial class InventoryNetwork : Node
     {
         if (Multiplayer.IsServer())
             _ = GuardAsync(Multiplayer.GetRemoteSenderId(), peer => DropAsync(peer, itemCode ?? "", quantity));
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerVehicleCargo(string itemCode, int quantity, bool load)
+    {
+        if (!Multiplayer.IsServer())
+            return;
+        _ = GuardAsync(Multiplayer.GetRemoteSenderId(), async peer =>
+        {
+            if (_network.Backend is not { } api || !_network.TryGetSession(peer, out var me))
+                return;
+            if (_vehicles?.AccessibleBy(peer) is not { } vehicle)
+            {
+                SendMessage(peer, "No hay ningún vehículo al lado.");
+                return;
+            }
+            if (load)
+                await _combat.BeforeItemLeavesAsync(peer, itemCode ?? "");
+            var result = await api.MoveVehicleCargoAsync(_network.ServerKey,
+                new VehicleCargoRequest(me.CharacterId, vehicle.Id, itemCode ?? "", quantity, load, Guid.NewGuid().ToString()));
+            SendMessage(peer, result.IsSuccess ? result.Value!.Message : $"Hubo un problema: {result.Error!.Message}");
+            if (result is { IsSuccess: true, Value.Ok: true })
+                GD.Print($"[DISTRITO] VEHICLE_CARGO {me.CharacterName}: {result.Value.Message}");
+            _economy.RefreshPeer(peer);
+            await SendInventoryAsync(peer);
+        });
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -256,6 +289,9 @@ public partial class InventoryNetwork : Node
             return null;
         var warehouse = (await api.GetWarehouseAsync(_network.ServerKey, session.CharacterId)).Value;
         var atWarehouse = warehouse is not null && IsAtPlace(peer, warehouse.Place);
+        VehicleCargoView? cargo = null;
+        if (_vehicles?.AccessibleBy(peer) is { } near)
+            cargo = (await api.GetVehicleCargoAsync(_network.ServerKey, near.Id, session.CharacterId)).Value;
         var me = _network.GetPlayer(peer);
         var nearby = _network.AuthenticatedPlayers
             .Where(p => p.Peer != peer && me is not null && _network.GetPlayer(p.Peer) is { Dead: false } other
@@ -264,7 +300,8 @@ public partial class InventoryNetwork : Node
             .ToList();
         RpcId(peer, MethodName.ReceiveInventory, JsonSerializer.Serialize(view.Value, Json),
             nearby.Select(n => n.Peer).ToArray(), nearby.Select(n => n.Name).ToArray(),
-            warehouse is null ? "" : JsonSerializer.Serialize(warehouse, Json), atWarehouse);
+            warehouse is null ? "" : JsonSerializer.Serialize(warehouse, Json), atWarehouse,
+            cargo is null ? "" : JsonSerializer.Serialize(cargo, Json));
         return view.Value;
     }
 
@@ -277,7 +314,7 @@ public partial class InventoryNetwork : Node
     // ================= Servidor → cliente =================
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void ReceiveInventory(string viewJson, long[] nearbyPeers, string[] nearbyNames, string warehouseJson, bool atWarehouse)
+    public void ReceiveInventory(string viewJson, long[] nearbyPeers, string[] nearbyNames, string warehouseJson, bool atWarehouse, string vehicleJson)
     {
         var view = JsonSerializer.Deserialize<InventoryView>(viewJson, Json);
         if (view is null)
@@ -285,6 +322,7 @@ public partial class InventoryNetwork : Node
         Last = view;
         Warehouse = warehouseJson.Length == 0 ? null : JsonSerializer.Deserialize<WarehouseView>(warehouseJson, Json);
         AtWarehouse = atWarehouse;
+        Vehicle = vehicleJson.Length == 0 ? null : JsonSerializer.Deserialize<VehicleCargoView>(vehicleJson, Json);
         Nearby = nearbyPeers.Zip(nearbyNames, (p, n) => new NearbyPlayer(p, n)).ToList();
         InventoryReceived?.Invoke();
     }

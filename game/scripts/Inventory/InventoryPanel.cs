@@ -17,7 +17,10 @@ public partial class InventoryPanel : PanelContainer
     private static readonly Color Muted = new(0.72f, 0.68f, 0.6f);
     private static readonly Color Warn = new(0.92f, 0.5f, 0.38f);
 
-    private enum Tab { Carried, Warehouse }
+    private enum Tab { Carried, Warehouse, Vehicle }
+
+    /// <summary>Forzar la caja de un vehículo ajeno (lo atiende VehicleNetwork).</summary>
+    public Action<Guid>? ForceVehicle { get; set; }
 
     private InventoryNetwork _inventory = null!;
     private CombatNetwork _combat = null!;
@@ -116,6 +119,14 @@ public partial class InventoryPanel : PanelContainer
         }
     }
 
+    /// <summary>Para la prueba visual: muestra la pestaña del vehículo.</summary>
+    public void ShowVehicleTab()
+    {
+        _tab = Tab.Vehicle;
+        _selected = null;
+        Rebuild();
+    }
+
     /// <summary>Para la prueba visual: muestra la pestaña del depósito.</summary>
     public void ShowWarehouseTab()
     {
@@ -149,16 +160,22 @@ public partial class InventoryPanel : PanelContainer
         Clear(_detail);
 
         var warehouse = _inventory.Warehouse;
-        if (warehouse is null && _tab == Tab.Warehouse)
+        var vehicle = _inventory.Vehicle;
+        if ((warehouse is null && _tab == Tab.Warehouse) || (vehicle is null && _tab == Tab.Vehicle))
             _tab = Tab.Carried;
-        if (warehouse is not null)
+        if (warehouse is not null || vehicle is not null)
         {
             AddTab("Encima", Tab.Carried);
-            AddTab(_inventory.AtWarehouse ? "Depósito ●" : "Depósito", Tab.Warehouse);
+            if (warehouse is not null)
+                AddTab(_inventory.AtWarehouse ? "Depósito ●" : "Depósito", Tab.Warehouse);
+            if (vehicle is not null)
+                AddTab("Vehículo ●", Tab.Vehicle);
         }
 
         if (_tab == Tab.Warehouse && warehouse is not null)
             BuildWarehouse(warehouse);
+        else if (_tab == Tab.Vehicle && vehicle is not null)
+            BuildVehicle(vehicle);
         else
             BuildCarried();
     }
@@ -263,6 +280,8 @@ public partial class InventoryPanel : PanelContainer
 
         if (_inventory.Warehouse is { Exists: true, CanDeposit: true } && _inventory.AtWarehouse)
             AddButton("Guardar en el depósito", () => _inventory.MoveWarehouse(item.ItemCode, (int)qty.Value, deposit: true));
+        if (_inventory.Vehicle is { CanUse: true })
+            AddButton("Cargar en el vehículo", () => _inventory.MoveVehicleCargo(item.ItemCode, (int)qty.Value, load: true));
 
         if (_inventory.Nearby.Count == 0)
         {
@@ -365,6 +384,33 @@ public partial class InventoryPanel : PanelContainer
         }
         var qty = QuantityRow(item.Quantity);
         AddButton("Retirar", () => _inventory.MoveWarehouse(item.ItemCode, (int)qty.Value, deposit: false));
+    }
+
+    // ---------------- Vehículo ----------------
+
+    private void BuildVehicle(VehicleCargoView v)
+    {
+        var type = Vehicles.Find(v.Kind) ?? Vehicles.Pickup;
+        if (!v.CanUse)
+        {
+            _totals.Text = "";
+            _list.AddChild(Muted_($"{type.Name} de {v.OwnerName}. No es tuyo ni de tu cuadrilla."));
+            _detail.AddChild(Muted_($"Donde la zona permite robos (disputa, eventos, Los Muelles) se puede forzar la caja: tarda {Vehicles.ForceSeconds:0} segundos "
+                                    + "y la carga queda tirada en la calle. Hay que quedarse al lado."));
+            AddButton("Forzar la caja", () => ForceVehicle?.Invoke(v.VehicleId));
+            return;
+        }
+        _totals.Text = Totals(v.WeightKg, v.CapacityKg, 0, null).Split(" · ")[0];
+        var item = BuildList(v.Items, $"La {type.Name.ToLowerInvariant()} está vacía. Cargá cosas desde la pestaña «Encima».");
+        if (item is null)
+        {
+            _detail.AddChild(Muted_($"{type.Name} de {v.OwnerName}: lleva hasta {type.CapacityKg:0} kg. La carga queda adentro aunque te bajes; "
+                                    + "en zonas con robos se la pueden forzar."));
+            return;
+        }
+        ItemFacts(item);
+        var qty = QuantityRow(item.Quantity);
+        AddButton("Descargar", () => _inventory.MoveVehicleCargo(item.ItemCode, (int)qty.Value, load: false));
     }
 
     private void BuildHistory(WarehouseView w)

@@ -61,6 +61,14 @@ public partial class LocalPrediction : CharacterBody3D
     public override void _PhysicsProcess(double delta)
     {
         var dt = (float)delta;
+        if (_player.Vehicle.Length > 0)
+        {
+            // Manejando: la posición la da el vehículo.
+            GlobalPosition = _player.GlobalPosition;
+            Velocity = Vector3.Zero;
+            _lastServerPosition = _player.GlobalPosition;
+            return;
+        }
 
         // 1. Simular igual que el servidor.
         var velocity = Velocity;

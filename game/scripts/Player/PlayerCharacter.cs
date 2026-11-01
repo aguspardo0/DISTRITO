@@ -53,6 +53,28 @@ public partial class PlayerCharacter : CharacterBody3D
     /// <summary>Servidor: hacia dónde mira con el arma (yaw). Con arma el cuerpo gira hacia la mira, no hacia donde camina.</summary>
     public float AimYaw { get; set; }
 
+    /// <summary>Id del vehículo que maneja ("" = a pie). Lo fija el servidor; adentro no se ve ni choca.</summary>
+    [Export]
+    public string Vehicle
+    {
+        get => _vehicle;
+        set
+        {
+            _vehicle = value ?? "";
+            if (_visual is not null)
+                ApplyVehicleState();
+        }
+    }
+    private string _vehicle = "";
+
+    private void ApplyVehicleState()
+    {
+        var driving = _vehicle.Length > 0;
+        _visual.Visible = !driving;
+        CollisionLayer = driving ? 0u : 1u;
+        CollisionMask = driving ? 0u : 1u;
+    }
+
     /// <summary>Muerto (además de Downed): reaparece a los 10 s. Herido = Downed sin Dead.</summary>
     [Export]
     public bool Dead { get; set; }
@@ -85,6 +107,7 @@ public partial class PlayerCharacter : CharacterBody3D
         _lastVisualPosition = _visual.GlobalPosition;
         _nameTag = GetNode<Label3D>("Visual/NameTag");
         RefreshNameTag();
+        ApplyVehicleState();
     }
 
     private void RefreshModel()
@@ -167,6 +190,8 @@ public partial class PlayerCharacter : CharacterBody3D
     {
         if (!Multiplayer.IsServer())
             return;
+        if (_vehicle.Length > 0)
+            return; // lo mueve el vehículo (VehicleNetwork)
         if (Downed)
         {
             Velocity = new Vector3(0, Velocity.Y - _gravity * (float)delta, 0);

@@ -27,6 +27,9 @@ public static class NpcInteractionRules
     /// <summary>Opción que no va al servidor: el cliente abre la ventana de pedidos del proveedor.</summary>
     public const string SupplierOrdersOption = "ui:pedidos";
 
+    /// <summary>Opción que no va al servidor: el cliente abre la ventana de compra de vehículos.</summary>
+    public const string VehicleShopOption = "ui:vehiculos";
+
     public static readonly NpcDefinition Deposit = new(EconomyCatalog.DepositNpc, "Almacén Moretti", new Vector3(-8.5f, 0, -8.5f));
     public static readonly NpcDefinition Workshop = new(EconomyCatalog.WorkshopNpc, "Taller Caruso", new Vector3(10f, 0, 3f));
 
@@ -62,6 +65,9 @@ public static class NpcInteractionRules
         if (SupplierRules.Catalog.ContainsKey(npc.Code))
             options.Add(new NpcOption(SupplierOrdersOption,
                 $"Pedidos por mayor (desde {SupplierRules.MinUnits}; {SupplierRules.VolumeDiscountPercent} % menos desde {SupplierRules.VolumeDiscountFrom})"));
+        if (npc.Code == EconomyCatalog.WorkshopNpc)
+            options.Add(new NpcOption(VehicleShopOption,
+                $"Vehículos ({string.Join(", ", Vehicles.All.Select(v => $"{v.Name.Split(' ')[0].ToLowerInvariant()} {EconomyCatalog.FormatMoney(v.PriceCents)}"))})"));
         LevelContractsDialog(npc.Code, s, ref text, options);
         if (TerritoryRules.ZoneOfNpc(npc.Code) is { } zoneCode && s.Territory?.Zone(zoneCode) is { } zone)
             text += zone.ControllerCrew is { } owner

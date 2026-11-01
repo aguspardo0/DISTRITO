@@ -191,7 +191,7 @@ public partial class CombatNetwork
 
     private void HandleShot(long peer, Vector3 aimPoint)
     {
-        if (_network.GetPlayer(peer) is not { Downed: false } shooter)
+        if (_network.GetPlayer(peer) is not { Downed: false, Vehicle.Length: 0 } shooter)
             return;
         var code = _armed.GetValueOrDefault(peer, Weapons.Fists);
         if (Weapons.Find(code) is not { } weapon)
@@ -289,7 +289,7 @@ public partial class CombatNetwork
         var bestT = float.MaxValue;
         foreach (var p in _network.AllPlayers)
         {
-            if (p == shooter || p.Dead)
+            if (p == shooter || p.Dead || p.Vehicle.Length > 0)
                 continue;
             // Un herido está tirado: su cápsula es baja (se lo puede rematar).
             var bottom = p.GlobalPosition + Vector3.Up * (p.Downed ? 0.05f : 0.2f);

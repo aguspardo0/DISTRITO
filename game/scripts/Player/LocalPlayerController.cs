@@ -14,6 +14,12 @@ public partial class LocalPlayerController : Node
     /// <summary>El jugador quiere pegar (clic izquierdo o F). Lo atiende CombatNetwork.</summary>
     public static event Action? Punch;
 
+    /// <summary>Tecla G: subir o bajar del vehículo más cercano.</summary>
+    public static event Action? VehicleKey;
+
+    /// <summary>Manejando: acelerador (−1…1), dirección (−1 izq…1 der) y freno. Lo atiende VehicleNetwork.</summary>
+    public static event Action<float, float, bool>? DriveInput;
+
     /// <summary>Teclas 1–4: elegir arma (1 = piñas).</summary>
     public static event Action<int>? WeaponKey;
     private const float MinPitch = -1.2f;
@@ -26,6 +32,7 @@ public partial class LocalPlayerController : Node
     private Node3D _pitch = null!;
     private double _botClock;
     private LocalPrediction? _prediction;
+    private Node3D? _excludedVehicle;
 
     /// <summary>Bot de pruebas: camina en círculos solo y se detiene al final para que la posición final sea estable.</summary>
     public BotSettings Bot { get; init; } = BotSettings.Off;
@@ -89,6 +96,10 @@ public partial class LocalPlayerController : Node
         {
             Punch?.Invoke();
         }
+        else if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.G } && Input.MouseMode == Input.MouseModeEnum.Captured)
+        {
+            VehicleKey?.Invoke();
+        }
         else if (@event is InputEventKey { Pressed: true, Echo: false } key && key.PhysicalKeycode is >= Key.Key1 and <= Key.Key4)
         {
             WeaponKey?.Invoke((int)(key.PhysicalKeycode - Key.Key1) + 1);
@@ -97,11 +108,28 @@ public partial class LocalPlayerController : Node
 
     public override void _Process(double delta)
     {
-        _yaw.GlobalPosition = _player.VisualPosition + Vector3.Up * CameraHeight;
+        var vehicle = _player.Vehicle.Length > 0 ? Distrito.Game.Transport.VehicleNetwork.Find(_player.Vehicle) : null;
+        _yaw.GlobalPosition = (vehicle?.GlobalPosition ?? _player.VisualPosition) + Vector3.Up * (vehicle is null ? CameraHeight : CameraHeight + 1f);
+        var arm = _pitch.GetNode<SpringArm3D>("SpringArm");
+        if (vehicle is not null && vehicle != _excludedVehicle)
+        {
+            arm.AddExcludedObject(vehicle.GetRid()); // la cámara no choca con el propio vehículo
+            _excludedVehicle = vehicle;
+        }
+        arm.SpringLength = Mathf.Lerp(arm.SpringLength, vehicle is null ? CameraDistance : CameraDistance + 4f, 1f - Mathf.Exp(-4f * (float)delta));
     }
 
     public override void _PhysicsProcess(double delta)
     {
+        if (_player.Vehicle.Length > 0)
+        {
+            // Manejando: W/S, A/D y Espacio van al vehículo; el personaje no camina.
+            var captured = !UseBot && Input.MouseMode == Input.MouseModeEnum.Captured;
+            DriveInput?.Invoke(captured ? Axis(Key.W, Key.S) : 0, captured ? Axis(Key.D, Key.A) : 0, captured && Input.IsPhysicalKeyPressed(Key.Space));
+            _player.SubmitLocalInput(0, 0, false);
+            _prediction?.SetInput(0, 0, false);
+            return;
+        }
         var (direction, jump) = UseBot ? BotInput(delta) : KeyboardInput();
         var sprint = !UseBot && Input.MouseMode == Input.MouseModeEnum.Captured && Input.IsPhysicalKeyPressed(Key.Shift);
         if (_player.Downed)

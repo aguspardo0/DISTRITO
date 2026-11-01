@@ -150,6 +150,24 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<EconomyActionResult>> AdminGrantAsync(string serverKey, AdminGrantRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/admin/grant", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<List<VehicleView>>> GetVehiclesAsync(string serverKey, CancellationToken ct = default) =>
+        SendAsync<List<VehicleView>>(HttpMethod.Get, "internal/vehicles", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<VehicleBuyResult>> BuyVehicleAsync(string serverKey, VehicleBuyRequest request, CancellationToken ct = default) =>
+        SendAsync<VehicleBuyResult>(HttpMethod.Post, "internal/vehicles/buy", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<object>> ParkVehicleAsync(string serverKey, VehicleParkRequest request, CancellationToken ct = default) =>
+        SendAsync<object>(HttpMethod.Post, "internal/vehicles/park", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<VehicleCargoView>> GetVehicleCargoAsync(string serverKey, Guid vehicleId, Guid characterId, CancellationToken ct = default) =>
+        SendAsync<VehicleCargoView>(HttpMethod.Get, $"internal/vehicles/{vehicleId}/cargo/{characterId}", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> MoveVehicleCargoAsync(string serverKey, VehicleCargoRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/vehicles/cargo", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<DropItemResult>> ForceVehicleAsync(string serverKey, VehicleForceRequest request, CancellationToken ct = default) =>
+        SendAsync<DropItemResult>(HttpMethod.Post, "internal/vehicles/force", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<EconomyActionResult>> GiveItemAsync(string serverKey, GiveItemRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/inventory/give", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

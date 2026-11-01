@@ -18,7 +18,7 @@ namespace Distrito.Game;
 public partial class Main : Node3D
 {
     private const string ControlsHelp =
-        "WASD: moverse   Shift: correr   Clic: piña/disparar   1-4: arma   Mouse: cámara   Espacio: saltar   E: hablar   I: inventario   C: cuadrilla   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
+        "WASD: moverse   Shift: correr   Clic: piña/disparar   1-4: arma   Mouse: cámara   Espacio: saltar   E: hablar   G: subir/bajar del vehículo   I: inventario   C: cuadrilla   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
 
     private GameNetwork _network = null!;
     private EconomyNetwork _economy = null!;
@@ -28,6 +28,8 @@ public partial class Main : Node3D
     private Distrito.Game.Inventory.InventoryPanel? _inventoryPanel;
     private Distrito.Game.Inventory.SupplierPanel? _supplierPanel;
     private Distrito.Game.Admin.AdminNetwork _admin = null!;
+    private Distrito.Game.Transport.VehicleNetwork _vehicles = null!;
+    private Distrito.Game.Transport.VehicleShopPanel? _vehicleShop;
     private Distrito.Game.Admin.AdminPanel? _adminPanel;
     private Distrito.Game.Map.MapNetwork _map = null!;
     private Distrito.Game.Combat.CombatNetwork _combat = null!;
@@ -96,6 +98,11 @@ public partial class Main : Node3D
         _inventory = new Distrito.Game.Inventory.InventoryNetwork { Name = "Inventory" };
         AddChild(_inventory);
         _inventory.Initialize(_network, _economy, _combat);
+
+        _vehicles = new Distrito.Game.Transport.VehicleNetwork { Name = "Vehicles" };
+        AddChild(_vehicles);
+        _vehicles.Initialize(_network, _economy, _combat);
+        _inventory.UseVehicles(_vehicles);
 
         _admin = new Distrito.Game.Admin.AdminNetwork { Name = "Admin" };
         AddChild(_admin);
@@ -282,6 +289,13 @@ public partial class Main : Node3D
         layer.AddChild(UiAnchor.Wrap(_supplierPanel, UiAnchor.Center, UiAnchor.Center, name: "SupplierArea"));
         _supplierPanel.Initialize(_inventory);
         interaction.SupplierRequested += npc => _supplierPanel.Open(npc);
+
+        _vehicleShop = new Distrito.Game.Transport.VehicleShopPanel { Name = "VehicleShop" };
+        layer.AddChild(UiAnchor.Wrap(_vehicleShop, UiAnchor.Center, UiAnchor.Center, name: "VehicleShopArea"));
+        _vehicleShop.Initialize(_vehicles, () => _economy.LastSnapshot);
+        interaction.VehicleShopRequested += () => _vehicleShop.Open();
+        _inventoryPanel.ForceVehicle = id => _vehicles.Force(id);
+        _vehicles.MessageReceived += text => _combat.ShowMessage(text);
 
         _adminPanel = new Distrito.Game.Admin.AdminPanel { Name = "AdminPanel" };
         layer.AddChild(UiAnchor.Wrap(_adminPanel, UiAnchor.Start, UiAnchor.Center, left: 20, name: "AdminArea"));
@@ -494,7 +508,21 @@ public partial class Main : Node3D
                 _supplierPanel?.Open(Distrito.Shared.Economy.EconomyCatalog.DepositNpc);
                 _inventory.PreviewSupplier();
             }),
-            ("admin", () => { _supplierPanel?.Close(); _adminPanel?.Toggle(); _admin.Preview(); }),
+            ("vehiculos", () =>
+            {
+                _supplierPanel?.Close();
+                if (_network.LocalPlayer is { } me)
+                    _vehicles.Preview(me.GlobalPosition);
+                _vehicleShop?.Open();
+            }),
+            ("carga", () =>
+            {
+                _vehicleShop?.Close();
+                _inventoryPanel?.Toggle();
+                _inventory.Preview();
+                _inventoryPanel?.ShowVehicleTab();
+            }),
+            ("admin", () => { _inventoryPanel?.Toggle(); _adminPanel?.Toggle(); _admin.Preview(); }),
             ("opciones", () => { _adminPanel?.Toggle(); _pause?.Open(); }),
         ]);
     }
@@ -507,6 +535,7 @@ public partial class Main : Node3D
         if (_inventoryPanel is { IsOpen: true }) _inventoryPanel.Toggle();
         if (_adminPanel is { IsOpen: true }) _adminPanel.Toggle();
         _supplierPanel?.Close();
+        _vehicleShop?.Close();
         _interaction?.Dialog.Close();
         _network.Leave();
         GetNode<Camera3D>("OverviewCamera").Current = true;
@@ -537,7 +566,7 @@ public partial class Main : Node3D
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Escape } && _network.LocalPlayer is not null && _pause is not null)
         {
             // Esc cierra primero lo que esté abierto; si no hay nada, abre o cierra las opciones.
-            if (_interaction?.Dialog is { IsOpen: true } || _supplierPanel is { IsOpen: true })
+            if (_interaction?.Dialog is { IsOpen: true } || _supplierPanel is { IsOpen: true } || _vehicleShop is { IsOpen: true })
                 return; // el diálogo y los pedidos se cierran solos con Esc
             if (_crewPanel is { IsOpen: true }) _crewPanel.Toggle();
             else if (_inventoryPanel is { IsOpen: true }) _inventoryPanel.Toggle();

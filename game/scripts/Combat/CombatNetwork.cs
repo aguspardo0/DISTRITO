@@ -186,7 +186,7 @@ public partial class CombatNetwork : Node
 
     private void HandlePunch(long peer)
     {
-        if (_network.GetPlayer(peer) is not { Downed: false } attacker)
+        if (_network.GetPlayer(peer) is not { Downed: false, Vehicle.Length: 0 } attacker)
             return;
         if (_lastPunch.TryGetValue(peer, out var last) && _clock - last < CombatRules.PunchCooldownSeconds)
             return;
@@ -194,7 +194,7 @@ public partial class CombatNetwork : Node
         PlayPunchEverywhere(peer);
 
         var target = _network.AllPlayers
-            .Where(p => p != attacker && !p.Dead && CombatRules.InReach(N(attacker.GlobalPosition), attacker.GlobalRotation.Y, N(p.GlobalPosition)))
+            .Where(p => p != attacker && !p.Dead && p.Vehicle.Length == 0 && CombatRules.InReach(N(attacker.GlobalPosition), attacker.GlobalRotation.Y, N(p.GlobalPosition)))
             .OrderBy(p => p.GlobalPosition.DistanceTo(attacker.GlobalPosition))
             .FirstOrDefault();
         if (target is null)
@@ -375,6 +375,10 @@ public partial class CombatNetwork : Node
         PlaceDrop(result.Value, rules.DropSeconds);
         _economy.RefreshPeer(victim.PeerId);
     }
+
+    /// <summary>Permisos de la zona en ese punto (reglas de config/zonas.json, sin guerra).</summary>
+    public ZonePermissions PermissionsAt(Vector3 position) =>
+        CombatRules.PermissionsAt(N(position), _rules ?? ZoneRules.ServerDefault, _state, false);
 
     /// <summary>Segundos que dura un bulto tirado en ese lugar (regla de zona).</summary>
     public int DropSecondsAt(Vector3 position) =>
