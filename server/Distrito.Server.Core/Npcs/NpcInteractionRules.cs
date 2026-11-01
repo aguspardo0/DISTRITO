@@ -30,6 +30,9 @@ public static class NpcInteractionRules
     /// <summary>Opción que no va al servidor: el cliente abre la ventana de compra de vehículos.</summary>
     public const string VehicleShopOption = "ui:vehiculos";
 
+    /// <summary>Opción que no va al servidor: el cliente abre las mesas del casino.</summary>
+    public const string CasinoOption = "ui:casino";
+
     public static readonly NpcDefinition Deposit = new(EconomyCatalog.DepositNpc, "Almacén Moretti", new Vector3(-8.5f, 0, -8.5f));
     public static readonly NpcDefinition Workshop = new(EconomyCatalog.WorkshopNpc, "Taller Caruso", new Vector3(10f, 0, 3f));
 
@@ -38,7 +41,10 @@ public static class NpcInteractionRules
 
     public static readonly NpcDefinition JazzClub = new(EconomyCatalog.JazzClubNpc, "Club de jazz", new Vector3(8f, 0, -7f));
 
-    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner, JazzClub];
+    /// <summary>Casino «El Trébol» de la familia Valenti (aprobado 2026-11-01), en la puerta del local.</summary>
+    public static readonly NpcDefinition Casino = new(CasinoRules.Npc, CasinoRules.Name, new Vector3(24f, 0, 15.6f));
+
+    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner, JazzClub, Casino];
 
     public static NpcDefinition? Find(string code) => All.FirstOrDefault(n => n.Code == code);
 
@@ -57,6 +63,8 @@ public static class NpcInteractionRules
             EconomyCatalog.WorkshopNpc => WorkshopDialog(s),
             EconomyCatalog.ValentiOfficeNpc => ValentiDialog(s),
             EconomyCatalog.CoffeeCornerNpc => BusinessDialog(EconomyCatalog.CoffeeStand, s, "Acá se instalan los puestos de café. La licencia la da la Oficina Valenti."),
+            CasinoRules.Npc => ("Bienvenido a El Trébol. Ruleta, blackjack y dados: de $1 a $50; la mesa VIP, hasta $200, es para cuadrillas de prestigio. "
+                                + "La casa siempre tiene su parte, como en todos lados.", [new NpcOption(CasinoOption, "Entrar a jugar")]),
             EconomyCatalog.JazzClubNpc => BusinessDialog(EconomyCatalog.JazzClub, s,
                 "Un local vacío con escenario. Con licencia de la Oficina Valenti puede ser un club de jazz; las bebidas las vende el Almacén Moretti."),
             _ => ("…", new List<NpcOption>()),

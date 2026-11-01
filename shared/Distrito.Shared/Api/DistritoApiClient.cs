@@ -150,6 +150,15 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<EconomyActionResult>> AdminGrantAsync(string serverKey, AdminGrantRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/admin/grant", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<CasinoResult>> RouletteAsync(string serverKey, RouletteRequest request, CancellationToken ct = default) =>
+        SendAsync<CasinoResult>(HttpMethod.Post, "internal/casino/ruleta", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<CasinoResult>> DiceAsync(string serverKey, DiceRequest request, CancellationToken ct = default) =>
+        SendAsync<CasinoResult>(HttpMethod.Post, "internal/casino/dados", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<CasinoResult>> BlackjackAsync(string serverKey, BlackjackRequest request, CancellationToken ct = default) =>
+        SendAsync<CasinoResult>(HttpMethod.Post, "internal/casino/blackjack", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<CrewBoardView>> GetCrewBoardAsync(string serverKey, Guid characterId, CancellationToken ct = default) =>
         SendAsync<CrewBoardView>(HttpMethod.Get, $"internal/crews/board/{characterId}", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

@@ -59,6 +59,11 @@ public partial class NpcInteractionController : Node
                 _dialog.Close();
                 VehicleShopRequested?.Invoke();
             }
+            else if (option == NpcInteractionRules.CasinoOption)
+            {
+                _dialog.Close();
+                CasinoRequested?.Invoke();
+            }
             else
                 _economy.Choose(npc, option);
         };
@@ -71,6 +76,9 @@ public partial class NpcInteractionController : Node
 
     /// <summary>El jugador eligió «Vehículos» en el Taller Caruso.</summary>
     public event Action? VehicleShopRequested;
+
+    /// <summary>El jugador entró al casino.</summary>
+    public event Action? CasinoRequested;
 
     private double _timerRefresh;
 

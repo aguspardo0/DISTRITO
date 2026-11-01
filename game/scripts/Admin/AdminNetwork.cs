@@ -21,6 +21,7 @@ public partial class AdminNetwork : Node
         ("Oficina Valenti", new Vector3(-9, 0.2f, 0.5f)),
         ("Taller Caruso", new Vector3(10, 0.2f, 0)),
         ("Los Muelles", new Vector3(55, 0.2f, 0)),
+        ("Casino El Trébol", new Vector3(24, 0.2f, 13.5f)),
     ];
 
     private GameNetwork _network = null!;

@@ -35,6 +35,8 @@ public partial class Main : Node3D
     private Distrito.Game.Pve.PveNetwork _pve = null!;
     private BaseNetwork _bases = null!;
     private CrewBoardPanel? _boardPanel;
+    private Distrito.Game.Casino.CasinoNetwork _casino = null!;
+    private Distrito.Game.Casino.CasinoPanel? _casinoPanel;
     private Distrito.Game.Admin.AdminPanel? _adminPanel;
     private Distrito.Game.Map.MapNetwork _map = null!;
     private Distrito.Game.Combat.CombatNetwork _combat = null!;
@@ -50,6 +52,7 @@ public partial class Main : Node3D
     public override void _Ready()
     {
         Distrito.Game.World.DocksBuilder.Build(GetNode<Node3D>("World"));
+        Distrito.Game.World.DocksBuilder.BuildCasino(GetNode<Node3D>("World"));
         try
         {
             Options = LaunchOptions.Parse(OS.GetCmdlineUserArgs());
@@ -112,6 +115,10 @@ public partial class Main : Node3D
         AddChild(_pve);
         _pve.Initialize(_network, _economy, _combat);
 
+        _casino = new Distrito.Game.Casino.CasinoNetwork { Name = "Casino" };
+        AddChild(_casino);
+        _casino.Initialize(_network, _economy);
+
         _bases = new BaseNetwork { Name = "Bases" };
         AddChild(_bases);
         _bases.Initialize(_network, _economy, _combat, _pve);
@@ -163,6 +170,7 @@ public partial class Main : Node3D
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.ValentiOffice, new Color(0.45f, 0.12f, 0.15f)));
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.CoffeeCorner, new Color(0.35f, 0.22f, 0.12f)));
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.JazzClub, new Color(0.2f, 0.15f, 0.35f)));
+        npcs.AddChild(NpcActor.Create(NpcInteractionRules.Casino, new Color(0.12f, 0.35f, 0.18f)));
     }
 
     private void StartDedicatedServer()
@@ -306,6 +314,11 @@ public partial class Main : Node3D
         layer.AddChild(UiAnchor.Wrap(_supplierPanel, UiAnchor.Center, UiAnchor.Center, name: "SupplierArea"));
         _supplierPanel.Initialize(_inventory);
         interaction.SupplierRequested += npc => _supplierPanel.Open(npc);
+
+        _casinoPanel = new Distrito.Game.Casino.CasinoPanel { Name = "CasinoPanel" };
+        layer.AddChild(UiAnchor.Wrap(_casinoPanel, UiAnchor.Center, UiAnchor.Center, name: "CasinoArea"));
+        _casinoPanel.Initialize(_casino, () => _economy.LastSnapshot?.BalanceCents ?? 0);
+        interaction.CasinoRequested += () => _casinoPanel.Open();
 
         _boardPanel = new CrewBoardPanel { Name = "CrewBoard" };
         layer.AddChild(UiAnchor.Wrap(_boardPanel, UiAnchor.Center, UiAnchor.Center, name: "CrewBoardArea"));
@@ -570,7 +583,8 @@ public partial class Main : Node3D
                 }
             }),
             ("tablero", () => { _boardPanel?.Toggle(); _bases.Preview(); }),
-            ("admin", () => { _boardPanel?.Toggle(); _adminPanel?.Toggle(); _admin.Preview(); }),
+            ("casino", () => { _boardPanel?.Toggle(); _casinoPanel?.Open(); _casinoPanel?.Preview(); }),
+            ("admin", () => { _casinoPanel?.Close(); _adminPanel?.Toggle(); _admin.Preview(); }),
             ("opciones", () => { _adminPanel?.Toggle(); _pause?.Open(); }),
         ]);
     }
@@ -585,6 +599,7 @@ public partial class Main : Node3D
         if (_boardPanel is { IsOpen: true }) _boardPanel.Toggle();
         _supplierPanel?.Close();
         _vehicleShop?.Close();
+        _casinoPanel?.Close();
         _interaction?.Dialog.Close();
         _network.Leave();
         GetNode<Camera3D>("OverviewCamera").Current = true;
@@ -615,7 +630,7 @@ public partial class Main : Node3D
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Escape } && _network.LocalPlayer is not null && _pause is not null)
         {
             // Esc cierra primero lo que esté abierto; si no hay nada, abre o cierra las opciones.
-            if (_interaction?.Dialog is { IsOpen: true } || _supplierPanel is { IsOpen: true } || _vehicleShop is { IsOpen: true })
+            if (_interaction?.Dialog is { IsOpen: true } || _supplierPanel is { IsOpen: true } || _vehicleShop is { IsOpen: true } || _casinoPanel is { IsOpen: true })
                 return; // el diálogo y los pedidos se cierran solos con Esc
             if (_crewPanel is { IsOpen: true }) _crewPanel.Toggle();
             else if (_inventoryPanel is { IsOpen: true }) _inventoryPanel.Toggle();

@@ -53,7 +53,7 @@ public static class FamilyRules
     {
         EconomyCatalog.DepositNpc => EconomyCatalog.Moretti,
         EconomyCatalog.WorkshopNpc => EconomyCatalog.Caruso,
-        EconomyCatalog.ValentiOfficeNpc => EconomyCatalog.Valenti,
+        EconomyCatalog.ValentiOfficeNpc or CasinoRules.Npc => EconomyCatalog.Valenti,
         _ => null,
     };
 }

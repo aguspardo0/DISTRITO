@@ -48,15 +48,20 @@ public static class MapPresence
         new(54, 9, 2.5f, 2.5f), new(71, -10, 3, 2), new(38, 9, 2, 3),
     ];
 
+    /// <summary>Casino «El Trébol» (lo construye el juego).</summary>
+    public static readonly MapBuilding Casino = new(24, 21, 10, 8);
+
     /// <summary>Planta del barrio (igual a los edificios de Main.tscn) y de Los Muelles.</summary>
     public static readonly IReadOnlyList<MapBuilding> Buildings =
     [
         new(-14, -14, 8, 8), new(-4, -16, 6, 5), new(6, -15, 7, 7), new(16, -12, 6, 10),
         new(-16, 6, 7, 9), new(15, 8, 8, 7), new(0, 17, 12, 5),
+        Casino,
         .. DocksBuildings,
     ];
 
     public static bool InDocks(float x) => x > DocksStartX;
+
 
     /// <summary>Formato compacto para la red: arreglos paralelos.</summary>
     public static (long[] Peers, string[] Names, float[] Coords) Pack(IReadOnlyList<MapMarker> markers) =>

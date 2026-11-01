@@ -63,7 +63,7 @@ public static class TerritoryRules
         EconomyCatalog.DepositNpc => Warehouse,
         EconomyCatalog.WorkshopNpc => Workshops,
         EconomyCatalog.ValentiOfficeNpc => Office,
-        EconomyCatalog.CoffeeCornerNpc or EconomyCatalog.JazzClubNpc => Corner,
+        EconomyCatalog.CoffeeCornerNpc or EconomyCatalog.JazzClubNpc or CasinoRules.Npc => Corner,
         _ => null,
     };
 
