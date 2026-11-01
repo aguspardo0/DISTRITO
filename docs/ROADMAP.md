@@ -92,8 +92,8 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 Base: el libro central de objetos que ya existía (item_stacks + item_movements); no se reemplaza. Ver `docs/INVENTARIO.md`.
 - [x] Etapa 1 — clases de objeto (armas, munición, herramientas, mercancías, materias primas, productos, documentos, equipamiento, misión) con descripción y propiedades opcionales; ventana de inventario (I) con peso y volumen
 - [x] Etapa 2 — dar en mano a alguien cerca (3 m), soltar en la calle (bulto que otro levanta), separar cantidades, equipar armas desde el inventario; capacidad configurable (`config/inventario.json`, por ahora sin límite)
-- [ ] Etapa 3 — almacenes con permisos (ver, depositar, retirar, administrar) — números del depósito de cuadrilla pendientes de aprobación
-- [ ] Etapa 4 — historial de movimientos visible (ya se registra quién, qué, cuánto, origen, destino, motivo y fecha)
+- [x] Etapa 3 — depósito de la cuadrilla en La Oficina (aprobado: $20 de la caja, $1 por ciclo mientras haya algo guardado, 300 kg); permisos del jefe (ver, guardar, retirar); con alquiler adeudado no se retira; si la cuadrilla se disuelve, lo guardado pasa al último miembro
+- [~] Etapa 4 — historial: visible en el depósito (quién guardó o retiró qué y cuándo); falta el historial personal
 - [ ] Etapa 5 — proveedores y pedidos con tiempo de preparación
 - [ ] Etapa 6 — vehículos con carga
 - [ ] Etapa 7 — existencias visibles en el mundo (cajas, barriles, estanterías)

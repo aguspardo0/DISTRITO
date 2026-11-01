@@ -29,3 +29,14 @@
   `config/zonas.json`) y lo levanta el primero que pase por encima si la zona permite recoger y saquear.
   El que lo soltó no lo vuelve a levantar sin querer durante 4 segundos.
 - **Dar**: a alguien a menos de 3 m, la cantidad elegida.
+
+## Depósito de la cuadrilla (etapa 3)
+- Lo abre el jefe en **La Oficina** con plata de la caja común. Números en `config/inventario.json` → `depositoCuadrilla`
+  (aprobados 2026-11-01: apertura $20, alquiler $1 por ciclo de negocios, 300 kg, sin límite de volumen).
+- El alquiler se cobra solo en los ciclos en que hay algo guardado. Si la caja no alcanza queda como **deuda**: mientras
+  haya deuda se puede guardar pero no retirar; al poner plata en la caja se cobra en el próximo ciclo.
+- **Permisos**: el jefe siempre puede todo y es el único que administra. El segundo siempre ve y guarda; si retira lo
+  decide el jefe. Para los miembros, el jefe decide si ven, guardan y retiran.
+- Para guardar o retirar hay que estar en La Oficina (lo valida el servidor). Ver lo guardado y el historial se puede desde cualquier lado.
+- Si la cuadrilla se disuelve, lo guardado pasa a manos del último que se va.
+- En el juego: pestaña **Depósito** del inventario (con ● si estás en el lugar), **Historial** y **Permisos** (el jefe).
