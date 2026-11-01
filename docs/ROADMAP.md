@@ -118,7 +118,8 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
 
 ### Operación del servidor
 - [x] Copias de seguridad automáticas de la base: cada 6 h (se guardan 28), antes de cada despliegue (5), verificadas, con restauración en un comando (`docs/DEPLOY.md`).
-- [ ] Copia fuera del servidor (decisión pendiente del equipo: backups de Vultr o copia cifrada externa).
+- [x] Copia cifrada fuera del servidor: cada 6 h, cifrada con age en el servidor, artefacto de GitHub por 30 días.
+- [ ] Cargar la llave pública del equipo en `deploy/backup-recipients.txt` (hasta entonces no se exporta).
 
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.

@@ -12,7 +12,7 @@ key="$RUNNER_TEMP/deploy_key"
 ssh_opts=(-i "$key" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -o ServerAliveInterval=15)
 
 tar -czf release.tgz -C build/release .
-scp "${ssh_opts[@]}" release.tgz deploy/setup-server.sh deploy/backup-db.sh deploy/restore-db.sh "$user@$host:/tmp/"
+scp "${ssh_opts[@]}" release.tgz deploy/setup-server.sh deploy/backup-db.sh deploy/restore-db.sh deploy/export-backup.sh deploy/backup-recipients.txt "$user@$host:/tmp/"
 ssh "${ssh_opts[@]}" "$user@$host" "set -e
   rm -rf /tmp/distrito-release && mkdir -p /tmp/distrito-release
   tar -xzf /tmp/release.tgz -C /tmp/distrito-release

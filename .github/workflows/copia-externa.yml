@@ -1,0 +1,57 @@
+name: Copia cifrada fuera del servidor
+
+# Cada 6 horas (30 min después de la copia programada del servidor) saca por SSH la copia más reciente de la base,
+# ya CIFRADA en el servidor con las llaves públicas de deploy/backup-recipients.txt, y la guarda como artefacto
+# de GitHub por 30 días. Sin una llave privada de esas, el archivo no se puede abrir. Ver docs/DEPLOY.md.
+on:
+  schedule:
+    - cron: "45 0,6,12,18 * * *"
+  workflow_dispatch:
+
+concurrency: copia-externa
+
+jobs:
+  copia:
+    name: Exportar copia cifrada
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Exportar desde el servidor
+        id: exportar
+        run: |
+          set -uo pipefail
+          if ! grep -q '^age1' deploy/backup-recipients.txt; then
+            echo "::warning title=Copia externa::No hay llaves públicas en deploy/backup-recipients.txt; no se exporta nada."
+            exit 0
+          fi
+          host=$(grep -E '^DEPLOY_HOST=' deploy/target.env | cut -d= -f2); host="${host:-$DEPLOY_HOST}"
+          user=$(grep -E '^DEPLOY_USER=' deploy/target.env | cut -d= -f2); user="${user:-${DEPLOY_USER:-ubuntu}}"
+          key="$RUNNER_TEMP/deploy_key"
+          .github/scripts/prepare-key.sh "$key" >/dev/null || exit 1
+          ssh_opts=(-i "$key" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -o ServerAliveInterval=15)
+
+          name=$(ssh "${ssh_opts[@]}" "$user@$host" "sudo distrito-backup-export --nombre") || { echo "::error title=Copia externa::no se pudo leer la copia del servidor"; exit 1; }
+          out="${name}.age"
+          ssh "${ssh_opts[@]}" "$user@$host" "sudo distrito-backup-export" > "$out"
+          code=$?
+          if [ $code -ne 0 ]; then echo "::error title=Copia externa::la exportación falló (código $code)"; exit 1; fi
+          # Tiene que ser un archivo age (cifrado), nunca una copia en claro.
+          head -1 "$out" | grep -q '^age-encryption.org/v1$' || { echo "::error title=Copia externa::el archivo no está cifrado; no se sube"; rm -f "$out"; exit 1; }
+          if head -c 5 "$out" | grep -q PGDMP; then rm -f "$out"; exit 1; fi
+          echo "::notice title=Copia externa::$out ($(du -h "$out" | cut -f1))"
+          echo "file=$out" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.exportar.outputs.file != ''
+        with:
+          name: copia-${{ steps.exportar.outputs.file }}
+          path: ${{ steps.exportar.outputs.file }}
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error

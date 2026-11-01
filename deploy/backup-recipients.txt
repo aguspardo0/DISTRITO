@@ -1,0 +1,5 @@
+# Llaves PÚBLICAS de age que pueden abrir las copias de seguridad cifradas fuera del servidor (una por línea).
+# Una llave pública empieza con "age1…" y no es secreta: se puede commitear.
+# La llave PRIVADA ("AGE-SECRET-KEY-1…") nunca va acá ni en el chat: la guarda cada persona en su computadora.
+# Cómo generarla y cómo abrir una copia: docs/DEPLOY.md, sección «Copia cifrada fuera del servidor».
+# Mientras no haya ninguna llave, la CI no exporta copias (avisa y sigue).

@@ -67,12 +67,30 @@ sudo distrito-restore /var/backups/distrito/<archivo>.dump
 
 `distrito-restore` hace una copia manual del estado actual, para el juego y el backend, recrea la base desde la copia, levanta el backend (espera `/health/ready`) y después el servidor de juego. Los jugadores conectados se desconectan durante el proceso (segundos con el tamaño actual).
 
-**Límite:** las copias viven en el mismo servidor. Protegen contra errores (una migración mala, un bug que borra datos, un error manual), **no** contra perder la máquina. Para eso falta una copia fuera del servidor (decisión pendiente: backups automáticos de Vultr o copias cifradas en otro lugar). Nunca subirlas sin cifrar al repo ni a artefactos de la CI: el repo es público.
+### Copia cifrada fuera del servidor
+
+Cada 6 horas (00:45, 06:45, 12:45 y 18:45 UTC; GitHub puede demorarlas un rato) el workflow `copia-externa.yml` saca por SSH la copia más reciente. La copia ya viene **cifrada en el servidor** con [age](https://github.com/FiloSottile/age) para las llaves públicas de `deploy/backup-recipients.txt`, y se guarda como artefacto de GitHub por **30 días**. La copia sin cifrar nunca sale del servidor, y la CI se niega a subir algo que no esté cifrado. También se puede lanzar a mano: Actions → «Copia cifrada fuera del servidor» → Run workflow.
+
+- El repo es público: cualquiera con cuenta de GitHub puede descargar los artefactos, pero sin una llave privada son bytes ilegibles. Solo se ve la fecha y el tamaño.
+- **Si se pierden todas las llaves privadas, las copias externas no se pueden abrir.** Cada uno guarda la suya en dos lugares (por ejemplo, el gestor de contraseñas y un pendrive).
+- GitHub apaga los workflows programados de un repo público después de 60 días sin commits; si eso pasa, avisa por mail y se reactiva desde Actions.
+
+**Generar una llave (una vez por persona, en Windows):**
+1. Bajar de https://github.com/FiloSottile/age/releases el archivo que termina en `windows-amd64.zip` y descomprimirlo.
+2. En PowerShell, dentro de esa carpeta: `.\age-keygen.exe -o clave-copias-distrito.txt`
+3. Muestra `Public key: age1…`: esa línea (la pública) se agrega a `deploy/backup-recipients.txt`. **El archivo `clave-copias-distrito.txt` es la llave privada: no se manda a nadie** (ni por chat) y no se sube al repo.
+
+**Recuperar desde una copia externa:**
+1. Actions → «Copia cifrada fuera del servidor» → una ejecución → Artifacts → descargar y descomprimir (queda `distrito-….dump.age`).
+2. Descifrar: `.\age.exe -d -i clave-copias-distrito.txt -o copia.dump distrito-….dump.age`
+3. Subir y restaurar: `scp copia.dump root@<ip>:/var/backups/distrito/` y luego `ssh root@<ip> distrito-restore /var/backups/distrito/copia.dump`.
+
+Si se perdió el servidor entero: crear uno nuevo, poner su IP en `deploy/target.env`, dejar que la CI despliegue (arranca con la base vacía) y hacer el paso 3 sobre el servidor nuevo.
 
 ## Riesgos conocidos
 
 - Oracle puede **recuperar instancias Always Free inactivas** y dar de baja cuentas sin uso. Conviene entrar a la consola de vez en cuando.
-- Las copias de seguridad están solo en el servidor (ver arriba): perder la máquina es perder los datos.
+- Hasta que haya al menos una llave en `deploy/backup-recipients.txt`, las copias están solo en el servidor: perder la máquina es perder los datos.
 
 ## Prueba visual de la interfaz
 

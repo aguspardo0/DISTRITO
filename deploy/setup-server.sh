@@ -32,6 +32,7 @@ fi
 need=()
 command -v psql  >/dev/null || need+=(postgresql)
 command -v caddy >/dev/null || need+=(caddy)
+command -v age   >/dev/null || need+=(age)
 dpkg -s iptables-persistent >/dev/null 2>&1 || need+=(iptables-persistent)
 if [ ${#need[@]} -gt 0 ]; then
   log "Instalando: ${need[*]}"
@@ -78,6 +79,9 @@ fi
 here="$(dirname "$0")"
 install -m 750 "$here/backup-db.sh" /usr/local/sbin/distrito-backup
 install -m 750 "$here/restore-db.sh" /usr/local/sbin/distrito-restore
+install -m 750 "$here/export-backup.sh" /usr/local/sbin/distrito-backup-export
+# Llaves públicas para la copia cifrada fuera del servidor (las saca la CI por SSH, ver docs/DEPLOY.md).
+install -m 644 "$here/backup-recipients.txt" /etc/distrito/backup-recipients.txt
 cat > /etc/systemd/system/distrito-backup.service <<EOF
 [Unit]
 Description=DISTRITO copia de seguridad de la base
