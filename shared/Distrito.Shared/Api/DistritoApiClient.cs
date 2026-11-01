@@ -147,6 +147,9 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<AdminView>> GetAdminAsync(string serverKey, Guid characterId, CancellationToken ct = default) =>
         SendAsync<AdminView>(HttpMethod.Get, $"internal/admin/{characterId}", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<EconomyActionResult>> AdminToolAsync(string serverKey, AdminToolRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/admin/tool", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<EconomyActionResult>> AdminGrantAsync(string serverKey, AdminGrantRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/admin/grant", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

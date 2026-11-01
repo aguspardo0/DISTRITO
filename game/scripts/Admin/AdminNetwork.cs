@@ -27,6 +27,8 @@ public partial class AdminNetwork : Node
     private GameNetwork _network = null!;
     private EconomyNetwork _economy = null!;
     private CombatNetwork _combat = null!;
+    private Distrito.Game.Pve.PveNetwork? _pve;
+    public void UsePve(Distrito.Game.Pve.PveNetwork pve) => _pve = pve;
 
     public event Action? StatusReceived;
     public event Action<string>? MessageReceived;
@@ -43,6 +45,7 @@ public partial class AdminNetwork : Node
     public void Grant(long cents, string itemCode, int quantity, int level) => Send(MethodName.ServerGrant, cents, itemCode, quantity, level);
     public void Teleport(int place) => Send(MethodName.ServerTeleport, place);
     public void Heal() => Send(MethodName.ServerHeal);
+    public void Tool(string tool, int amount) => Send(MethodName.ServerTool, tool, amount);
 
     private void Send(StringName method, params Variant[] args)
     {
@@ -90,6 +93,37 @@ public partial class AdminNetwork : Node
                 _combat.AdminHeal(peer);
                 SendMessage(peer, "Salud al máximo.");
             });
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerTool(string tool, int amount)
+    {
+        if (!Multiplayer.IsServer())
+            return;
+        var peer = (long)Multiplayer.GetRemoteSenderId();
+        tool ??= "";
+        if (tool.StartsWith("evento-"))
+        {
+            _ = AsAdminAsync(peer, (p, _) =>
+            {
+                var text = _pve?.ForceEvent(tool["evento-".Length..]) ?? "Los eventos no están disponibles.";
+                GD.Print($"[DISTRITO] ADMIN evento {tool}: {text}");
+                SendMessage(p, text);
+            });
+            return;
+        }
+        _ = ToolAsync(peer, tool, amount);
+    }
+
+    private async Task ToolAsync(long peer, string tool, int amount)
+    {
+        if (_network.Backend is not { } api || !_network.TryGetSession(peer, out var me))
+            return;
+        var result = await api.AdminToolAsync(_network.ServerKey, new AdminToolRequest(me.CharacterId, tool, amount, Guid.NewGuid().ToString()));
+        SendMessage(peer, result.IsSuccess ? result.Value!.Message : $"Hubo un problema: {result.Error!.Message}");
+        if (result is { IsSuccess: true, Value.Ok: true })
+            GD.Print($"[DISTRITO] ADMIN {me.CharacterName}: {result.Value.Message}");
+        _economy.RefreshPeer(peer);
     }
 
     private async Task AsAdminAsync(long peer, Action<long, Guid> action)

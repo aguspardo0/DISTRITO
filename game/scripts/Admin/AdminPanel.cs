@@ -9,6 +9,16 @@ public partial class AdminPanel : PanelContainer
 
     private AdminNetwork _admin = null!;
     private VBoxContainer _content = null!;
+    private ScrollContainer _scroll = null!;
+
+    public override void _Process(double delta)
+    {
+        if (!Visible)
+            return;
+        var height = Mathf.Min(_content.GetCombinedMinimumSize().Y, GetViewportRect().Size.Y - 200);
+        if (!Mathf.IsEqualApprox(_scroll.CustomMinimumSize.Y, height))
+            _scroll.CustomMinimumSize = new Vector2(350, height);
+    }
     private Label _message = null!;
 
     public bool IsOpen => Visible;
@@ -40,9 +50,11 @@ public partial class AdminPanel : PanelContainer
         title.AddThemeFontSizeOverride("font_size", 18);
         title.AddThemeColorOverride("font_color", Accent);
         box.AddChild(title);
-        _content = new VBoxContainer();
+        _content = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _content.AddThemeConstantOverride("separation", 6);
-        box.AddChild(_content);
+        _scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        _scroll.AddChild(_content);
+        box.AddChild(_scroll);
         _message = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(340, 0) };
         _message.AddThemeColorOverride("font_color", new Color(0.75f, 0.9f, 0.75f));
         box.AddChild(_message);
@@ -135,6 +147,42 @@ public partial class AdminPanel : PanelContainer
         var heal = new Button { Text = "Curarme (salud al máximo)" };
         heal.Pressed += _admin.Heal;
         _content.AddChild(heal);
+
+        Section("Cuadrilla");
+        var crew = new HFlowContainer();
+        foreach (var (label, amount) in new[] { ("+100 prestigio", 100), ("+500", 500), ("+1500 (rango 6)", 1500) })
+        {
+            var b = new Button { Text = label };
+            b.Pressed += () => _admin.Tool("prestigio", amount);
+            crew.AddChild(b);
+        }
+        var board = new Button { Text = "Tablero nuevo" };
+        board.Pressed += () => _admin.Tool("tablero", 1);
+        crew.AddChild(board);
+        _content.AddChild(crew);
+
+        Section("Tiempo");
+        var time = new HFlowContainer();
+        foreach (var (label, amount) in new[] { ("Adelantar 1 ciclo", 1), ("12 ciclos (1 h)", 12) })
+        {
+            var b = new Button { Text = label, TooltipText = "Corre ventas de tu negocio, alquileres y envíos como si hubiera pasado ese tiempo" };
+            b.Pressed += () => _admin.Tool("ciclos", amount);
+            time.AddChild(b);
+        }
+        var orders = new Button { Text = "Pedidos listos ya" };
+        orders.Pressed += () => _admin.Tool("pedidos", 1);
+        time.AddChild(orders);
+        _content.AddChild(time);
+
+        Section("Eventos ahora");
+        var events = new HFlowContainer();
+        foreach (var (label, code) in new[] { ("Camión de reparto", "camion"), ("Cobrador", "cobrador"), ("Contrabando", "contrabando") })
+        {
+            var b = new Button { Text = label };
+            b.Pressed += () => _admin.Tool($"evento-{code}", 1);
+            events.AddChild(b);
+        }
+        _content.AddChild(events);
     }
 
     private void Section(string text)

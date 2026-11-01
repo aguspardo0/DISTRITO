@@ -105,6 +105,9 @@ public sealed record WarehousePermissionsRequest(Guid CharacterId, WarehousePerm
 public sealed record AdminView(bool IsAdmin, List<InventoryItem> Items);
 
 /// <summary>Regalo de admin: plata (centavos), un objeto y/o fijar el nivel. Lo que venga en 0/null no se toca.</summary>
+/// <summary>Herramientas de admin para acelerar pruebas: prestigio, ciclos de negocio, pedidos listos, tablero nuevo.</summary>
+public sealed record AdminToolRequest(Guid CharacterId, string Tool, int Amount, string RequestId);
+
 public sealed record AdminGrantRequest(Guid CharacterId, long Cents, string? ItemCode, int Quantity, int? Level, string RequestId);
 
 /// <summary>Un tipo de objeto apilado en algún lugar del mundo (para dibujarlo agrupado).</summary>

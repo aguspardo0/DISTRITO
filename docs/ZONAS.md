@@ -19,4 +19,4 @@ y el servidor lo toma solo en unos minutos. Si hay un error, la corrida dice cu�
 
 ## Los Muelles (zona libre)
 `los-muelles` es la parte este del mapa (x > 30). No es territorio en disputa ni tiene locales (no hay zona segura):
-en `config/zonas.json` tiene `pvp`, `robos` y `persecuciones` en true. El nivel mínimo para pelear (3) sigue valiendo.
+en `config/zonas.json` tiene `pvp`, `robos` y `persecuciones` en true. El nivel mínimo para pelear con jugadores es 5 (protección de novato).

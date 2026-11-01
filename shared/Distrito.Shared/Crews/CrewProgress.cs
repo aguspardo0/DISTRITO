@@ -167,9 +167,9 @@ public static class MissionGenerator
     public sealed record Draft(string Kind, string Title, string Detail, string? ItemCode, string? NpcCode, int Target,
         long RewardCents, int Prestige, string PayerFamily);
 
-    public static List<Draft> Generate(Guid crewId, long slot, int rank)
+    public static List<Draft> Generate(Guid crewId, long slot, int rank, int salt = 0)
     {
-        var seed = unchecked(crewId.GetHashCode() * 397 ^ (int)slot); // estable entre procesos (HashCode.Combine no lo es)
+        var seed = unchecked((crewId.GetHashCode() * 397 ^ (int)slot) + salt * 7919); // estable entre procesos (HashCode.Combine no lo es)
         var rng = new Random(seed);
         var count = PrestigeRules.MissionSlots(rank);
         var kinds = MissionKinds.All.OrderBy(_ => rng.Next()).Take(count).ToList();

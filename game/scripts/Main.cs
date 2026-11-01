@@ -131,6 +131,7 @@ public partial class Main : Node3D
         _admin = new Distrito.Game.Admin.AdminNetwork { Name = "Admin" };
         AddChild(_admin);
         _admin.Initialize(_network, _economy, _combat);
+        _admin.UsePve(_pve);
 
         _map = new Distrito.Game.Map.MapNetwork { Name = "Map" };
         AddChild(_map);

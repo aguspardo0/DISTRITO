@@ -96,6 +96,9 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Sede en los galpones de Los Muelles ($250 + $2/ciclo; zona segura adentro; depósito 500 kg; reaparición)
 - [x] Prestigio de cuadrilla con 10 rangos y beneficios; misiones generadas cada 3 h (7 tipos), tablero con J
 - [x] Casino «El Trébol»: ruleta, blackjack y dados ($1–$50, VIP hasta $200 desde rango 6). Ver `docs/CUADRILLAS-SEDE.md`
+- [x] Protección de novato: el PvP (atacar, ser atacado, forzar vehículos) se desbloquea en nivel 5; antes, todo es contra NPC
+- [x] Admin: prestigio de cuadrilla, tablero nuevo, adelantar ciclos, pedidos listos y sacar eventos PvE al instante
+- [x] Arreglo: la rueda del mouse ya no esconde el cursor dentro de las ventanas
 - [ ] Árbol de habilidades con pantalla propia (siguiente)
 
 ### Eventos PvE (pedido del equipo, 2026-11-01)

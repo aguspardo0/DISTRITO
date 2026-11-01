@@ -190,6 +190,12 @@ public sealed partial class EconomyService
             var v = await VehicleAsync(c, tx, r.VehicleId, true, ct) ?? throw new EconomyRejected("not_found", "Ese vehículo no existe.");
             if (await CanUseVehicleAsync(c, tx, v, r.CharacterId, ct))
                 throw new EconomyRejected("own_vehicle", "Es tuyo o de tu cuadrilla: descargalo desde el inventario.");
+            // Protección de novato: hasta nivel 5 no se fuerzan vehículos ni te fuerzan el tuyo (los de cuadrilla, sí).
+            var pvpLevel = PvpUnlock.Level;
+            if ((await LoadProgressAsync(c, tx, r.CharacterId, ct)).Level < pvpLevel)
+                throw new EconomyRejected("newbie", $"Hasta el nivel {pvpLevel} tenés protección de novato: no podés robarle a jugadores.");
+            if (v.OwnerCharacter is { } owner && (await LoadProgressAsync(c, tx, owner, ct)).Level < pvpLevel)
+                throw new EconomyRejected("newbie_owner", "El dueño tiene protección de novato: su vehículo no se puede forzar.");
             var ground = await AccountIdByCodeAsync(c, tx, GroundAccount, ct);
             await LockAccountsAsync(c, tx, ct, v.Account, ground);
             var location = Vehicles.Location(v.Id);

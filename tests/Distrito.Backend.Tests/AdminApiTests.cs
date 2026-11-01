@@ -45,3 +45,39 @@ public class AdminApiTests
         Assert.Equal("invalid_request", (await api.AdminGrantAsync(Key, new AdminGrantRequest(admin, 0, null, 0, 99, Guid.NewGuid().ToString()))).Value!.ErrorCode);
     }
 }
+
+[Trait("Category", "Database")]
+public class AdminToolApiTests
+{
+    private const string Key = TestBackend.ServerKey;
+
+    [Fact]
+    public async Task Prestigio_y_tablero_nuevo_solo_para_admin()
+    {
+        var user = TestBackend.UniqueUser("at");
+        await using var factory = TestBackend.Create(settings: new Dictionary<string, string> { ["Admin:Accounts"] = user });
+        var api = TestBackend.Api(factory);
+        await api.RegisterAsync(user, "contraseña-larga-1");
+        var token = (await api.LoginAsync(user, "contraseña-larga-1")).Value!.Token;
+        var me = (await api.CreateCharacterAsync(token, TestBackend.UniqueCharacterName())).Value!.Id;
+        await api.CreateCrewAsync(Key, new Distrito.Shared.Crews.CreateCrewRequest(me, "Admin " + Guid.NewGuid().ToString("N")[..10]));
+
+        var before = (await api.GetCrewBoardAsync(Key, me)).Value!;
+        var fame = (await api.AdminToolAsync(Key, new AdminToolRequest(me, "prestigio", 1500, Guid.NewGuid().ToString()))).Value!;
+        Assert.True(fame.Ok, fame.Message);
+        var after = (await api.GetCrewBoardAsync(Key, me)).Value!;
+        Assert.Equal(6, after.Rank);
+
+        Assert.True((await api.AdminToolAsync(Key, new AdminToolRequest(me, "tablero", 1, Guid.NewGuid().ToString()))).Value!.Ok);
+        var rerolled = (await api.GetCrewBoardAsync(Key, me)).Value!;
+        Assert.DoesNotContain(rerolled.Missions, m => before.Missions.Any(b => b.Id == m.Id));
+        Assert.True((await api.AdminToolAsync(Key, new AdminToolRequest(me, "ciclos", 1, Guid.NewGuid().ToString()))).Value!.Ok);
+
+        // Alguien que no es admin no puede.
+        var other = TestBackend.UniqueUser("no");
+        await api.RegisterAsync(other, "contraseña-larga-1");
+        var t2 = (await api.LoginAsync(other, "contraseña-larga-1")).Value!.Token;
+        var nobody = (await api.CreateCharacterAsync(t2, TestBackend.UniqueCharacterName())).Value!.Id;
+        Assert.Equal("not_admin", (await api.AdminToolAsync(Key, new AdminToolRequest(nobody, "prestigio", 100, Guid.NewGuid().ToString()))).Value!.ErrorCode);
+    }
+}

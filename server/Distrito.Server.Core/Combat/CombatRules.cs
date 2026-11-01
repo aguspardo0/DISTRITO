@@ -37,7 +37,11 @@ public static class CombatRules
     public const float ReviveRange = 1.6f;
     public const int ReviveHealth = 30;
     public const float SafeRadius = 5f;
-    public const int MinLevel = 3;
+    /// <summary>
+    /// Protección de novato (decisión del equipo 2026-11-01): hasta el nivel 5 el juego es contra NPC (contratos, negocios,
+    /// asaltos a NPC); recién ahí se desbloquea el PvP: atacar, ser atacado y que te fuercen el vehículo.
+    /// </summary>
+    public const int MinLevel = Distrito.Shared.Economy.PvpUnlock.Level;
     public const int DisputeInfluence = 10;
 
     /// <summary>Cono de golpe: el objetivo tiene que estar adelante (±50°).</summary>
@@ -94,9 +98,9 @@ public static class CombatRules
         if (!local)
         {
             if (attackerLevel < MinLevel)
-                return $"Hasta el nivel {MinLevel} no podés pelear.";
+                return $"Hasta el nivel {MinLevel} tenés protección de novato: no podés pelear con jugadores (sí asaltar NPC).";
             if (targetLevel < MinLevel)
-                return $"No se puede atacar a alguien de nivel menor a {MinLevel}.";
+                return $"Tiene protección de novato (nivel menor a {MinLevel}): no se lo puede atacar.";
         }
         if (!at.Pvp || !to.Pvp)
             return $"{TerritoryRules.NameOf(ZoneAt(target))} está tranquila: solo se pelea en zonas en disputa, en eventos o en guerra.";

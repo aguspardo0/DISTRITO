@@ -66,7 +66,13 @@ public sealed partial class EconomyService
         }
         var (prestige, rank) = await PrestigeAsync(c, tx, seat.CrewId, ct);
         var shed = await ShedOfAsync(c, tx, seat.CrewId, ct);
-        var drafts = MissionGenerator.Generate(seat.CrewId, slot, rank);
+        int salt;
+        await using (var s = new NpgsqlCommand("SELECT mission_salt FROM distrito.crews WHERE id = @c", c, tx))
+        {
+            s.Parameters.AddWithValue("c", seat.CrewId);
+            salt = (int)(await s.ExecuteScalarAsync(ct) ?? 0);
+        }
+        var drafts = MissionGenerator.Generate(seat.CrewId, slot, rank, salt);
         for (var i = 0; i < drafts.Count; i++)
         {
             var d = drafts[i];

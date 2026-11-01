@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Distrito.Shared.Crews;
 using Distrito.Shared.Economy;
 using Distrito.Shared.Progression;
 using Npgsql;
@@ -60,6 +61,90 @@ public sealed partial class EconomyService
             while (await r.ReadAsync(ct)) items.Add(new InventoryItem(r.GetString(0), r.GetString(1), 0));
         await tx.CommitAsync(ct);
         return new AdminView(true, items);
+    }
+
+    /// <summary>
+    /// Herramientas para probar sin esperar: prestigio a la cuadrilla, adelantar ciclos de negocio (ventas, alquiler del
+    /// depósito, envíos), dejar listos los pedidos propios y rehacer el tablero de misiones.
+    /// </summary>
+    public async Task<EconomyActionResult> AdminToolAsync(AdminToolRequest r, CancellationToken ct)
+    {
+        await using (var check = await db.OpenConnectionAsync(ct))
+        await using (var tx0 = await check.BeginTransactionAsync(ct))
+        {
+            if (!await IsAdminAsync(check, tx0, r.CharacterId, ct))
+                return await FailAsync(r.CharacterId, "not_admin", "Esa cuenta no es de administración.", ct);
+            await tx0.CommitAsync(ct);
+        }
+        var amount = Math.Clamp(r.Amount, 1, 1000);
+        switch (r.Tool)
+        {
+            case "ciclos":
+            {
+                // Adelantar ciclos: se corren como si ya hubieran pasado (ventas del negocio propio, alquileres, envíos).
+                var target = CurrentCycle() + amount;
+                var sold = await RunBusinessCyclesAsync(target, ct, r.CharacterId);
+                await RunWarehouseRentAsync(target, ct);
+                await DeliverSupplierOrdersAsync(target, ct);
+                return await AdminDoneAsync(r, $"Admin: adelantados {amount} ciclos (vendiste {sold} en tu negocio; alquileres y envíos al día).", ct);
+            }
+            case "pedidos":
+            {
+                await using var c = await db.OpenConnectionAsync(ct);
+                await using var cmd = new NpgsqlCommand("""
+                    UPDATE distrito.supplier_orders SET ready_cycle = @cycle, deliver_cycle = @cycle WHERE character_id = @c AND status = 'preparando'
+                    """, c);
+                cmd.Parameters.AddWithValue("cycle", CurrentCycle());
+                cmd.Parameters.AddWithValue("c", r.CharacterId);
+                var n = await cmd.ExecuteNonQueryAsync(ct);
+                await DeliverSupplierOrdersAsync(CurrentCycle(), ct);
+                return await AdminDoneAsync(r, $"Admin: {n} pedidos listos (los envíos ya llegaron).", ct);
+            }
+        }
+        return await RunAsync(r.CharacterId, r.RequestId, ct, async (c, tx) =>
+        {
+            var seat = await CrewSeatAsync(c, tx, r.CharacterId, ct) ?? throw new EconomyRejected("not_in_crew", "No estás en una cuadrilla.");
+            switch (r.Tool)
+            {
+                case "prestigio":
+                {
+                    await using var up = new NpgsqlCommand("UPDATE distrito.crews SET prestige = prestige + @p WHERE id = @c RETURNING prestige", c, tx);
+                    up.Parameters.AddWithValue("p", amount);
+                    up.Parameters.AddWithValue("c", seat.CrewId);
+                    var prestige = (int)(await up.ExecuteScalarAsync(ct))!;
+                    var rank = PrestigeRules.RankFor(prestige);
+                    await using var grow = new NpgsqlCommand("UPDATE distrito.warehouses SET capacity_kg = GREATEST(capacity_kg, @kg) WHERE crew_id = @c AND place = 'sede'", c, tx);
+                    grow.Parameters.AddWithValue("kg", CrewBaseRules.DepotKg + PrestigeRules.ExtraDepotKg(rank));
+                    grow.Parameters.AddWithValue("c", seat.CrewId);
+                    await grow.ExecuteNonQueryAsync(ct);
+                    await NewLedgerTransactionAsync(c, tx, r.RequestId, "admin_tool", "Admin: prestigio", ct);
+                    return $"Admin: «{seat.CrewName}» tiene {prestige} de prestigio (rango {rank}).";
+                }
+                case "tablero":
+                {
+                    await using var reroll = new NpgsqlCommand("""
+                        DELETE FROM distrito.crew_missions WHERE crew_id = @c AND slot = @slot;
+                        UPDATE distrito.crews SET mission_salt = mission_salt + 1 WHERE id = @c;
+                        """, c, tx);
+                    reroll.Parameters.AddWithValue("c", seat.CrewId);
+                    reroll.Parameters.AddWithValue("slot", MissionGenerator.SlotOf(clock.GetUtcNow()));
+                    await reroll.ExecuteNonQueryAsync(ct);
+                    await NewLedgerTransactionAsync(c, tx, r.RequestId, "admin_tool", "Admin: tablero nuevo", ct);
+                    return "Admin: tablero de misiones nuevo (abrí el tablero con J).";
+                }
+                default:
+                    throw new EconomyRejected("unknown_tool", "Herramienta desconocida.");
+            }
+        });
+    }
+
+    private async Task<EconomyActionResult> AdminDoneAsync(AdminToolRequest r, string message, CancellationToken ct)
+    {
+        await using var c = await db.OpenConnectionAsync(ct);
+        await using var tx = await c.BeginTransactionAsync(ct);
+        var snapshot = await LoadSnapshotAsync(c, tx, r.CharacterId, ct);
+        await tx.CommitAsync(ct);
+        return new EconomyActionResult(true, null, message, snapshot);
     }
 
     public Task<EconomyActionResult> AdminGrantAsync(AdminGrantRequest r, CancellationToken ct) =>

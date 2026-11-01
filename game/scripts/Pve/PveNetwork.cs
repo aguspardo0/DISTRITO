@@ -88,6 +88,31 @@ public partial class PveNetwork : Node
         };
     }
 
+    /// <summary>Panel de administración: sacar un evento ahora (camion, cobrador o contrabando). Devuelve qué pasó.</summary>
+    public string ForceEvent(string kind)
+    {
+        if (_rules is null)
+            return "Todavía no llegaron las reglas de eventos (config/eventos-pve.json) desde el backend.";
+        var tag = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        switch (kind)
+        {
+            case "camion" when _rules.Truck is { } t:
+                if (_actors.Values.Any(a => a.Kind == Kind.Truck)) return "Ya hay un camión en la calle.";
+                _ = StartTruckAsync(t, -tag);
+                return "Sale el camión de reparto.";
+            case "cobrador" when _rules.Collector is { } c:
+                if (_actors.Values.Any(a => a.Kind == Kind.Collector)) return "El cobrador ya está haciendo la ronda.";
+                StartCollector(c, -tag);
+                return "Sale el cobrador de Valenti.";
+            case "contrabando" when _rules.Contraband is { } k:
+                if (_contrabandEvent is not null) return "Ya hay contrabando en Los Muelles.";
+                StartContraband(k, $"admin:{tag}");
+                return "Llegó el contrabando a Los Muelles.";
+            default:
+                return "Ese evento no está configurado.";
+        }
+    }
+
     // ================= Servidor =================
 
     public override void _PhysicsProcess(double delta)

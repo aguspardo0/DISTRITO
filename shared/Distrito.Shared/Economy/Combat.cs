@@ -16,3 +16,9 @@ public sealed record PickupRequest(Guid CharacterId, Guid DropId, string Request
 
 /// <summary>Lo que quedó tirado (vacío si el herido no llevaba nada).</summary>
 public sealed record DropView(Guid DropId, List<InventoryItem> Items, double X = 0, double Y = 0, double Z = 0, DateTimeOffset? ExpiresAt = null);
+
+/// <summary>Protección de novato (decisión del equipo 2026-11-01): el PvP se desbloquea en este nivel.</summary>
+public static class PvpUnlock
+{
+    public const int Level = 5;
+}

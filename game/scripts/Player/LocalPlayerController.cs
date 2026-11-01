@@ -88,8 +88,10 @@ public partial class LocalPlayerController : Node
         {
             Punch?.Invoke(); // clic con el mouse capturado = piña
         }
-        else if (@event is InputEventMouseButton { Pressed: true } && !IsHeadless)
+        else if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left or MouseButton.Right } && !IsHeadless && !AnyWindowOpen())
         {
+            // Un clic en el juego (no en una ventana) vuelve a tomar el mouse. La rueda nunca: antes, girar la rueda
+            // dentro de una ventana escondía el cursor.
             Input.MouseMode = Input.MouseModeEnum.Captured;
         }
         else if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.F } && Input.MouseMode == Input.MouseModeEnum.Captured)
@@ -104,6 +106,14 @@ public partial class LocalPlayerController : Node
         {
             WeaponKey?.Invoke((int)(key.PhysicalKeycode - Key.Key1) + 1);
         }
+    }
+
+    /// <summary>¿Hay alguna ventana (panel, diálogo, menú) abierta? Mientras haya, el cursor queda libre.</summary>
+    private bool AnyWindowOpen()
+    {
+        if (GetTree().CurrentScene?.GetNodeOrNull("Hud") is not { } hud)
+            return false;
+        return hud.FindChildren("*", "PanelContainer", recursive: true, owned: false).OfType<Control>().Any(c => c.IsVisibleInTree());
     }
 
     public override void _Process(double delta)
