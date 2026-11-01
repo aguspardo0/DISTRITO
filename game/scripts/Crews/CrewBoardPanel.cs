@@ -113,6 +113,8 @@ public partial class CrewBoardPanel : PanelContainer
         if (!board.InCrew)
         {
             _left.AddChild(Text("No estás en ninguna cuadrilla. Formá una con C.", Muted));
+            if (board.Families is { } outside)
+                AddFamilies(outside);
             return;
         }
 
@@ -153,6 +155,9 @@ public partial class CrewBoardPanel : PanelContainer
             else if (here is { } taken && board.TakenSheds.Contains(taken))
                 _left.AddChild(Text("Este galpón ya es sede de otra cuadrilla.", Muted));
         }
+
+        if (board.Families is { } families)
+            AddFamilies(families);
 
         // ---- Operación del día ----
         if (board.Operation is { } op)
@@ -234,5 +239,38 @@ public partial class CrewBoardPanel : PanelContainer
         }
         _right.AddChild(card);
         _right.AddChild(new HSeparator());
+    }
+
+    /// <summary>Familias de jugadores: cuántas hay de las 5 posibles, si se pueden fundar y qué le falta a tu cuadrilla.</summary>
+    private void AddFamilies(PlayerFamiliesView f)
+    {
+        _left.AddChild(new HSeparator());
+        _left.AddChild(Text($"Familias de jugadores: {f.Families.Count} de {f.Max}", Gold));
+        foreach (var family in f.Families)
+            _left.AddChild(Text($"«{family.Name}» — Don {family.DonName} · {string.Join(", ", family.Subfactions)}", Muted));
+        if (f.MyFamily is { } mine)
+        {
+            _left.AddChild(Text($"Tu cuadrilla es una subfacción de «{mine}».", Good));
+            return;
+        }
+        if (!f.FoundingEnabled)
+        {
+            _left.AddChild(Text("Todavía no se pueden fundar. Van a ser pocas (como mucho cinco): estar en una va a valer.", Muted));
+            _left.AddChild(Text($"Para fundar una hará falta: prestigio de rango {PlayerFamilyRules.CrewRank}, el jefe nivel {PlayerFamilyRules.DonLevel} "
+                                + $"y {EconomyCatalog.FormatMoney(PlayerFamilyRules.CostCents)} de la caja.", Muted));
+            return;
+        }
+        if (f.Full)
+            _left.AddChild(Text("Ya están las cinco. No entra ninguna más.", Muted));
+        else if (f.Missing.Count > 0)
+            _left.AddChild(Text($"Para fundar una falta: {string.Join(", ", f.Missing)}.", Muted));
+        else
+        {
+            var name = new LineEdit { PlaceholderText = "Nombre de la familia", MaxLength = 30, CustomMinimumSize = new Vector2(240, 0) };
+            _left.AddChild(name);
+            var found = new Button { Text = $"Fundar la familia ({EconomyCatalog.FormatMoney(PlayerFamilyRules.CostCents)} de la caja)" };
+            found.Pressed += () => _bases.FoundFamily(name.Text);
+            _left.AddChild(found);
+        }
     }
 }

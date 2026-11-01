@@ -64,6 +64,23 @@ public partial class BaseNetwork : Node
     public void BuyBase(int shed) => Send(MethodName.ServerBuyBase, shed);
     public void TurnIn(Guid mission) => Send(MethodName.ServerTurnIn, mission.ToString());
     public void StartOperation() => Send(MethodName.ServerStartOperation);
+    public void FoundFamily(string name) => Send(MethodName.ServerFoundFamily, name);
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerFoundFamily(string name)
+    {
+        if (Multiplayer.IsServer())
+            _ = GuardAsync(Multiplayer.GetRemoteSenderId(), async peer =>
+            {
+                if (_network.Backend is not { } api || !_network.TryGetSession(peer, out var me))
+                    return;
+                var result = await api.FoundFamilyAsync(_network.ServerKey, new FoundFamilyRequest(me.CharacterId, name, Guid.NewGuid().ToString()));
+                SendMessage(peer, result.IsSuccess ? result.Value!.Message : $"Hubo un problema: {result.Error!.Message}");
+                if (result is { IsSuccess: true, Value.Ok: true })
+                    _combat.NotifyAll(result.Value.Message);
+                await SendBoardAsync(peer);
+            });
+    }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerStartOperation()
@@ -326,7 +343,8 @@ public partial class BaseNetwork : Node
                     new("El asalto", CrewOperations.Templates[1].Stages[2].Detail, false, false),
                 ],
                 new(Guid.NewGuid(), MissionKinds.Gather, "La ruta del camión (2/3): La coartada", "Junten 8 cajones.", "cajon-bebidas", null, 8, 0, 0, 0, "abierta", end, "caruso"),
-                end, CrewOperations.MinMembers));
+                end, CrewOperations.MinMembers),
+            new PlayerFamiliesView(false, PlayerFamilyRules.HardMax, [], null, ["prestigio de rango 5 (tienen rango 3)"]));
         BoardReceived?.Invoke();
     }
 }

@@ -77,7 +77,8 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Coaliciones entre cuadrillas: hasta 3, territorio sumado al 75 %, cobranzas con aliados, 24 h de espera al salir
 - [x] Eventos de distrito programados y editables (`config/eventos.json`, ver `docs/EVENTOS.md`)
 - [x] Votaciones en la cuadrilla (cambiar de jefe, pagar de la caja) y acuerdos de temporada con las familias
-- [ ] Subfacciones (cuando haya familias de jugadores)
+- [x] Familias de jugadores y subfacciones: preparadas, con un máximo de 5 en el servidor y **la fundación cerrada por ahora** (decisión del equipo, 2026-11-01; se abre en `config/familias.json`). Ver `docs/FAMILIAS-JUGADORES.md`
+- [ ] Abrir la fundación de familias y sumar subfacciones, lealtad a una familia NPC y permisos por rango (cuando el equipo lo decida)
 - [x] PvP regulado a piñas: zonas en disputa y eventos, zona segura cerca de los locales, nivel 3+, herido 10 s, mercadería al suelo
 - [x] Correr (Shift)
 - [x] Guerras declaradas entre cuadrillas: empiezan a los 10 min, duran 24 h, PvP en todo el barrio entre las dos salvo zonas seguras

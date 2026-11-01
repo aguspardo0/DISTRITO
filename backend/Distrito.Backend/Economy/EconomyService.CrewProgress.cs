@@ -61,8 +61,9 @@ public sealed partial class EconomyService
         var seat = await CrewSeatAsync(c, tx, characterId, ct);
         if (seat is null)
         {
+            var outside = await PlayerFamiliesAsync(c, tx, characterId, ct);
             await tx.CommitAsync(ct);
-            return new CrewBoardView(false, null, 0, 1, PrestigeRules.ForRank(2), null, 0, [], taken, false, MissionGenerator.SlotEnd(slot));
+            return new CrewBoardView(false, null, 0, 1, PrestigeRules.ForRank(2), null, 0, [], taken, false, MissionGenerator.SlotEnd(slot), Families: outside);
         }
         var (prestige, rank) = await PrestigeAsync(c, tx, seat.CrewId, ct);
         var shed = await ShedOfAsync(c, tx, seat.CrewId, ct);
@@ -105,9 +106,10 @@ public sealed partial class EconomyService
             debt = await w.ExecuteScalarAsync(ct) is long d0 ? d0 : 0;
         }
         var operation = await OperationViewAsync(c, tx, seat.CrewId, rank, ct);
+        var families = await PlayerFamiliesAsync(c, tx, characterId, ct);
         await tx.CommitAsync(ct);
         return new CrewBoardView(true, seat.CrewName, prestige, rank, PrestigeRules.ForRank(Math.Min(rank + 1, PrestigeRules.MaxRank)),
-            shed, debt, missions, taken, seat.Role == "leader", MissionGenerator.SlotEnd(slot), operation);
+            shed, debt, missions, taken, seat.Role == "leader", MissionGenerator.SlotEnd(slot), operation, families);
     }
 
     private static async Task<List<CrewMissionView>> MissionsAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid crewId, long slot, CancellationToken ct)

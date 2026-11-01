@@ -131,7 +131,8 @@ public sealed record CrewMissionView(
 public sealed record CrewBoardView(
     bool InCrew, string? CrewName, int Prestige, int Rank, int NextRankAt, int? Shed, long BaseDebtCents,
     List<CrewMissionView> Missions, List<int> TakenSheds, bool IsLeader, DateTimeOffset NextRefresh,
-    CrewOperationView? Operation = null);
+    CrewOperationView? Operation = null,
+    PlayerFamiliesView? Families = null);
 
 /// <summary>Una etapa de la operación del día, para mostrar (la actual trae su misión para cumplirla).</summary>
 public sealed record CrewOperationStageView(string Title, string Detail, bool Done, bool Current);

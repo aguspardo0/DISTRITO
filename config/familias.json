@@ -1,0 +1,7 @@
+{
+  // Familias de jugadores (decisión del equipo, 2026-11-01): van a ser pocas, para que estar en una tenga valor.
+  // Máximo 5 en todo el servidor. Por ahora NO se pueden fundar: cuando el equipo lo decida, poner "fundacionHabilitada": true.
+  // Se puede cambiar en el servidor sin tocar código con la variable de entorno Families__FoundingEnabled=true.
+  "fundacionHabilitada": false,
+  "maximo": 5
+}
