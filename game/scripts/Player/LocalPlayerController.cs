@@ -28,6 +28,13 @@ public partial class LocalPlayerController : Node
     private const float CameraHeight = 1.6f;
 
     private PlayerCharacter _player = null!;
+    /// <summary>Gira la cámara para mirar hacia un ángulo (radianes; 0 = hacia −Z). Lo usan las capturas de prueba.</summary>
+    public void LookToward(float yaw)
+    {
+        if (_yaw is not null)
+            _yaw.GlobalRotation = new Vector3(0, yaw, 0);
+    }
+
     private Node3D _yaw = null!;
     private Node3D _pitch = null!;
     private double _botClock;

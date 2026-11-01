@@ -601,6 +601,10 @@ public partial class Main : Node3D
                     _pve.Preview(new Vector3(40f, 0, 6f));
                 }
             }),
+            // Barrios de las familias: parado en el bulevar, mirando hacia la plaza y el cuartel.
+            ("barrio-moretti", () => ShowBarrio(Distrito.Server.Core.World.CityLayout.Moretti)),
+            ("barrio-valenti", () => ShowBarrio(Distrito.Server.Core.World.CityLayout.Valenti)),
+            ("barrio-caruso", () => ShowBarrio(Distrito.Server.Core.World.CityLayout.Caruso)),
             ("tablero", () => { _boardPanel?.Toggle(); _bases.Preview(); }),
             ("casino", () => { _boardPanel?.Toggle(); _casinoPanel?.Open(); _casinoPanel?.Preview(); }),
             ("habilidades", () =>
@@ -617,6 +621,16 @@ public partial class Main : Node3D
             ("admin", () => { _skillPanel?.Toggle(); if (_skillPanel is not null) _skillPanel.PreviewData = null; _adminPanel?.Toggle(); _admin.Preview(); }),
             ("opciones", () => { _adminPanel?.Toggle(); _pause?.Open(); }),
         ]);
+    }
+
+    private void ShowBarrio(Distrito.Server.Core.World.BarrioPlan b)
+    {
+        if (_network.LocalPlayer is not { } me)
+            return;
+        var spot = b.ToWorld(28, 3);
+        me.GlobalPosition = new Vector3(spot.X, 0.2f, spot.Y);
+        // Mirar hacia adentro del barrio: con yaw 0 se mira a −Z.
+        me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Atan2(-b.Inward.X, -b.Inward.Y));
     }
 
     /// <summary>Salir de la partida sin cerrar el juego: se guarda (el servidor guarda al desconectar) y vuelve al menú.</summary>
