@@ -212,20 +212,16 @@ public static class NpcInteractionRules
         if (offers.Count == 0)
             return;
         var full = s.ActiveEncargos.Count() >= EncargoRules.MaxActive;
-        text += "
-
-Trabajo:";
+        text += "\n\nTrabajo:";
         foreach (var e in offers)
         {
-            text += $"
-• {e.Title}: {e.Detail}";
+            text += $"\n• {e.Title}: {e.Detail}";
             if (!full)
                 options.Add(new NpcOption($"encargo:aceptar:{e.Id}",
                     $"Tomar «{e.Title}» — {EconomyCatalog.FormatMoney(e.RewardCents)}, +{e.Xp} XP, +{e.Reputation} de reputación"));
         }
         if (full)
-            text += $"
-(Ya tenés {EncargoRules.MaxActive} encargos en curso: terminá o abandoná uno en la libreta, tecla L.)";
+            text += $"\n(Ya tenés {EncargoRules.MaxActive} encargos en curso: terminá o abandoná uno en la libreta, tecla L.)";
     }
 
     /// <summary>La gente de la familia: su saludo y cuánto falta para que el capo te reciba.</summary>

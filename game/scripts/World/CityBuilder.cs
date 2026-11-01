@@ -92,8 +92,8 @@ public static class CityBuilder
         node.AddChild(new Label3D
         {
             Name = "WelcomeSign", Text = $"{area.Name.ToUpperInvariant()}\n{b.Motto}",
-            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, FontSize = 64, OutlineSize = 12,
-            Modulate = accent.Lightened(0.2f), Position = new Vector3(gate.X, 4.6f, gate.Y),
+            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, FontSize = 64, OutlineSize = 12, PixelSize = 0.01f,
+            Modulate = accent.Lightened(0.2f), Position = new Vector3(gate.X, 6.8f, gate.Y),
         });
         // Arco de entrada: dos columnas y un dintel del color de la familia.
         foreach (var side in new[] { -6.5f, 6.5f })
@@ -111,8 +111,8 @@ public static class CityBuilder
         city.AddChild(new Label3D
         {
             Name = $"Signpost_{area.Code}", Text = $"→ {area.Name}\n{b.Boss}",
-            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, FontSize = 48, OutlineSize = 10,
-            Modulate = accent.Lightened(0.3f), Position = new Vector3(sign.X, 3.4f, sign.Y),
+            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, FontSize = 48, OutlineSize = 10, PixelSize = 0.009f,
+            Modulate = accent.Lightened(0.3f), Position = new Vector3(sign.X, 3.6f, sign.Y),
         });
     }
 
@@ -146,7 +146,7 @@ public static class CityBuilder
         }
         door.AddChild(new Label3D
         {
-            Text = b.Title, FontSize = 110, OutlineSize = 14, Modulate = accent.Lightened(0.35f),
+            Text = b.Title, FontSize = 110, OutlineSize = 14, Modulate = accent.Lightened(0.35f), PixelSize = 0.014f,
             Position = new Vector3(0, hq.Height - 2.2f, 0.12f),
         });
     }

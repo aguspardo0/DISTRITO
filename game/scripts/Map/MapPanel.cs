@@ -84,7 +84,9 @@ public partial class MapPanel : Control
         {
             var rect = AreaRect(b.Area);
             DrawRect(rect, Accent(b) with { A = 0.75f }, filled: false, width: 2);
-            Plate(font, rect.Position + new Vector2(4, 4), b.Area.Name.ToUpperInvariant(), 13, Accent(b).Lightened(0.3f));
+            // El nombre va del lado opuesto a la entrada (donde está la gente de la familia).
+            var corner = b.Inward.Y > 0 ? new Vector2(rect.Position.X + 4, rect.End.Y - 23) : rect.Position + new Vector2(4, 4);
+            Plate(font, corner, b.Area.Name.ToUpperInvariant(), 13, Accent(b).Lightened(0.3f));
         }
         Plate(font, ToMap(CityLayout.Market.MinX, CityLayout.Market.MaxZ) + new Vector2(2, -17), "EL MERCADO", 11, Brass);
         Plate(font, ToMap(CityLayout.Docks.MinX, CityLayout.Docks.MaxZ) + new Vector2(2, -17), "LOS MUELLES", 11, new Color(0.95f, 0.55f, 0.4f));
