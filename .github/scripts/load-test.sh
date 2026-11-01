@@ -36,7 +36,7 @@ PORT=7803
 srv=$!
 sleep 4
 client walls-a.log $PORT --bot-goto -14,-14 --test-seconds 20 --expect-players 2 & a=$!
-client walls-b.log $PORT --bot-goto 45,0 --test-seconds 20 --expect-players 2 & b=$!
+client walls-b.log $PORT --bot-goto 100,0 --test-seconds 25 --expect-players 2 & b=$!
 wait $a; wait $b
 kill $srv 2>/dev/null; wait $srv 2>/dev/null
 pos_of() { grep -h NET_TEST_ "$1" | tail -1 | grep -o ' pos=[-0-9.,]*' | cut -d= -f2; }
@@ -44,8 +44,8 @@ pa=$(pos_of walls-a.log); pb=$(pos_of walls-b.log)
 if grep -q NET_TEST_OK walls-a.log && echo "$pa" | awk -F, '{ dx=$1+14; dz=$2+14; if (dx<0) dx=-dx; if (dz<0) dz=-dz; exit !(dx > 4.2 || dz > 4.2) }'; then
   note "Colisión con edificio" "el bot quedó afuera, en ${pa}"
 else error "Colisión con edificio" "posición final ${pa:-?}: atravesó el edificio o falló ($(grep -h NET_TEST_ walls-a.log | tail -1))"; fi
-if grep -q NET_TEST_OK walls-b.log && echo "$pb" | awk -F, '{ x=$1; if (x<0) x=-x; exit !(x <= 30) }'; then
-  note "Borde del barrio" "el bot no pudo salir del mapa: quedó en ${pb}"
+if grep -q NET_TEST_OK walls-b.log && echo "$pb" | awk -F, '{ x=$1; if (x<0) x=-x; exit !(x <= 84.2) }'; then
+  note "Borde del barrio" "el bot llegó al muelle y no pudo salir del mapa: quedó en ${pb}"
 else error "Borde del barrio" "posición final ${pb:-?} ($(grep -h NET_TEST_ walls-b.log | tail -1 | cut -c1-200))"; fi
 
 # ---------- 1c. PvP a piñas (partida sin cuentas: vale todo salvo cerca de los locales) ----------

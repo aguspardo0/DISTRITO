@@ -9,8 +9,8 @@ namespace Distrito.Game.Map;
 public partial class MapPanel : Control
 {
     private const float WidthPx = 600f;
-    private static readonly float Scale = WidthPx / (MapPresence.MaxX - MapPresence.MinX);
-    private static readonly float HeightPx = Scale * (MapPresence.MaxZ - MapPresence.MinZ);
+    private static readonly float MapScale = WidthPx / (MapPresence.MaxX - MapPresence.MinX);
+    private static readonly float HeightPx = MapScale * (MapPresence.MaxZ - MapPresence.MinZ);
     private static readonly Color FreeZone = new(0.55f, 0.18f, 0.14f, 0.35f);
     private static readonly Color Paper = new(0.12f, 0.11f, 0.1f, 0.98f);
     private static readonly Color Building = new(0.32f, 0.29f, 0.25f);
@@ -51,7 +51,7 @@ public partial class MapPanel : Control
     }
 
     private static Vector2 ToMap(float x, float z) =>
-        new((x - MapPresence.MinX) * Scale, 24 + (z - MapPresence.MinZ) * Scale);
+        new((x - MapPresence.MinX) * MapScale, 24 + (z - MapPresence.MinZ) * MapScale);
 
     public override void _Draw()
     {
@@ -59,7 +59,7 @@ public partial class MapPanel : Control
         DrawRect(new Rect2(0, 0, WidthPx, HeightPx + 48), Paper);
         // Los Muelles: zona libre, sombreada en rojo.
         var docksCorner = ToMap(MapPresence.DocksStartX, MapPresence.MinZ);
-        DrawRect(new Rect2(docksCorner, new Vector2((MapPresence.MaxX - MapPresence.DocksStartX) * Scale, HeightPx)), FreeZone);
+        DrawRect(new Rect2(docksCorner, new Vector2((MapPresence.MaxX - MapPresence.DocksStartX) * MapScale, HeightPx)), FreeZone);
         DrawString(font, docksCorner + new Vector2(6, HeightPx - 8), "LOS MUELLES — zona libre (PvP sin protección)",
             HorizontalAlignment.Left, -1, 12, new Color(0.95f, 0.55f, 0.4f));
         if (Economy?.Invoke()?.Families is { } families)
@@ -71,7 +71,7 @@ public partial class MapPanel : Control
         DrawString(font, new Vector2(8, 17), $"BELLMONT — {_map.Markers.Count} conectado(s) · [M] cerrar",
             HorizontalAlignment.Left, -1, 14, Brass);
 
-        var scale = Scale;
+        var scale = MapScale;
         foreach (var b in MapPresence.Buildings)
         {
             var corner = ToMap(b.X - b.Width / 2, b.Z - b.Depth / 2);
