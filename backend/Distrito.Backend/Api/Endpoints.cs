@@ -68,6 +68,8 @@ public static class Endpoints
         internalApi.MapPost("/supplier/order", (SupplierOrderRequest r, EconomyService e, CancellationToken ct) => e.PlaceSupplierOrderAsync(r, ct));
         internalApi.MapPost("/supplier/cancel", (SupplierOrderActionRequest r, EconomyService e, CancellationToken ct) => e.CancelSupplierOrderAsync(r, ct));
         internalApi.MapPost("/supplier/pickup", (SupplierOrderActionRequest r, EconomyService e, CancellationToken ct) => e.PickupSupplierOrderAsync(r, ct));
+        internalApi.MapGet("/admin/{characterId:guid}", (Guid characterId, EconomyService e, CancellationToken ct) => e.AdminAsync(characterId, ct));
+        internalApi.MapPost("/admin/grant", (AdminGrantRequest r, EconomyService e, CancellationToken ct) => e.AdminGrantAsync(r, ct));
         internalApi.MapPost("/inventory/give", (GiveItemRequest r, EconomyService e, CancellationToken ct) => e.GiveAsync(r, ct));
         internalApi.MapPost("/inventory/drop", (DropItemRequest r, EconomyService e, CancellationToken ct) => e.DropAsync(r, ct));
         internalApi.MapPost("/combat/pickup", (PickupRequest r, EconomyService e, CancellationToken ct) => e.PickupAsync(r, ct));

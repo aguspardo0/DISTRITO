@@ -144,6 +144,12 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<EconomyActionResult>> PickupSupplierOrderAsync(string serverKey, SupplierOrderActionRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/supplier/pickup", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<AdminView>> GetAdminAsync(string serverKey, Guid characterId, CancellationToken ct = default) =>
+        SendAsync<AdminView>(HttpMethod.Get, $"internal/admin/{characterId}", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> AdminGrantAsync(string serverKey, AdminGrantRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/admin/grant", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<EconomyActionResult>> GiveItemAsync(string serverKey, GiveItemRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/inventory/give", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

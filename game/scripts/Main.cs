@@ -27,6 +27,8 @@ public partial class Main : Node3D
     private Distrito.Game.Inventory.InventoryNetwork _inventory = null!;
     private Distrito.Game.Inventory.InventoryPanel? _inventoryPanel;
     private Distrito.Game.Inventory.SupplierPanel? _supplierPanel;
+    private Distrito.Game.Admin.AdminNetwork _admin = null!;
+    private Distrito.Game.Admin.AdminPanel? _adminPanel;
     private Distrito.Game.Map.MapNetwork _map = null!;
     private Distrito.Game.Combat.CombatNetwork _combat = null!;
     private Distrito.Game.Map.MapPanel? _mapPanel;
@@ -94,6 +96,10 @@ public partial class Main : Node3D
         _inventory = new Distrito.Game.Inventory.InventoryNetwork { Name = "Inventory" };
         AddChild(_inventory);
         _inventory.Initialize(_network, _economy, _combat);
+
+        _admin = new Distrito.Game.Admin.AdminNetwork { Name = "Admin" };
+        AddChild(_admin);
+        _admin.Initialize(_network, _economy, _combat);
 
         _map = new Distrito.Game.Map.MapNetwork { Name = "Map" };
         AddChild(_map);
@@ -276,6 +282,10 @@ public partial class Main : Node3D
         layer.AddChild(UiAnchor.Wrap(_supplierPanel, UiAnchor.Center, UiAnchor.Center, name: "SupplierArea"));
         _supplierPanel.Initialize(_inventory);
         interaction.SupplierRequested += npc => _supplierPanel.Open(npc);
+
+        _adminPanel = new Distrito.Game.Admin.AdminPanel { Name = "AdminPanel" };
+        layer.AddChild(UiAnchor.Wrap(_adminPanel, UiAnchor.Start, UiAnchor.Center, left: 20, name: "AdminArea"));
+        _adminPanel.Initialize(_admin);
 
         // Las opciones van arriba de todo lo demás.
         _pause = new PauseMenu { Name = "PauseMenu" };
@@ -484,7 +494,8 @@ public partial class Main : Node3D
                 _supplierPanel?.Open(Distrito.Shared.Economy.EconomyCatalog.DepositNpc);
                 _inventory.PreviewSupplier();
             }),
-            ("opciones", () => { _supplierPanel?.Close(); _pause?.Open(); }),
+            ("admin", () => { _supplierPanel?.Close(); _adminPanel?.Toggle(); _admin.Preview(); }),
+            ("opciones", () => { _adminPanel?.Toggle(); _pause?.Open(); }),
         ]);
     }
 
@@ -494,6 +505,7 @@ public partial class Main : Node3D
         if (_crewPanel is { IsOpen: true }) _crewPanel.Toggle();
         if (_mapPanel is { Visible: true }) _mapPanel.Toggle();
         if (_inventoryPanel is { IsOpen: true }) _inventoryPanel.Toggle();
+        if (_adminPanel is { IsOpen: true }) _adminPanel.Toggle();
         _supplierPanel?.Close();
         _interaction?.Dialog.Close();
         _network.Leave();
@@ -529,6 +541,7 @@ public partial class Main : Node3D
                 return; // el diálogo y los pedidos se cierran solos con Esc
             if (_crewPanel is { IsOpen: true }) _crewPanel.Toggle();
             else if (_inventoryPanel is { IsOpen: true }) _inventoryPanel.Toggle();
+            else if (_adminPanel is { IsOpen: true }) _adminPanel.Toggle();
             else if (_mapPanel is { Visible: true }) _mapPanel.Toggle();
             else if (_pause.IsOpen) _pause.Close();
             else _pause.Open();
@@ -540,6 +553,8 @@ public partial class Main : Node3D
 
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.C } && _network.LocalPlayer is not null)
             _crewPanel?.Toggle();
+        if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.F10 } && _network.LocalPlayer is not null)
+            _adminPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.I } && _network.LocalPlayer is not null)
             _inventoryPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.M } && _network.LocalPlayer is not null)

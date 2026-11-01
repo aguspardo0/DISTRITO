@@ -336,6 +336,17 @@ public partial class CombatNetwork : Node
                 Kill(victim, null);
     }
 
+    /// <summary>Panel de administración: cura del todo en el lugar (si estaba herido o muerto, se levanta).</summary>
+    public void AdminHeal(long peer)
+    {
+        if (_network.GetPlayer(peer) is not { } player)
+            return;
+        _bleedUntil.Remove(peer);
+        player.Health = CombatRules.MaxHealth;
+        player.Downed = false;
+        player.Dead = false;
+    }
+
     private void Respawn(long peer)
     {
         if (_network.GetPlayer(peer) is not { } player)

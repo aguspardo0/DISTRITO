@@ -100,3 +100,9 @@ public sealed record WarehouseView(
 public sealed record WarehouseOpenRequest(Guid CharacterId, string RequestId);
 public sealed record WarehouseMoveRequest(Guid CharacterId, string ItemCode, int Quantity, bool Deposit, string RequestId);
 public sealed record WarehousePermissionsRequest(Guid CharacterId, WarehousePermissions Permissions, string RequestId);
+
+/// <summary>Panel de administración (pruebas): si el personaje es de una cuenta admin y qué objetos existen.</summary>
+public sealed record AdminView(bool IsAdmin, List<InventoryItem> Items);
+
+/// <summary>Regalo de admin: plata (centavos), un objeto y/o fijar el nivel. Lo que venga en 0/null no se toca.</summary>
+public sealed record AdminGrantRequest(Guid CharacterId, long Cents, string? ItemCode, int Quantity, int? Level, string RequestId);
