@@ -83,6 +83,22 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                     return "Contrato aceptado.";
                 throw new EconomyRejected("contract_already_active", "Ya tenés ese contrato en curso.");
             }
+            if (template.IsConsigned)
+            {
+                // Flete: el que manda entrega la mercadería al aceptar (sale de su stock real).
+                var me = await EnsureCharacterAccountAsync(c, tx, request.CharacterId, ct);
+                var source = await AccountIdByCodeAsync(c, tx, template.SourceNpc, ct);
+                await LockAccountsAsync(c, tx, ct, me, source);
+                await EnsureFitsAsync(c, tx, me, template.ItemCode, template.Quantity, ct);
+                var txId = await NewLedgerTransactionAsync(c, tx, $"consign:{request.RequestId}", "freight_consign",
+                    $"Mercadería en consignación para el flete {template.Code}", ct);
+                await MoveItemsAsync(c, tx, txId, template.ItemCode, template.Quantity,
+                    from: (source, template.SourceNpc.Replace("npc:", "")), to: (me, EconomyCatalog.CarriedLocation),
+                    notEnough: "El que manda no tiene tanta mercadería ahora.", ct, actor: request.CharacterId);
+                return $"Flete aceptado: {template.Title}. Te cargan la mercadería; tenés {template.TimeLimitSeconds / 60} minutos"
+                       + (extraSeconds > 0 ? $" y {extraSeconds} segundos (Logística)" : "")
+                       + ". Si no llegás, se devuelve y lo que falte se cobra.";
+            }
             return template.HasTimeLimit
                 ? $"Contrato aceptado: {template.Title}. Tenés {template.TimeLimitSeconds / 60} minutos" +
                   (extraSeconds > 0 ? $" y {extraSeconds} segundos (Logística)." : ".")
@@ -166,7 +182,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             foreach (var p in participants)
                 accounts.Add(await EnsureCharacterAccountAsync(c, tx, p, ct));
             var payer = await AccountIdByCodeAsync(c, tx, template.Payer, ct);
-            var receiver = template.HasGoods ? await AccountIdByCodeAsync(c, tx, template.DestinationNpc, ct) : payer;
+            var receiver = template.HasGoods ? await AccountIdByCodeAsync(c, tx, template.Receiver, ct) : payer;
             await LockAccountsAsync(c, tx, ct, [.. accounts, payer, receiver]);
 
             // Pago: partes iguales (el resto de la división queda para quien entrega) y cada uno con su bonificación de Negociación.
@@ -368,12 +384,12 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
 
     private async Task<int> ExpireContractsAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid? characterId, CancellationToken ct)
     {
-        var failed = new List<(Guid Character, string Template)>();
+        var failed = new List<(Guid Character, string Template, Guid Contract)>();
         await using (var cmd = new NpgsqlCommand($"""
             UPDATE distrito.contracts SET status = 'failed', completed_at = @now
             WHERE status = 'active' AND expires_at IS NOT NULL AND expires_at <= @now
               {(characterId is null ? "" : "AND character_id = @c")}
-            RETURNING character_id, template_code
+            RETURNING character_id, template_code, id
             """, c, tx))
         {
             cmd.Parameters.AddWithValue("now", clock.GetUtcNow());
@@ -381,14 +397,43 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                 cmd.Parameters.AddWithValue("c", id);
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
-                failed.Add((reader.GetGuid(0), reader.GetString(1)));
+                failed.Add((reader.GetGuid(0), reader.GetString(1), reader.GetGuid(2)));
         }
 
-        foreach (var (character, templateCode) in failed)
+        foreach (var (character, templateCode, contract) in failed)
             if (EconomyCatalog.Templates.TryGetValue(templateCode, out var template))
+            {
                 foreach (var penalty in template.FailureReputation ?? [])
                     await GrantReputationAsync(c, tx, character, penalty, $"contrato {templateCode} vencido", null, ct);
+                if (template.IsConsigned)
+                    await ReturnConsignmentAsync(c, tx, character, template, contract, ct);
+            }
         return failed.Count;
+    }
+
+    /// <summary>
+    /// Flete vencido: vuelve al que mandó lo que el personaje tenga encima (hasta lo consignado) y lo que falte se le
+    /// cobra a precio de referencia, hasta donde alcance su saldo.
+    /// </summary>
+    private async Task ReturnConsignmentAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid character, ContractTemplate template, Guid contract, CancellationToken ct)
+    {
+        var me = await EnsureCharacterAccountAsync(c, tx, character, ct);
+        var source = await AccountIdByCodeAsync(c, tx, template.SourceNpc, ct);
+        await LockAccountsAsync(c, tx, ct, me, source);
+        var have = await QuantityAsync(c, tx, me, template.ItemCode, EconomyCatalog.CarriedLocation, ct);
+        var back = Math.Min(have, template.Quantity);
+        var missing = template.Quantity - back;
+        var txId = await NewLedgerTransactionAsync(c, tx, $"consign-return:{contract}", "freight_return", $"Flete {template.Code} vencido: devolución", ct);
+        if (back > 0)
+            await MoveItemsAsync(c, tx, txId, template.ItemCode, back, from: (me, EconomyCatalog.CarriedLocation),
+                to: (source, template.SourceNpc.Replace("npc:", "")), notEnough: "Sin mercadería.", ct, actor: character);
+        if (missing > 0)
+        {
+            var (_, unit) = await LoadItemAsync(c, tx, template.ItemCode, ct);
+            var charge = Math.Min(unit * missing, await BalanceAsync(c, tx, me, ct));
+            if (charge > 0)
+                await TransferMoneyAsync(c, tx, txId, from: me, to: source, charge, ct);
+        }
     }
 
     // ---------- Infraestructura de la transacción ----------

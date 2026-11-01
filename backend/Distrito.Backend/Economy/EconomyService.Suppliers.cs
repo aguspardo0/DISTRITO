@@ -51,8 +51,17 @@ public sealed partial class EconomyService
         var queue = await UnitsInQueueAsync(c, tx, supplierCode, current, ct);
         var seat = await CrewSeatAsync(c, tx, characterId, ct);
         var hasWarehouse = seat is not null && await WarehouseOfAsync(c, tx, seat.CrewId, false, ct) is not null;
+        var businesses = new List<SupplierBusiness>();
+        await using (var cmd = new NpgsqlCommand("SELECT kind FROM distrito.businesses WHERE owner_character_id = @c", c, tx))
+        {
+            cmd.Parameters.AddWithValue("c", characterId);
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
+                if (EconomyCatalog.BusinessTypes.TryGetValue(r.GetString(0), out var type) && type.SupplierNpc == supplierCode)
+                    businesses.Add(new SupplierBusiness(type.Code, type.Name, type.ItemCode));
+        }
         await tx.CommitAsync(ct);
-        return new SupplierView(supplierCode, SupplierRules.Names.GetValueOrDefault(supplierCode, supplierCode), items, orders, hasWarehouse, queue);
+        return new SupplierView(supplierCode, SupplierRules.Names.GetValueOrDefault(supplierCode, supplierCode), items, orders, hasWarehouse, queue, businesses);
     }
 
     private static async Task<int> UnitsInQueueAsync(NpgsqlConnection c, NpgsqlTransaction tx, string supplierCode, long current, CancellationToken ct)
@@ -72,10 +81,21 @@ public sealed partial class EconomyService
                 throw new EconomyRejected("not_sold", "Ese proveedor no toma pedidos de eso.");
             if (r.Quantity < SupplierRules.MinUnits || r.Quantity > SupplierRules.MaxUnits)
                 throw new EconomyRejected("invalid_quantity", $"Los pedidos son de {SupplierRules.MinUnits} a {SupplierRules.MaxUnits} unidades.");
-            if (r.Delivery is not (SupplierRules.Pickup or SupplierRules.Delivery))
+            if (r.Delivery is not (SupplierRules.Pickup or SupplierRules.Delivery or SupplierRules.ToBusiness))
                 throw new EconomyRejected("invalid_delivery", "Elegí retiro o envío.");
 
-            Guid? warehouseId = null;
+            Guid? warehouseId = null, businessId = null;
+            if (r.Delivery == SupplierRules.ToBusiness)
+            {
+                await using var find = new NpgsqlCommand("SELECT id, kind FROM distrito.businesses WHERE owner_character_id = @c", c, tx);
+                find.Parameters.AddWithValue("c", r.CharacterId);
+                await using var reader = await find.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                    if (EconomyCatalog.BusinessTypes.TryGetValue(reader.GetString(1), out var type) && type.ItemCode == r.ItemCode && type.SupplierNpc == r.SupplierCode)
+                        businessId = reader.GetGuid(0);
+                if (businessId is null)
+                    throw new EconomyRejected("no_business", "No tenés un negocio que venda eso para mandárselo.");
+            }
             var buyer = await EnsureCharacterAccountAsync(c, tx, r.CharacterId, ct);
             var seller = await AccountIdByCodeAsync(c, tx, r.SupplierCode, ct);
             if (r.Delivery == SupplierRules.Delivery)
@@ -94,7 +114,7 @@ public sealed partial class EconomyService
             var (name, basePrice) = await LoadItemAsync(c, tx, r.ItemCode, ct);
             var unit = FamilyRules.SellPrice(basePrice, await MoodOfNpcAsync(c, tx, r.SupplierCode, ct));
             var goods = SupplierRules.GoodsCents(unit, r.Quantity);
-            var fee = r.Delivery == SupplierRules.Delivery ? SupplierRules.DeliveryCents(goods) : 0;
+            var fee = SupplierRules.IsShipped(r.Delivery) ? SupplierRules.DeliveryCents(goods) : 0;
             var total = goods + fee;
             if (await BalanceAsync(c, tx, buyer, ct) < total)
                 throw new EconomyRejected("insufficient_funds", $"No te alcanza: el pedido cuesta {EconomyCatalog.FormatMoney(total)}.");
@@ -102,7 +122,7 @@ public sealed partial class EconomyService
             var current = CurrentCycle();
             var ahead = await UnitsInQueueAsync(c, tx, r.SupplierCode, current, ct);
             var ready = current + SupplierRules.PrepCycles(r.Quantity, ahead);
-            var deliver = ready + (r.Delivery == SupplierRules.Delivery ? SupplierRules.DeliveryExtraCycles : 0);
+            var deliver = ready + (SupplierRules.IsShipped(r.Delivery) ? SupplierRules.DeliveryExtraCycles : 0);
             var id = Guid.CreateVersion7();
 
             var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "supplier_order",
@@ -111,8 +131,8 @@ public sealed partial class EconomyService
             await MoveItemsAsync(c, tx, txId, r.ItemCode, r.Quantity, from: (seller, StockLocation(r.SupplierCode)), to: (seller, $"pedido:{id}"),
                 notEnough: "El proveedor no tiene tanto en existencia.", ct, actor: r.CharacterId);
             await using (var insert = new NpgsqlCommand("""
-                INSERT INTO distrito.supplier_orders (id, character_id, supplier_code, item_code, quantity, goods_cents, delivery_cents, delivery, warehouse_id, status, ready_cycle, deliver_cycle)
-                VALUES (@id, @c, @s, @i, @q, @g, @f, @d, @w, 'preparando', @ready, @deliver)
+                INSERT INTO distrito.supplier_orders (id, character_id, supplier_code, item_code, quantity, goods_cents, delivery_cents, delivery, warehouse_id, business_id, status, ready_cycle, deliver_cycle)
+                VALUES (@id, @c, @s, @i, @q, @g, @f, @d, @w, @b, 'preparando', @ready, @deliver)
                 """, c, tx))
             {
                 insert.Parameters.AddWithValue("id", id);
@@ -124,6 +144,7 @@ public sealed partial class EconomyService
                 insert.Parameters.AddWithValue("f", fee);
                 insert.Parameters.AddWithValue("d", r.Delivery);
                 insert.Parameters.AddWithValue("w", (object?)warehouseId ?? DBNull.Value);
+                insert.Parameters.AddWithValue("b", (object?)businessId ?? DBNull.Value);
                 insert.Parameters.AddWithValue("ready", ready);
                 insert.Parameters.AddWithValue("deliver", deliver);
                 await insert.ExecuteNonQueryAsync(ct);
@@ -131,23 +152,28 @@ public sealed partial class EconomyService
             var minutes = (int)Math.Ceiling((CycleStart(deliver) - clock.GetUtcNow()).TotalMinutes);
             return $"Pedido hecho: {r.Quantity} × {name} por {EconomyCatalog.FormatMoney(total)}"
                    + (r.Quantity >= SupplierRules.VolumeDiscountFrom ? $" ({SupplierRules.VolumeDiscountPercent} % de descuento)" : "")
-                   + (r.Delivery == SupplierRules.Delivery ? $". Llega al depósito en unos {minutes} min." : $". Listo para retirar en unos {minutes} min.");
+                   + (r.Delivery switch
+                   {
+                       SupplierRules.Delivery => $". Llega al depósito en unos {minutes} min.",
+                       SupplierRules.ToBusiness => $". Llega a tu negocio en unos {minutes} min.",
+                       _ => $". Listo para retirar en unos {minutes} min.",
+                   });
         });
 
     private sealed record OrderRow(Guid Id, Guid CharacterId, string Supplier, string ItemCode, int Quantity, long Goods, long Fee,
-        string Delivery, Guid? WarehouseId, string Status, long Ready, long Deliver);
+        string Delivery, Guid? WarehouseId, string Status, long Ready, long Deliver, Guid? BusinessId = null);
 
     private static async Task<OrderRow?> LockOrderAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid id, CancellationToken ct)
     {
         await using var cmd = new NpgsqlCommand("""
-            SELECT id, character_id, supplier_code, item_code, quantity, goods_cents, delivery_cents, delivery, warehouse_id, status, ready_cycle, deliver_cycle
+            SELECT id, character_id, supplier_code, item_code, quantity, goods_cents, delivery_cents, delivery, warehouse_id, status, ready_cycle, deliver_cycle, business_id
               FROM distrito.supplier_orders WHERE id = @id FOR UPDATE
             """, c, tx);
         cmd.Parameters.AddWithValue("id", id);
         await using var r = await cmd.ExecuteReaderAsync(ct);
         return await r.ReadAsync(ct)
             ? new OrderRow(r.GetGuid(0), r.GetGuid(1), r.GetString(2), r.GetString(3), r.GetInt32(4), r.GetInt64(5), r.GetInt64(6),
-                r.GetString(7), r.IsDBNull(8) ? null : r.GetGuid(8), r.GetString(9), r.GetInt64(10), r.GetInt64(11))
+                r.GetString(7), r.IsDBNull(8) ? null : r.GetGuid(8), r.GetString(9), r.GetInt64(10), r.GetInt64(11), r.IsDBNull(12) ? null : r.GetGuid(12))
             : null;
     }
 
@@ -192,7 +218,7 @@ public sealed partial class EconomyService
             if (order.Status != "preparando")
                 throw new EconomyRejected("closed", "Ese pedido ya está cerrado.");
             if (order.Delivery != SupplierRules.Pickup)
-                throw new EconomyRejected("is_delivery", "Ese pedido va por envío al depósito.");
+                throw new EconomyRejected("is_delivery", "Ese pedido va por envío.");
             if (CurrentCycle() < order.Ready)
                 throw new EconomyRejected("not_ready", "Todavía lo están preparando.");
             var buyer = await EnsureCharacterAccountAsync(c, tx, r.CharacterId, ct);
@@ -207,6 +233,41 @@ public sealed partial class EconomyService
             return $"Retiraste tu pedido: {order.Quantity} × {name}.";
         });
 
+    /// <summary>Envío al negocio: la mercadería entra al stock del local (si el negocio ya no existe, queda para retirar).</summary>
+    private async Task DeliverToBusinessAsync(NpgsqlConnection c, NpgsqlTransaction tx, OrderRow order, CancellationToken ct)
+    {
+        var seller = await AccountIdByCodeAsync(c, tx, order.Supplier, ct);
+        var (name, _) = await ItemInfoAsync(c, tx, order.ItemCode, ct);
+        Guid? account = null;
+        string? location = null;
+        if (order.BusinessId is { } bid)
+        {
+            await using var find = new NpgsqlCommand("SELECT account_id, location FROM distrito.businesses WHERE id = @id FOR UPDATE", c, tx);
+            find.Parameters.AddWithValue("id", bid);
+            await using var r = await find.ExecuteReaderAsync(ct);
+            if (await r.ReadAsync(ct)) (account, location) = (r.GetGuid(0), r.GetString(1));
+        }
+        if (account is { } shop && location is not null)
+        {
+            await LockAccountsAsync(c, tx, ct, seller, shop);
+            var txId = await NewLedgerTransactionAsync(c, tx, $"supplier-delivery:{order.Id}", "supplier_delivery",
+                $"Envío de {SupplierRules.Names.GetValueOrDefault(order.Supplier, order.Supplier)} al negocio: {order.Quantity} × {name}", ct);
+            await MoveItemsAsync(c, tx, txId, order.ItemCode, order.Quantity, from: (seller, $"pedido:{order.Id}"), to: (shop, location),
+                notEnough: "Sin stock.", ct, actor: order.CharacterId);
+            await CloseOrderAsync(c, tx, order.Id, "entregado", ct);
+            return;
+        }
+        var buyer = await EnsureCharacterAccountAsync(c, tx, order.CharacterId, ct);
+        await LockAccountsAsync(c, tx, ct, seller, buyer);
+        var refund = await NewLedgerTransactionAsync(c, tx, $"supplier-undeliverable:{order.Id}", "supplier_refund_delivery",
+            $"Envío imposible (negocio cerrado): {order.Quantity} × {name} queda para retirar", ct);
+        if (order.Fee > 0)
+            await TransferMoneyAsync(c, tx, refund, from: seller, to: buyer, order.Fee, ct);
+        await using var toPickup = new NpgsqlCommand("UPDATE distrito.supplier_orders SET delivery = 'retiro', delivery_cents = 0 WHERE id = @id", c, tx);
+        toPickup.Parameters.AddWithValue("id", order.Id);
+        await toPickup.ExecuteNonQueryAsync(ct);
+    }
+
     /// <summary>
     /// El camión del proveedor lleva los envíos que ya salieron al depósito de la cuadrilla. Si el depósito ya no existe
     /// o no entra, el pedido pasa a retiro en el mostrador y se devuelve el costo del envío. Devuelve cuántos procesó.
@@ -216,7 +277,7 @@ public sealed partial class EconomyService
         var due = new List<Guid>();
         await using (var c = await db.OpenConnectionAsync(ct))
         await using (var cmd = new NpgsqlCommand("""
-            SELECT id FROM distrito.supplier_orders WHERE status = 'preparando' AND delivery = 'envio' AND deliver_cycle <= @cycle
+            SELECT id FROM distrito.supplier_orders WHERE status = 'preparando' AND delivery IN ('envio', 'negocio') AND deliver_cycle <= @cycle
                AND (@only::uuid IS NULL OR id = @only)
             """, c))
         {
@@ -230,8 +291,14 @@ public sealed partial class EconomyService
             await using var c = await db.OpenConnectionAsync(ct);
             await using var tx = await c.BeginTransactionAsync(ct);
             var order = await LockOrderAsync(c, tx, id, ct);
-            if (order is not { Status: "preparando", Delivery: SupplierRules.Delivery })
+            if (order is not { Status: "preparando" } || !SupplierRules.IsShipped(order.Delivery))
                 continue;
+            if (order.Delivery == SupplierRules.ToBusiness)
+            {
+                await DeliverToBusinessAsync(c, tx, order, ct);
+                await tx.CommitAsync(ct);
+                continue;
+            }
             var seller = await AccountIdByCodeAsync(c, tx, order.Supplier, ct);
             var (name, _) = await ItemInfoAsync(c, tx, order.ItemCode, ct);
             Guid? crewId = null;

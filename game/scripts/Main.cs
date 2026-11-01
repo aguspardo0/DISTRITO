@@ -488,8 +488,11 @@ public partial class Main : Node3D
                 _network.StartHost(7990);
             }),
             ("dialogo", () => _interaction?.Dialog.ShowDialog(new NpcDialog(NpcInteractionRules.Deposit.Code, NpcInteractionRules.Deposit.Name,
-                "Texto de prueba del diálogo, con varias líneas para ver que el panel crezca y siga centrado abajo.",
-                [new NpcOption("a", "Primera opción"), new NpcOption("b", "Segunda opción")]))),
+                "Texto de prueba del diálogo, con varias líneas para ver que el panel crezca y siga centrado abajo. "
+                + "Zona Calle del Almacén: nadie la controla todavía. Ánimo de la familia: tranquila. Próximo evento: Feria del puerto.",
+                [.. Enumerable.Range(1, 12).Select(i => new NpcOption($"o{i}",
+                    i % 3 == 0 ? $"Opción {i}: una opción muy larga como los contratos, con requisitos, plazos, pago y reputación, que antes ensanchaba la ventana"
+                               : $"Opción {i}: aceptar un trabajo (paga $20.00, 4 minutos)"))]))),
             ("modelos", () =>
             {
                 _interaction?.Dialog.Close();

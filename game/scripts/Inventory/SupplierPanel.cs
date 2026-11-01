@@ -21,7 +21,7 @@ public partial class SupplierPanel : PanelContainer
     private string _npc = "";
     private string? _selected;
     private int _quantity = SupplierRules.MinUnits;
-    private bool _delivery;
+    private int _mode; // 0 retiro, 1 depósito, 2 negocio
 
     public bool IsOpen => Visible;
 
@@ -144,35 +144,41 @@ public partial class SupplierPanel : PanelContainer
         row.AddChild(qty);
         _catalog.AddChild(row);
 
+        var fee = $"+{SupplierRules.DeliveryPercent} %, mín. {EconomyCatalog.FormatMoney(SupplierRules.DeliveryMinCents)}";
+        var business = view.Businesses?.FirstOrDefault(b => b.ItemCode == chosen.ItemCode);
         var mode = new OptionButton();
         mode.AddItem("Retiro en el mostrador (gratis)");
-        mode.AddItem($"Envío al depósito (+{SupplierRules.DeliveryPercent} %, mín. {EconomyCatalog.FormatMoney(SupplierRules.DeliveryMinCents)})");
+        mode.AddItem($"Envío al depósito ({fee})");
+        mode.AddItem(business is null ? $"Envío a tu negocio ({fee})" : $"Envío a tu {business.Name.ToLowerInvariant()} ({fee})");
         mode.SetItemDisabled(1, !view.HasWarehouse);
-        if (!view.HasWarehouse) _delivery = false;
-        mode.Selected = _delivery ? 1 : 0;
+        mode.SetItemDisabled(2, business is null);
+        if ((_mode == 1 && !view.HasWarehouse) || (_mode == 2 && business is null)) _mode = 0;
+        mode.Selected = _mode;
         _catalog.AddChild(mode);
-        if (!view.HasWarehouse)
-            _catalog.AddChild(Text("El envío llega al depósito de tu cuadrilla (se abre en La Oficina).", Muted));
+        if (!view.HasWarehouse && business is null)
+            _catalog.AddChild(Text("Los envíos llegan al depósito de tu cuadrilla (se abre en La Oficina) o a tu negocio si vende esto.", Muted));
 
         var summary = Text("", Gold);
         _catalog.AddChild(summary);
         void Update()
         {
             _quantity = (int)qty.Value;
-            _delivery = mode.Selected == 1;
+            _mode = mode.Selected;
+            var shipped = _mode > 0;
             var goods = SupplierRules.GoodsCents(chosen.UnitPriceCents, _quantity);
-            var fee = _delivery ? SupplierRules.DeliveryCents(goods) : 0;
-            var cycles = SupplierRules.PrepCycles(_quantity, view.UnitsInQueue) + (_delivery ? SupplierRules.DeliveryExtraCycles : 0);
-            summary.Text = $"Total: {EconomyCatalog.FormatMoney(goods + fee)}"
+            var shipping = shipped ? SupplierRules.DeliveryCents(goods) : 0;
+            var cycles = SupplierRules.PrepCycles(_quantity, view.UnitsInQueue) + (shipped ? SupplierRules.DeliveryExtraCycles : 0);
+            summary.Text = $"Total: {EconomyCatalog.FormatMoney(goods + shipping)}"
                            + (_quantity >= SupplierRules.VolumeDiscountFrom ? $"  ({SupplierRules.VolumeDiscountPercent} % menos por volumen)" : $"  ({SupplierRules.VolumeDiscountPercent} % menos desde {SupplierRules.VolumeDiscountFrom})")
-                           + $"\n{(_delivery ? "Llega" : "Listo")} en {(cycles == 1 ? "1 ciclo" : $"unos {cycles} ciclos")} (5 min c/u) · {_quantity * chosen.UnitWeightKg:0.#} kg";
+                           + $"\n{(shipped ? "Llega" : "Listo")} en {(cycles == 1 ? "1 ciclo" : $"unos {cycles} ciclos")} (5 min c/u) · {_quantity * chosen.UnitWeightKg:0.#} kg";
         }
         qty.ValueChanged += _ => Update();
         mode.ItemSelected += _ => Update();
         Update();
 
         var order = new Button { Text = "Hacer el pedido" };
-        order.Pressed += () => _inventory.PlaceOrder(_npc, chosen.ItemCode, (int)qty.Value, mode.Selected == 1 ? SupplierRules.Delivery : SupplierRules.Pickup);
+        order.Pressed += () => _inventory.PlaceOrder(_npc, chosen.ItemCode, (int)qty.Value,
+            mode.Selected switch { 1 => SupplierRules.Delivery, 2 => SupplierRules.ToBusiness, _ => SupplierRules.Pickup });
         _catalog.AddChild(order);
     }
 
@@ -187,14 +193,14 @@ public partial class SupplierPanel : PanelContainer
             _orders.AddChild(Text("No tenés pedidos.", Muted));
         foreach (var o in view.Orders)
         {
-            var delivery = o.Delivery == SupplierRules.Delivery ? "envío al depósito" : "retiro";
+            var delivery = o.Delivery switch { SupplierRules.Delivery => "envío al depósito", SupplierRules.ToBusiness => "envío al negocio", _ => "retiro" };
             var state = o.Status switch
             {
-                "entregado" => o.Delivery == SupplierRules.Delivery ? "entregado en el depósito" : "retirado",
+                "entregado" => o.Delivery switch { SupplierRules.Delivery => "entregado en el depósito", SupplierRules.ToBusiness => "entregado en el negocio", _ => "retirado" },
                 "cancelado" => "cancelado",
                 _ when o.Ready && o.Delivery == SupplierRules.Pickup => "¡listo para retirar!",
                 _ when o.Ready => $"en camino · llega {o.DeliverAt.ToLocalTime():HH:mm}",
-                _ => $"preparando · {(o.Delivery == SupplierRules.Delivery ? $"llega {o.DeliverAt.ToLocalTime():HH:mm}" : $"listo {o.ReadyAt.ToLocalTime():HH:mm}")}",
+                _ => $"preparando · {(SupplierRules.IsShipped(o.Delivery) ? $"llega {o.DeliverAt.ToLocalTime():HH:mm}" : $"listo {o.ReadyAt.ToLocalTime():HH:mm}")}",
             };
             _orders.AddChild(Text($"{o.Quantity} × {o.ItemName} — {delivery}", o.Status == "preparando" ? null : Muted));
             _orders.AddChild(Text($"{EconomyCatalog.FormatMoney(o.GoodsCents + o.DeliveryCents)} · {state}", o.Ready && o.Status == "preparando" ? Good : Muted));

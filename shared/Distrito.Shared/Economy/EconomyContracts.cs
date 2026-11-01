@@ -132,8 +132,19 @@ public sealed record ContractTemplate(
     int MinLevel = 1,
     string? SkillCode = null,
     int MinSkillLevel = 0,
-    int CrewMatesNeeded = 1)
+    int CrewMatesNeeded = 1,
+    bool Consigned = false,
+    string? ReceiverNpc = null)
 {
+    /// <summary>
+    /// Flete (en consignación): al aceptar, el que manda entrega la mercadería; el pago es solo por el transporte.
+    /// Si vence, se devuelve lo que se tenga encima y lo que falte se cobra a precio de referencia.
+    /// </summary>
+    public bool IsConsigned => Consigned && HasGoods;
+
+    /// <summary>Quién recibe la mercadería (por defecto, el destinatario; el club no tiene cuenta y recibe Moretti, que lo abastece).</summary>
+    public string Receiver => ReceiverNpc ?? DestinationNpc;
+
     /// <summary>Compañeros de cuadrilla que tienen que estar presentes (0 si no es trabajo de cuadrilla).</summary>
     public int MatesNeeded => RequiresCrewMate ? Math.Max(1, CrewMatesNeeded) : 0;
     /// <summary>Quién paga: por defecto el destinatario.</summary>
@@ -296,8 +307,45 @@ public static class EconomyCatalog
         MinLevel: 8,
         CrewMatesNeeded: 2);
 
+    /// <summary>Fletes (etapa 8 del inventario, aprobado por el equipo 2026-11-01): viajes pesados, pagan el transporte.</summary>
+    public static readonly ContractTemplate PartsFreight = new(
+        Code: "flete-repuestos",
+        Title: "Flete: 20 cajas de repuestos de Moretti al Taller Caruso (240 kg)",
+        ItemCode: SparePartsItem,
+        Quantity: 20,
+        SourceNpc: DepositNpc,
+        DestinationNpc: WorkshopNpc,
+        DestinationLocation: "taller-moreno",
+        RewardCents: 6_000,
+        Reputation: [new ReputationReward(Moretti, 3), new ReputationReward(Caruso, 3)],
+        PayerNpc: WorkshopNpc,
+        TimeLimitSeconds: FreightSeconds,
+        FailureReputation: [new ReputationReward(Moretti, -3), new ReputationReward(Caruso, -3)],
+        MinLevel: 3,
+        Consigned: true);
+
+    public static readonly ContractTemplate DrinksFreight = new(
+        Code: "flete-bebidas",
+        Title: "Flete: 15 cajones de bebidas de Moretti al Club de jazz (225 kg)",
+        ItemCode: DrinksCrateItem,
+        Quantity: 15,
+        SourceNpc: DepositNpc,
+        DestinationNpc: JazzClubNpc,
+        DestinationLocation: "club-jazz",
+        RewardCents: 5_000,
+        Reputation: [new ReputationReward(Moretti, 4)],
+        PayerNpc: DepositNpc,
+        TimeLimitSeconds: FreightSeconds,
+        FailureReputation: [new ReputationReward(Moretti, -4)],
+        MinLevel: 3,
+        Consigned: true,
+        ReceiverNpc: DepositNpc);
+
+    /// <summary>Plazo de los fletes: 15 minutos (hace falta un plazo para devolver la mercadería si no se entrega).</summary>
+    public const int FreightSeconds = 900;
+
     /// <summary>Contratos que los diálogos ofrecen de forma genérica (requisitos, aceptar y entregar).</summary>
-    public static readonly IReadOnlyList<ContractTemplate> LevelContracts = [PartyDelivery, AuditBooks, BigCollection];
+    public static readonly IReadOnlyList<ContractTemplate> LevelContracts = [PartyDelivery, AuditBooks, BigCollection, PartsFreight, DrinksFreight];
 
     public static readonly IReadOnlyDictionary<string, ContractTemplate> Templates =
         new Dictionary<string, ContractTemplate>
@@ -308,6 +356,8 @@ public static class EconomyCatalog
             [PartyDelivery.Code] = PartyDelivery,
             [AuditBooks.Code] = AuditBooks,
             [BigCollection.Code] = BigCollection,
+            [PartsFreight.Code] = PartsFreight,
+            [DrinksFreight.Code] = DrinksFreight,
         };
 
     /// <summary>Qué le falta a un personaje para aceptar el contrato (vacío = puede).</summary>

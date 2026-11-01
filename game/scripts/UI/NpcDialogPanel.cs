@@ -9,6 +9,8 @@ public partial class NpcDialogPanel : PanelContainer
     private Label _title = null!;
     private Label _text = null!;
     private VBoxContainer _options = null!;
+    private ScrollContainer _scroll = null!;
+    private VBoxContainer _body = null!;
     private string _npcCode = "";
 
     public event Action<string, string>? OptionChosen; // npc, opción
@@ -34,11 +36,30 @@ public partial class NpcDialogPanel : PanelContainer
         _title.AddThemeColorOverride("font_color", new Color(0.95f, 0.8f, 0.45f));
         box.AddChild(_title);
 
-        _text = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(490, 0) };
-        box.AddChild(_text);
+        // Texto y opciones dentro de un panel desplazable: con muchas opciones (contratos, acuerdos, pedidos…)
+        // la ventana no se sale de la pantalla y todo queda a mano.
+        _scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        box.AddChild(_scroll);
+        _body = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _body.AddThemeConstantOverride("separation", 8);
+        _scroll.AddChild(_body);
+
+        _text = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(480, 0) };
+        _body.AddChild(_text);
 
         _options = new VBoxContainer();
-        box.AddChild(_options);
+        _options.AddThemeConstantOverride("separation", 4);
+        _body.AddChild(_options);
+    }
+
+    public override void _Process(double delta)
+    {
+        if (!Visible)
+            return;
+        // Alto: lo que haga falta, hasta lo que entra en la pantalla (dejando lugar al título y al borde).
+        var height = Mathf.Min(_body.GetCombinedMinimumSize().Y, GetViewportRect().Size.Y - 160);
+        if (!Mathf.IsEqualApprox(_scroll.CustomMinimumSize.Y, height))
+            _scroll.CustomMinimumSize = new Vector2(490, height);
     }
 
     public void ShowDialog(NpcDialog dialog)
@@ -51,16 +72,22 @@ public partial class NpcDialogPanel : PanelContainer
             child.QueueFree();
         foreach (var option in dialog.Options)
         {
-            var button = new Button { Text = option.Label, Alignment = HorizontalAlignment.Left };
+            // Las opciones largas se parten en renglones en vez de ensanchar la ventana.
+            var button = new Button
+            {
+                Text = option.Label, Alignment = HorizontalAlignment.Left,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(470, 0),
+            };
             var id = option.Id;
             button.Pressed += () => OptionChosen?.Invoke(_npcCode, id);
             _options.AddChild(button);
         }
-        var close = new Button { Text = "Chau (Esc)", Alignment = HorizontalAlignment.Left };
+        var close = new Button { Text = "Chau (Esc)", Alignment = HorizontalAlignment.Left, CustomMinimumSize = new Vector2(470, 0) };
         close.Pressed += Close;
         _options.AddChild(close);
 
         Visible = true;
+        _scroll.ScrollVertical = 0;
         Input.MouseMode = Input.MouseModeEnum.Visible;
     }
 

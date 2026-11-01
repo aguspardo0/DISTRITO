@@ -110,7 +110,7 @@ public partial class InventoryNetwork
         [
             new(Guid.NewGuid(), EconomyCatalog.CoffeeBagItem, "Bolsa de café", 20, 5400, 540, SupplierRules.Delivery, "preparando", false, now.AddMinutes(10), now.AddMinutes(15)),
             new(Guid.NewGuid(), EconomyCatalog.DrinksCrateItem, "Cajón de bebidas", 5, 2000, 0, SupplierRules.Pickup, "preparando", true, now, now),
-        ], true, 25);
+        ], true, 25, [new("puesto-cafe", "Puesto de café", EconomyCatalog.CoffeeBagItem)]);
         SupplierReceived?.Invoke();
     }
 }

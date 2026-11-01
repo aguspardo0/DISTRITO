@@ -18,6 +18,10 @@ public static class SupplierRules
 
     public const string Pickup = "retiro";
     public const string Delivery = "envio";
+    /// <summary>Envío directo al negocio propio que vende ese producto (puesto de café, club de jazz).</summary>
+    public const string ToBusiness = "negocio";
+
+    public static bool IsShipped(string delivery) => delivery is Delivery or ToBusiness;
 
     /// <summary>Proveedores que toman pedidos y qué se les puede pedir.</summary>
     public static readonly IReadOnlyDictionary<string, string[]> Catalog = new Dictionary<string, string[]>
@@ -49,9 +53,12 @@ public sealed record SupplierOrderView(
     Guid Id, string ItemCode, string ItemName, int Quantity, long GoodsCents, long DeliveryCents, string Delivery,
     string Status, bool Ready, DateTimeOffset ReadyAt, DateTimeOffset DeliverAt);
 
+/// <summary>Negocio propio al que se le puede mandar un pedido (solo el producto que vende).</summary>
+public sealed record SupplierBusiness(string Kind, string Name, string ItemCode);
+
 public sealed record SupplierView(
     string SupplierCode, string SupplierName, List<SupplierItem> Items, List<SupplierOrderView> Orders,
-    bool HasWarehouse, int UnitsInQueue);
+    bool HasWarehouse, int UnitsInQueue, List<SupplierBusiness>? Businesses = null);
 
 public sealed record SupplierOrderRequest(Guid CharacterId, string SupplierCode, string ItemCode, int Quantity, string Delivery, string RequestId);
 public sealed record SupplierOrderActionRequest(Guid CharacterId, Guid OrderId, string RequestId);
