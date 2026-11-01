@@ -13,15 +13,16 @@ public static class DocksBuilder
     {
         var docks = new Node3D { Name = "Docks" };
         world.AddChild(docks);
-        var width = MapPresence.MaxX - MapPresence.DocksStartX;
-        var centerX = MapPresence.DocksStartX + width / 2;
-        var depth = MapPresence.MaxZ - MapPresence.MinZ;
+        var area = CityLayout.Docks;
+        var width = area.Width;
+        var centerX = area.CenterX;
+        var depth = area.Depth;
 
         Solid(docks, "Ground", new Vector3(width, 1, depth), new Vector3(centerX, -0.5f, 0), new Color(0.27f, 0.27f, 0.26f));
         Visual(docks, "Street", new Vector3(width, 0.02f, 6), new Vector3(centerX, 0.01f, 0), new Color(0.17f, 0.17f, 0.18f));
         // Tablones del muelle sobre el borde y agua más allá de la pared.
-        Visual(docks, "Pier", new Vector3(3, 0.06f, depth), new Vector3(MapPresence.MaxX - 1.5f, 0.03f, 0), new Color(0.36f, 0.27f, 0.18f));
-        Visual(docks, "Water", new Vector3(40, 0.02f, depth + 40), new Vector3(MapPresence.MaxX + 20, -0.35f, 0), new Color(0.12f, 0.2f, 0.26f));
+        Visual(docks, "Pier", new Vector3(3, 0.06f, depth), new Vector3(area.MaxX - 1.5f, 0.03f, 0), new Color(0.36f, 0.27f, 0.18f));
+        Visual(docks, "Water", new Vector3(40, 0.02f, depth + 40), new Vector3(area.MaxX + 20, -0.35f, 0), new Color(0.12f, 0.2f, 0.26f));
 
         var i = 0;
         foreach (var b in MapPresence.DocksBuildings)
@@ -40,9 +41,7 @@ public static class DocksBuilder
             i++;
         }
 
-        // Paredes del borde (las del barrio original vienen en Main.tscn; la del este quedó en el muelle).
-        Wall(docks, "EdgeDocksNorth", new Vector3(width + 1, 10, 1), new Vector3(centerX + 0.5f, 5, MapPresence.MinZ - 0.5f));
-        Wall(docks, "EdgeDocksSouth", new Vector3(width + 1, 10, 1), new Vector3(centerX + 0.5f, 5, MapPresence.MaxZ + 0.5f));
+        // Las paredes del borde las pone CityBuilder para toda la ciudad (CityLayout.Edges).
 
         docks.AddChild(new Label3D
         {
@@ -50,7 +49,7 @@ public static class DocksBuilder
             Text = "LOS MUELLES\nZona libre: acá se pelea y se roba sin protección",
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
             FontSize = 48, OutlineSize = 10, Modulate = new Color(0.95f, 0.55f, 0.4f),
-            Position = new Vector3(MapPresence.DocksStartX + 1.5f, 3.2f, -4),
+            Position = new Vector3(area.MinX + 1.5f, 3.2f, -4),
         });
     }
 
@@ -135,10 +134,4 @@ public static class DocksBuilder
         parent.AddChild(body);
     }
 
-    private static void Wall(Node3D parent, string name, Vector3 size, Vector3 position)
-    {
-        var body = new StaticBody3D { Name = name, Position = position };
-        body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size } });
-        parent.AddChild(body);
-    }
 }

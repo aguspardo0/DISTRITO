@@ -47,12 +47,21 @@ public static class CombatRules
     /// <summary>Cono de golpe: el objetivo tiene que estar adelante (±50°).</summary>
     public static readonly float PunchConeCos = MathF.Cos(50f * MathF.PI / 180f);
 
-    /// <summary>Zona de un punto del barrio: la del NPC más cercano.</summary>
-    public static string ZoneAt(Vector3 p) => Distrito.Server.Core.World.MapPresence.InDocks(p.X) ? TerritoryRules.Docks :
-        NpcInteractionRules.All
+    /// <summary>
+    /// Zona de un punto: los barrios de las familias (con su avenida) y Los Muelles por plano; en el Mercado, la del
+    /// local más cercano (Calle del Almacén, Los Talleres, La Oficina, La Esquina).
+    /// </summary>
+    public static string ZoneAt(Vector3 p)
+    {
+        if (Distrito.Server.Core.World.CityLayout.BarrioAt(p.X, p.Z) is { } barrio)
+            return barrio.Area.Code;
+        if (Distrito.Server.Core.World.CityLayout.Docks.Contains(p.X, p.Z))
+            return TerritoryRules.Docks;
+        return NpcInteractionRules.Market
             .Select(n => (Zone: TerritoryRules.ZoneOfNpc(n.Code), Dist: Vector2.Distance(new(n.Position.X, n.Position.Z), new(p.X, p.Z))))
             .Where(x => x.Zone is not null)
             .OrderBy(x => x.Dist).First().Zone!;
+    }
 
     public static bool InSafeZone(Vector3 p, float radius = SafeRadius) =>
         NpcInteractionRules.All.Any(n => Vector2.Distance(new(n.Position.X, n.Position.Z), new(p.X, p.Z)) <= radius);

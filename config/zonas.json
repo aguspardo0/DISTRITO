@@ -19,7 +19,11 @@
     "la-oficina": { "perderMercaderiaAlMorir": false },
     "la-esquina": {},
     "_los-muelles": "Zona libre al este del barrio: siempre se pelea y se roba (no hay locales, así que tampoco zona segura).",
-    "los-muelles": { "pvp": true, "robos": true, "persecuciones": true }
+    "los-muelles": { "pvp": true, "robos": true, "persecuciones": true },
+    "_barrios": "Barrios de las familias (cada una en el suyo, con su avenida). Por ahora tranquilos como el Mercado; alrededor de cada persona de la familia hay zona segura.",
+    "barrio-moretti": {},
+    "barrio-valenti": {},
+    "barrio-caruso": {}
   },
   "excepciones": {
     "disputa": { "pvp": true, "robos": true, "persecuciones": true },

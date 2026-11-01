@@ -179,6 +179,10 @@ public static class EconomyCatalog
 
     // --- Puesto de café (primer negocio; valores provisionales, ver ADR-005) ---
     public const string ValentiOfficeNpc = "npc:oficina-valenti";
+    // Jefes de familia, cada uno en el cuartel de su barrio (pedido del equipo, 2026-11-01).
+    public const string MorettiBossNpc = "npc:don-moretti";
+    public const string ValentiBossNpc = "npc:don-valenti";
+    public const string CarusoBossNpc = "npc:don-caruso";
     public const string CoffeeCornerNpc = "npc:esquina-cafe"; // punto de interacción, sin cuenta económica
     public const string PopulationAccount = "system:poblacion";
     public const string CoffeeBagItem = "bolsa-cafe";

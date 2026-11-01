@@ -25,8 +25,8 @@ public static class MapPresence
     /// <summary>Precisión de la posición en el mapa (metros).</summary>
     public const float Resolution = 0.5f;
 
-    // Límites del mundo en planta: el barrio original (−30…30) más Los Muelles al este (30…84).
-    public const float MinX = -30f, MaxX = 84f, MinZ = -30f, MaxZ = 30f;
+    // Límites del mundo en planta: el rectángulo que contiene toda la ciudad (ver CityLayout; no todo es caminable).
+    public static readonly float MinX = CityLayout.MinX, MaxX = CityLayout.MaxX, MinZ = CityLayout.MinZ, MaxZ = CityLayout.MaxZ;
 
     /// <summary>Los Muelles: zona libre (sin protección de PvP), al este del barrio.</summary>
     public const float DocksStartX = 30f;
@@ -58,9 +58,10 @@ public static class MapPresence
         new(-16, 6, 7, 9), new(15, 8, 8, 7), new(0, 17, 12, 5),
         Casino,
         .. DocksBuildings,
+        .. CityLayout.BarrioBuildings.Select(b => b.Plan),
     ];
 
-    public static bool InDocks(float x) => x > DocksStartX;
+    public static bool InDocks(float x, float z) => CityLayout.Docks.Contains(x, z);
 
 
     /// <summary>Formato compacto para la red: arreglos paralelos.</summary>

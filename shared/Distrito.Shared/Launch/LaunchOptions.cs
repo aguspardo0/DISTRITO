@@ -29,6 +29,7 @@ public enum LaunchMode
 /// <param name="InterestRadius">Servidor: radio de interés de red en metros.</param>
 /// <param name="MetricsIntervalSeconds">Servidor: cada cuántos segundos imprime métricas (0 = nunca).</param>
 /// <param name="BotGoto">El bot camina hasta este punto (X, Z) y se queda ahí.</param>
+/// <param name="BotRoute">El bot recorre estos puntos en orden (--bot-route "X,Z;X,Z;…") y se queda en el último.</param>
 /// <param name="ExpectVisibleAtEnd">La prueba exige ver exactamente esta cantidad de jugadores al final (incluido uno mismo).</param>
 /// <param name="BotBusiness">El bot abre un puesto de café, lo repone, espera ventas y retira la ganancia.</param>
 /// <param name="BotContract">El bot cumple el contrato de prueba (depósito → taller) y la prueba verifica el cobro.</param>
@@ -55,6 +56,7 @@ public sealed record LaunchOptions(
     float InterestRadius = NetworkDefaults.InterestRadius,
     int MetricsIntervalSeconds = 0,
     (float X, float Z)? BotGoto = null,
+    IReadOnlyList<(float X, float Z)>? BotRoute = null,
     int? ExpectVisibleAtEnd = null,
     bool BotBusiness = false,
     string? BotContractCode = null,
@@ -108,6 +110,9 @@ public sealed record LaunchOptions(
                     break;
                 case "--metrics-interval":
                     options = options with { MetricsIntervalSeconds = ParseInt(RequireValue(args, ref i), args[i - 1], 1, 3600) };
+                    break;
+                case "--bot-route":
+                    options = options with { Bot = true, BotRoute = RequireValue(args, ref i).Split(';', StringSplitOptions.RemoveEmptyEntries).Select(ParsePoint).ToList() };
                     break;
                 case "--bot-goto":
                     options = options with { Bot = true, BotGoto = ParsePoint(RequireValue(args, ref i)) };

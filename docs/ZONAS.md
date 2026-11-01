@@ -18,5 +18,10 @@ y el servidor lo toma solo en unos minutos. Si hay un error, la corrida dice cu�
 | segundosBulto | cuánto tarda en desaparecer lo que queda tirado (10 a 86400) |
 
 ## Los Muelles (zona libre)
-`los-muelles` es la parte este del mapa (x > 30). No es territorio en disputa ni tiene locales (no hay zona segura):
+`los-muelles` es la parte este del Mercado (x 30…84, z −30…30). No es territorio en disputa ni tiene locales (no hay zona segura):
 en `config/zonas.json` tiene `pvp`, `robos` y `persecuciones` en true. El nivel mínimo para pelear con jugadores es 5 (protección de novato).
+
+## Barrios de las familias
+`barrio-moretti`, `barrio-valenti` y `barrio-caruso` son los barrios de cada familia, con su avenida (ver `docs/CIUDAD.md`).
+No son territorio en disputa entre cuadrillas. Por ahora tienen las reglas base (sin PvP), y alrededor de cada persona de la
+familia hay zona segura, como en los locales.

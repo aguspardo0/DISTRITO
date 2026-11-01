@@ -174,6 +174,15 @@ public class LaunchOptionsScaleTests
     }
 
     [Fact]
+    public void Bot_con_recorrido_de_varios_puntos()
+    {
+        var options = LaunchOptions.Parse(["--bot-route", "0,0;-50,0;-104.5,2"]);
+        Assert.True(options.Bot);
+        Assert.Equal([(0f, 0f), (-50f, 0f), (-104.5f, 2f)], options.BotRoute!);
+        Assert.Throws<ArgumentException>(() => LaunchOptions.Parse(["--bot-route", "0,0;x"]));
+    }
+
+    [Fact]
     public void Radio_por_defecto()
     {
         Assert.Equal(Distrito.Shared.Networking.NetworkDefaults.InterestRadius, LaunchOptions.Parse([]).InterestRadius);

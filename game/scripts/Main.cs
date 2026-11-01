@@ -55,6 +55,7 @@ public partial class Main : Node3D
     {
         Distrito.Game.World.DocksBuilder.Build(GetNode<Node3D>("World"));
         Distrito.Game.World.DocksBuilder.BuildCasino(GetNode<Node3D>("World"));
+        Distrito.Game.World.CityBuilder.Build(GetNode<Node3D>("World"));
         try
         {
             Options = LaunchOptions.Parse(OS.GetCmdlineUserArgs());
@@ -178,6 +179,13 @@ public partial class Main : Node3D
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.CoffeeCorner, new Color(0.35f, 0.22f, 0.12f)));
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.JazzClub, new Color(0.2f, 0.15f, 0.35f)));
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.Casino, new Color(0.12f, 0.35f, 0.18f)));
+        // Jefes de familia: traje oscuro con el color de su barrio.
+        foreach (var (boss, barrio) in NpcInteractionRules.Bosses.Zip(Distrito.Server.Core.World.CityLayout.Barrios))
+            npcs.AddChild(NpcActor.Create(boss, new Color(barrio.Accent.R, barrio.Accent.G, barrio.Accent.B).Darkened(0.45f)));
+        // Su gente, con el color de la familia más claro.
+        foreach (var contact in NpcInteractionRules.FamilyContacts)
+            if (Distrito.Server.Core.World.CityLayout.BarrioAt(contact.Position.X, contact.Position.Z) is { } home)
+                npcs.AddChild(NpcActor.Create(contact, new Color(home.Accent.R, home.Accent.G, home.Accent.B).Darkened(0.15f)));
     }
 
     private void StartDedicatedServer()
@@ -227,11 +235,11 @@ public partial class Main : Node3D
             if (Options.ExpectMapPlayers is { } onMap)
                 test.ExpectMapPlayers(_map, onMap);
 
-            if (Options.BotGoto is { } destination)
+            if ((Options.BotRoute ?? (Options.BotGoto is { } destination ? new List<(float X, float Z)> { destination } : null)) is { Count: > 0 } route)
             {
                 var gotoBot = new GotoBot { Name = "GotoBot" };
                 AddChild(gotoBot);
-                gotoBot.Initialize(_network, destination);
+                gotoBot.Initialize(_network, route);
             }
 
             if (Options.BotCrewCreate is not null || Options.BotCrewJoin)
@@ -376,7 +384,7 @@ public partial class Main : Node3D
             if (!IsInstanceValid(health))
                 return;
             var me = _network.LocalPlayer;
-            freeZone.Visible = me is not null && Distrito.Server.Core.World.MapPresence.InDocks(me.VisualPosition.X);
+            freeZone.Visible = me is not null && Distrito.Server.Core.World.MapPresence.InDocks(me.VisualPosition.X, me.VisualPosition.Z);
             health.Text = me is null ? "" : me.Dead ? "Muerto — volvés en unos segundos"
                 : me.Downed ? "Herido — esperá que te levante un compañero"
                 : $"♥ {me.Health}";

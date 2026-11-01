@@ -252,4 +252,29 @@ public class NpcInteractionRulesTests
             for (var slot = 0; slot < 16; slot++)
                 Assert.True(Vector3.Distance(npc.Position, Sessions.ZoneSessions.SpawnPointFor(slot)) > 2f);
     }
+
+    [Fact]
+    public void El_capo_no_recibe_sin_reputacion_y_manda_a_hablar_con_su_gente()
+    {
+        var nobody = new EconomySnapshot(2000, [], [], 0);
+        var closed = NpcInteractionRules.DialogFor(EconomyCatalog.MorettiBossNpc, nobody);
+        Assert.Contains("guardaespaldas", closed.Text);
+        Assert.Contains("Tano Ricci", closed.Text);
+        Assert.Empty(closed.Options);
+
+        var trusted = new EconomySnapshot(2000, [], [], 0, Reputation: [new ReputationView(EconomyCatalog.Moretti, "Familia Moretti", FamilyPeople.BossReputation)]);
+        var open = NpcInteractionRules.DialogFor(EconomyCatalog.MorettiBossNpc, trusted);
+        Assert.Contains("Villa Moretti", open.Text);
+        Assert.DoesNotContain("guardaespaldas", open.Text);
+    }
+
+    [Fact]
+    public void La_gente_de_la_familia_dice_cuanto_falta_para_ver_al_capo()
+    {
+        var rosa = FamilyPeople.Contacts.Single(c => c.Name.StartsWith("Rosa"));
+        var dialog = NpcInteractionRules.DialogFor(rosa.Code, new EconomySnapshot(2000, [], [], 0));
+        Assert.Contains("Don Caruso", dialog.Text);
+        Assert.Contains($"{FamilyPeople.BossReputation} de reputación", dialog.Text);
+        Assert.Equal(EconomyCatalog.Caruso, FamilyRules.FamilyOfNpc(rosa.Code));
+    }
 }

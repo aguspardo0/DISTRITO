@@ -44,7 +44,27 @@ public static class NpcInteractionRules
     /// <summary>Casino «El Trébol» de la familia Valenti (aprobado 2026-11-01), en la puerta del local.</summary>
     public static readonly NpcDefinition Casino = new(CasinoRules.Npc, CasinoRules.Name, new Vector3(24f, 0, 15.6f));
 
-    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner, JazzClub, Casino];
+    // Jefes de familia: esperan en la plaza de su barrio, frente al cuartel.
+    public static readonly NpcDefinition MorettiBoss = Boss(EconomyCatalog.MorettiBossNpc, World.CityLayout.Moretti);
+    public static readonly NpcDefinition ValentiBoss = Boss(EconomyCatalog.ValentiBossNpc, World.CityLayout.Valenti);
+    public static readonly NpcDefinition CarusoBoss = Boss(EconomyCatalog.CarusoBossNpc, World.CityLayout.Caruso);
+
+    private static NpcDefinition Boss(string code, World.BarrioPlan b) => new(code, b.Boss, new Vector3(b.BossSpot.X, 0, b.BossSpot.Y));
+
+    public static readonly IReadOnlyList<NpcDefinition> Bosses = [MorettiBoss, ValentiBoss, CarusoBoss];
+
+    /// <summary>La gente de cada familia: uno en la entrada del barrio (calle) y otro en la plaza (negocios).</summary>
+    public static readonly IReadOnlyList<NpcDefinition> FamilyContacts = FamilyPeople.Contacts.Select(c =>
+    {
+        var barrio = World.CityLayout.BarrioOf(c.Family)!;
+        var spot = c.Role == "calle" ? barrio.ToWorld(10, 8) : barrio.ToWorld(56, -8);
+        return new NpcDefinition(c.Code, c.Name, new Vector3(spot.X, 0, spot.Y));
+    }).ToList();
+
+    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner, JazzClub, Casino, .. Bosses, .. FamilyContacts];
+
+    /// <summary>NPC del Mercado (proveedores y comercios), sin la gente de los barrios.</summary>
+    public static readonly IReadOnlyList<NpcDefinition> Market = All.Except(Bosses).Except(FamilyContacts).ToList();
 
     public static NpcDefinition? Find(string code) => All.FirstOrDefault(n => n.Code == code);
 
@@ -67,6 +87,8 @@ public static class NpcInteractionRules
                                 + "La casa siempre tiene su parte, como en todos lados.", [new NpcOption(CasinoOption, "Entrar a jugar")]),
             EconomyCatalog.JazzClubNpc => BusinessDialog(EconomyCatalog.JazzClub, s,
                 "Un local vacío con escenario. Con licencia de la Oficina Valenti puede ser un club de jazz; las bebidas las vende el Almacén Moretti."),
+            EconomyCatalog.MorettiBossNpc or EconomyCatalog.ValentiBossNpc or EconomyCatalog.CarusoBossNpc => BossDialog(npcCode, s),
+            _ when FamilyPeople.Find(npcCode) is { } contact => ContactDialog(contact, s),
             _ => ("…", new List<NpcOption>()),
         };
         var options = rawOptions;
@@ -94,7 +116,8 @@ public static class NpcInteractionRules
             text += ev.IsActive(DateTimeOffset.UtcNow)
                 ? $"\n\n¡{ev.Name}! Hasta las {ev.EndsAt.ToOffset(TerritoryRules.ArgentinaOffset):HH:mm}: cada contrato entregado acá da +{ev.PointsPerContract} de influencia."
                 : $"\n\nPróximo evento acá: {ev.Name}, a las {ev.StartsAt.ToOffset(TerritoryRules.ArgentinaOffset):HH:mm}.";
-        if (FamilyRules.FamilyOfNpc(npc.Code) is { } pactFamily && s.Pacts is not null)
+        if (FamilyRules.FamilyOfNpc(npc.Code) is { } pactFamily && s.Pacts is not null && FamilyPeople.Find(npc.Code) is null
+            && (!Bosses.Contains(npc) || FamilyPeople.CanMeetBoss(s.ReputationWith(pactFamily))))
         {
             if (s.Pacts.FirstOrDefault(p => p.FamilyCode == pactFamily) is { } pact)
                 text += pact.Mine
@@ -107,6 +130,51 @@ public static class NpcInteractionRules
         if (FamilyRules.FamilyOfNpc(npc.Code) is { } family && s.Families is not null)
             text += $"\n\nÁnimo de la familia: {FamilyRules.Display(s.MoodOf(family))}.";
         return new NpcDialog(npc.Code, npc.Name, prefix is null ? text : $"{prefix}\n\n{text}", options);
+    }
+
+    /// <summary>
+    /// Saludo del jefe de familia: cada uno con su carácter y su desprecio por los otros dos (las familias son rivales).
+    /// </summary>
+    private static (string, List<NpcOption>) BossDialog(string npcCode, EconomySnapshot s)
+    {
+        var family = FamilyRules.FamilyOfNpc(npcCode)!;
+        var rep = s.ReputationWith(family);
+        if (!FamilyPeople.CanMeetBoss(rep))
+        {
+            // El capo no recibe a cualquiera: el guardaespaldas manda a hablar con su gente.
+            var people = string.Join(" o ", FamilyPeople.Contacts.Where(c => c.Family == family).Select(c => c.Name));
+            return ($"Un guardaespaldas te frena en la escalera. «El jefe no recibe a cualquiera. Si querés que te conozca, "
+                + $"ganate el respeto de la familia: hablá con {people}.»\n\n"
+                + $"Reputación con la familia: {rep} (el jefe recibe desde {FamilyPeople.BossReputation}).", new List<NpcOption>());
+        }
+        var standing = rep switch
+        {
+            >= 100 => "Sos de los nuestros. Acá se te respeta.",
+            >= 30 => "Te estás ganando un lugar. Seguí así.",
+            > -20 => "Todavía no sé si puedo confiar en vos.",
+            _ => "Tenés coraje para venir acá después de lo que hiciste. No te des vuelta.",
+        };
+        var greeting = family switch
+        {
+            EconomyCatalog.Moretti => "Bienvenido a Villa Moretti. Acá la palabra vale más que cualquier papel. "
+                + "Los Valenti creen que todo se compra y los Caruso que todo se arregla a martillazos. Nosotros no olvidamos quién nos ayuda.",
+            EconomyCatalog.Valenti => "Pase, siéntese. En el Palazzo los negocios se hacen con calma y con números. "
+                + "Los Moretti viven del pasado y los Caruso no saben leer un balance. El futuro de Bellmont es nuestro.",
+            _ => "Esto es Talleres Caruso: acá se trabaja con las manos y se cobra lo que se trabaja. "
+                + "Los Moretti te sonríen mientras te venden caro y los Valenti te sacan la plata con una lapicera.",
+        };
+        return ($"{greeting}\n\n{standing} (Reputación con la familia: {rep}.)", new List<NpcOption>());
+    }
+
+    /// <summary>La gente de la familia: su saludo y cuánto falta para que el capo te reciba.</summary>
+    private static (string, List<NpcOption>) ContactDialog(FamilyContact contact, EconomySnapshot s)
+    {
+        var rep = s.ReputationWith(contact.Family);
+        var boss = Find(FamilyPeople.BossOf(contact.Family))!.Name;
+        var road = FamilyPeople.CanMeetBoss(rep)
+            ? $"{boss} ya sabe quién sos. Te espera en el cuartel."
+            : $"Para que {boss} te reciba hace falta {FamilyPeople.BossReputation} de reputación con la familia; tenés {rep}.";
+        return ($"{contact.Greeting}\n\n{road}", new List<NpcOption>());
     }
 
     /// <summary>Traduce la opción elegida a una acción, solo si está disponible ahora. Si no, null.</summary>

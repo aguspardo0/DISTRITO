@@ -92,6 +92,14 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Los Muelles: zona libre al este del barrio (PvP y robos siempre; se configura en `config/zonas.json`), con galpones, cajones y muelle
 - [x] Panel de administración (F10) para pruebas: plata, objetos, nivel, ir a lugares y curarse; solo cuentas de `config/admins.json` o `Admin__Accounts`
 
+### Ciudad y misiones con las familias (pedido del equipo, 2026-11-01)
+- [x] Ciudad ampliada: el Mercado (proveedores y comercios) en el centro y un barrio por familia (Moretti al oeste, Valenti al norte, Caruso al sur), separados y unidos solo por avenidas. Ver `docs/CIUDAD.md`
+- [x] La gente de cada familia en el mapa (dos por barrio); el capo recibe desde 50 de reputación
+- [ ] Encargos personales: 8 tipos, 4 cada 2 h y uno del día; libreta (L). Aprobado: $8 + $1,50 por nivel (tope $45), 60–150 XP, +2 a +5 de reputación
+- [ ] Seguimiento en pantalla, marcadores en el mapa y en el mundo, pantalla de recompensa
+- [ ] Historias de las tres familias (4 pasos; premios: 5 % en el almacén, 10 % en vehículos, mesa VIP)
+- [ ] Operaciones de cuadrilla (una por día, 3 etapas; $120–250 a la caja, 60–120 de prestigio)
+
 ### Cuadrillas: sede, prestigio y misiones; casino (pedido del equipo, 2026-11-01)
 - [x] Sede en los galpones de Los Muelles ($250 + $2/ciclo; zona segura adentro; depósito 500 kg; reaparición)
 - [x] Prestigio de cuadrilla con 10 rangos y beneficios; misiones generadas cada 3 h (7 tipos), tablero con J

@@ -48,6 +48,25 @@ if grep -q NET_TEST_OK walls-b.log && echo "$pb" | awk -F, '{ x=$1; if (x<0) x=-
   note "Borde del barrio" "el bot llegó al muelle y no pudo salir del mapa: quedó en ${pb}"
 else error "Borde del barrio" "posición final ${pb:-?} ($(grep -h NET_TEST_ walls-b.log | tail -1 | cut -c1-200))"; fi
 
+# ---------- 1d. Barrios de las familias: se llega por las avenidas y el borde de la ciudad frena ----------
+# A va por la Avenida Oeste hasta la plaza del Barrio Moretti (antes de la fuente, x≈−107).
+# B sube por la Avenida Norte al Barrio Valenti, dobla por una calle y choca con el borde este del barrio (x = 74.5).
+PORT=7808
+"$GODOT" --headless --path game -- --server --port $PORT > barrios-server.log 2>&1 &
+srv=$!
+sleep 4
+client barrios-a.log $PORT --bot-route "0,-1;-25,-1;-104,-1" --test-seconds 40 --expect-players 2 & a=$!
+client barrios-b.log $PORT --bot-route "0,-1;24.5,-1;24.5,-91;200,-91" --test-seconds 40 --expect-players 2 & b=$!
+wait $a; wait $b
+kill $srv 2>/dev/null; wait $srv 2>/dev/null
+pa=$(pos_of barrios-a.log); pb=$(pos_of barrios-b.log)
+if grep -q NET_TEST_OK barrios-a.log && echo "$pa" | awk -F, '{ exit !($1 <= -100 && $2 > -6 && $2 < 6) }'; then
+  note "Barrio Moretti" "el bot llegó por la Avenida Oeste a la plaza: ${pa}"
+else error "Barrio Moretti" "posición final ${pa:-?} ($(grep -h NET_TEST_ barrios-a.log | tail -1 | cut -c1-200))"; fi
+if grep -q NET_TEST_OK barrios-b.log && echo "$pb" | awk -F, '{ exit !($1 >= 70 && $1 <= 75.2 && $2 < -85) }'; then
+  note "Barrio Valenti y borde" "el bot entró por la Avenida Norte y el borde lo frenó en ${pb}"
+else error "Barrio Valenti y borde" "posición final ${pb:-?} ($(grep -h NET_TEST_ barrios-b.log | tail -1 | cut -c1-200))"; fi
+
 # ---------- 1c. PvP a piñas (partida sin cuentas: vale todo salvo cerca de los locales) ----------
 PORT=7804
 "$GODOT" --headless --path game -- --server --port $PORT > fight-server.log 2>&1 &

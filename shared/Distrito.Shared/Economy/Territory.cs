@@ -40,6 +40,24 @@ public static class TerritoryRules
     public const string Docks = "los-muelles";
     public const string Corner = "la-esquina";
 
+    /// <summary>
+    /// Barrios de las familias (pedido del equipo, 2026-11-01): cada familia en el suyo, separados y rivales.
+    /// No son territorio en disputa entre cuadrillas: son de la familia. Las avenidas cuentan como parte del barrio.
+    /// </summary>
+    public const string BarrioMoretti = "barrio-moretti";
+    public const string BarrioValenti = "barrio-valenti";
+    public const string BarrioCaruso = "barrio-caruso";
+
+    public static readonly IReadOnlyList<(string Code, string Name, string Family)> Barrios =
+    [
+        (BarrioMoretti, "Barrio Moretti", EconomyCatalog.Moretti),
+        (BarrioValenti, "Barrio Valenti", EconomyCatalog.Valenti),
+        (BarrioCaruso, "Barrio Caruso", EconomyCatalog.Caruso),
+    ];
+
+    /// <summary>Zonas válidas para las reglas de combate: las cuatro del Mercado, Los Muelles y los barrios.</summary>
+    public static bool IsKnownZone(string code) => code == Docks || Zones.Any(z => z.Code == code) || Barrios.Any(b => b.Code == code);
+
     public const int ContractPoints = 3;
     public const int SalesCyclePoints = 1;
     public const int DailyCapPerZone = 30;
@@ -56,7 +74,8 @@ public static class TerritoryRules
         (Warehouse, "Calle del Almacén"), (Workshops, "Los Talleres"), (Office, "La Oficina"), (Corner, "La Esquina"),
     ];
 
-    public static string NameOf(string zone) => zone == Docks ? "Los Muelles" : zone == "sede" ? "la sede de la cuadrilla" : Zones.FirstOrDefault(z => z.Code == zone).Name ?? zone;
+    public static string NameOf(string zone) => zone == Docks ? "Los Muelles" : zone == "sede" ? "la sede de la cuadrilla"
+        : Barrios.FirstOrDefault(b => b.Code == zone).Name ?? Zones.FirstOrDefault(z => z.Code == zone).Name ?? zone;
 
     public static string? ZoneOfNpc(string npcCode) => npcCode switch
     {
@@ -64,6 +83,10 @@ public static class TerritoryRules
         EconomyCatalog.WorkshopNpc => Workshops,
         EconomyCatalog.ValentiOfficeNpc => Office,
         EconomyCatalog.CoffeeCornerNpc or EconomyCatalog.JazzClubNpc or CasinoRules.Npc => Corner,
+        EconomyCatalog.MorettiBossNpc => BarrioMoretti,
+        EconomyCatalog.ValentiBossNpc => BarrioValenti,
+        EconomyCatalog.CarusoBossNpc => BarrioCaruso,
+        _ when FamilyPeople.Find(npcCode) is { } contact => Barrios.First(b => b.Family == contact.Family).Code,
         _ => null,
     };
 

@@ -5,12 +5,15 @@ using Godot;
 
 namespace Distrito.Game.Map;
 
-/// <summary>Mapa del barrio (tecla M): edificios, lugares y todos los jugadores conectados.</summary>
+/// <summary>Mapa de Bellmont (tecla M): barrios, edificios, lugares y todos los jugadores conectados.</summary>
 public partial class MapPanel : Control
 {
-    private const float WidthPx = 600f;
-    private static readonly float MapScale = WidthPx / (MapPresence.MaxX - MapPresence.MinX);
-    private static readonly float HeightPx = MapScale * (MapPresence.MaxZ - MapPresence.MinZ);
+    // La ciudad es más alta que ancha: se fija la altura para que entre en pantalla.
+    private const float HeightPx = 600f;
+    private static readonly float MapScale = HeightPx / (MapPresence.MaxZ - MapPresence.MinZ);
+    private static readonly float WidthPx = Mathf.Max(460f, MapScale * (MapPresence.MaxX - MapPresence.MinX));
+    private static readonly Color Ground = new(0.2f, 0.19f, 0.17f);
+    private static readonly Color AvenueColor = new(0.26f, 0.25f, 0.23f);
     private static readonly Color FreeZone = new(0.55f, 0.18f, 0.14f, 0.35f);
     private static readonly Color Paper = new(0.12f, 0.11f, 0.1f, 0.98f);
     private static readonly Color Building = new(0.32f, 0.29f, 0.25f);
@@ -57,11 +60,27 @@ public partial class MapPanel : Control
     {
         var font = ThemeDB.FallbackFont;
         DrawRect(new Rect2(0, 0, WidthPx, HeightPx + 48), Paper);
-        // Los Muelles: zona libre, sombreada en rojo.
-        var docksCorner = ToMap(MapPresence.DocksStartX, MapPresence.MinZ);
-        DrawRect(new Rect2(docksCorner, new Vector2((MapPresence.MaxX - MapPresence.DocksStartX) * MapScale, HeightPx)), FreeZone);
-        DrawString(font, docksCorner + new Vector2(6, HeightPx - 8), "LOS MUELLES — zona libre (PvP sin protección)",
-            HorizontalAlignment.Left, -1, 12, new Color(0.95f, 0.55f, 0.4f));
+        // Distritos: el Mercado (neutral), las avenidas, Los Muelles (zona libre, en rojo) y el barrio de cada familia con su color.
+        foreach (var d in CityLayout.Districts)
+        {
+            var rect = new Rect2(ToMap(d.MinX, d.MinZ), new Vector2(d.Width * MapScale, d.Depth * MapScale));
+            DrawRect(rect, d.Kind == DistrictKind.Avenue ? AvenueColor : Ground);
+            if (d.Kind == DistrictKind.Docks)
+                DrawRect(rect, FreeZone);
+        }
+        foreach (var b in CityLayout.Barrios)
+        {
+            var rect = new Rect2(ToMap(b.Area.MinX, b.Area.MinZ), new Vector2(b.Area.Width * MapScale, b.Area.Depth * MapScale));
+            var accent = new Color(b.Accent.R, b.Accent.G, b.Accent.B);
+            DrawRect(rect, accent with { A = 0.16f });
+            DrawRect(rect, accent with { A = 0.7f }, filled: false, width: 2);
+            DrawString(font, rect.Position + new Vector2(6, 15), b.Area.Name.ToUpperInvariant(), HorizontalAlignment.Left, -1, 13, accent.Lightened(0.25f));
+        }
+        var docks = CityLayout.Docks;
+        DrawString(font, ToMap(docks.MinX, docks.MaxZ) + new Vector2(4, -6), "LOS MUELLES — zona libre",
+            HorizontalAlignment.Left, docks.Width * MapScale - 6, 11, new Color(0.95f, 0.55f, 0.4f));
+        DrawString(font, ToMap(CityLayout.Market.MinX, CityLayout.Market.MaxZ) + new Vector2(4, -6), "EL MERCADO",
+            HorizontalAlignment.Left, -1, 11, Brass with { A = 0.8f });
         if (Economy?.Invoke()?.Families is { } families)
         {
             var line = string.Join("   ", families.Select(f => $"{f.Name.Replace("Familia ", "")}: {Distrito.Shared.Economy.FamilyRules.Display(f.Mood).Split(' ')[0]}"));
@@ -96,8 +115,24 @@ public partial class MapPanel : Control
                 DrawArc(at, 22, 0, Mathf.Tau, 32, color, 3);
                 DrawString(font, at + new Vector2(-30, 36), $"«{owner}»", HorizontalAlignment.Left, -1, 11, color);
             }
-            DrawRect(new Rect2(at - new Vector2(4, 4), new Vector2(8, 8)), Brass);
-            DrawString(font, at + new Vector2(7, 4), npc.Name, HorizontalAlignment.Left, -1, 11, Brass);
+            if (CityLayout.BarrioAt(npc.Position.X, npc.Position.Z) is { } barrio && !NpcInteractionRules.Bosses.Contains(npc))
+            {
+                // La gente de la familia: punto del color del barrio, con su nombre.
+                var tone = new Color(barrio.Accent.R, barrio.Accent.G, barrio.Accent.B);
+                DrawCircle(at, 4.5f, tone);
+                DrawString(font, at + new Vector2(6, 4), npc.Name, HorizontalAlignment.Left, -1, 10, tone.Lightened(0.35f));
+                continue;
+            }
+            if (CityLayout.BarrioAt(npc.Position.X, npc.Position.Z) is { } home)
+            {
+                // Jefe de familia: rombo grande con el color del barrio.
+                var accent = new Color(home.Accent.R, home.Accent.G, home.Accent.B);
+                DrawColoredPolygon([at + new Vector2(0, -8), at + new Vector2(8, 0), at + new Vector2(0, 8), at + new Vector2(-8, 0)], accent);
+                DrawString(font, at + new Vector2(10, 5), npc.Name, HorizontalAlignment.Left, -1, 13, accent.Lightened(0.3f));
+                continue;
+            }
+            DrawRect(new Rect2(at - new Vector2(3, 3), new Vector2(6, 6)), Brass);
+            DrawString(font, at + new Vector2(5, 4), npc.Name, HorizontalAlignment.Left, -1, 9, Brass);
         }
 
         var me = Multiplayer.MultiplayerPeer is null ? 0 : Multiplayer.GetUniqueId();

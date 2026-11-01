@@ -94,8 +94,8 @@ public sealed class ZoneRules
             {
                 if (zone.StartsWith('_'))
                     continue; // comentario
-                if (zone != TerritoryRules.Docks && TerritoryRules.Zones.All(z => z.Code != zone))
-                    errors.Add($"zonas: '{zone}' no existe (usá {string.Join(", ", TerritoryRules.Zones.Select(z => z.Code).Append(TerritoryRules.Docks))}).");
+                if (!TerritoryRules.IsKnownZone(zone))
+                    errors.Add($"zonas: '{zone}' no existe (usá {string.Join(", ", TerritoryRules.Zones.Select(z => z.Code).Append(TerritoryRules.Docks).Concat(TerritoryRules.Barrios.Select(b => b.Code)))}).");
                 zones[zone] = Section(node, $"zonas.{zone}", false);
             }
         var exceptions = new Dictionary<string, Dictionary<string, object>>();
