@@ -116,6 +116,15 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<int>> UseAmmoAsync(string serverKey, AmmoUseRequest request, CancellationToken ct = default) =>
         SendAsync<int>(HttpMethod.Post, "internal/combat/ammo", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<InventoryView>> GetInventoryAsync(string serverKey, Guid characterId, CancellationToken ct = default) =>
+        SendAsync<InventoryView>(HttpMethod.Get, $"internal/inventory/{characterId}", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> GiveItemAsync(string serverKey, GiveItemRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/inventory/give", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<DropItemResult>> DropItemAsync(string serverKey, DropItemRequest request, CancellationToken ct = default) =>
+        SendAsync<DropItemResult>(HttpMethod.Post, "internal/inventory/drop", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<EconomyActionResult>> PickupAsync(string serverKey, PickupRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/combat/pickup", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

@@ -26,6 +26,7 @@ public partial class CombatNetwork : Node
     private readonly Dictionary<long, double> _lastRefusal = new();
     private readonly Dictionary<Guid, int> _levels = new();
     private readonly Dictionary<Guid, (Vector3 Position, string Label, double Created)> _drops = new();
+    private readonly Dictionary<Guid, (long Peer, double Until)> _noPickup = new();
     private readonly Dictionary<Guid, Node3D> _dropVisuals = new();
     private readonly HashSet<Guid> _pickingUp = new();
     private CombatState _state = CombatState.None;
@@ -132,7 +133,7 @@ public partial class CombatNetwork : Node
             return;
         }
         foreach (var drop in result.Value!)
-            AddDrop(drop, ((drop.ExpiresAt ?? DateTimeOffset.UtcNow) - DateTimeOffset.UtcNow).TotalSeconds);
+            PlaceDrop(drop, ((drop.ExpiresAt ?? DateTimeOffset.UtcNow) - DateTimeOffset.UtcNow).TotalSeconds);
         if (result.Value.Count > 0)
             GD.Print($"[DISTRITO] {result.Value.Count} bultos recuperados de la calle");
     }
@@ -360,13 +361,20 @@ public partial class CombatNetwork : Node
                 position.X, position.Y, position.Z, rules.DropSeconds));
         if (!result.IsSuccess || result.Value!.Items.Count == 0)
             return;
-        AddDrop(result.Value, rules.DropSeconds);
+        PlaceDrop(result.Value, rules.DropSeconds);
         _economy.RefreshPeer(victim.PeerId);
     }
 
-    /// <summary>Muestra un bulto a todos y lo recuerda hasta que vence (en segundos desde ahora).</summary>
-    private void AddDrop(DropView drop, double secondsLeft)
+    /// <summary>Segundos que dura un bulto tirado en ese lugar (regla de zona).</summary>
+    public int DropSecondsAt(Vector3 position) =>
+        CombatRules.PermissionsAt(N(position), _rules ?? ZoneRules.ServerDefault, _state, false).DropSeconds;
+
+    /// <summary>Muestra un bulto a todos y lo recuerda hasta que vence (en segundos desde ahora).
+    /// El que lo soltó a propósito no lo vuelve a levantar sin querer durante unos segundos.</summary>
+    public void PlaceDrop(DropView drop, double secondsLeft, long droppedBy = 0)
     {
+        if (droppedBy != 0)
+            _noPickup[drop.DropId] = (droppedBy, _clock + 4);
         var position = new Vector3((float)drop.X, (float)drop.Y, (float)drop.Z);
         var label = string.Join(", ", drop.Items.Select(i => $"{i.Name} ×{i.Quantity}"));
         _drops[drop.DropId] = (position, label, _clock - DropLifetimeSeconds + secondsLeft);
@@ -386,7 +394,8 @@ public partial class CombatNetwork : Node
             var here = CombatRules.PermissionsAt(N(drop.Position), _rules ?? ZoneRules.ServerDefault, _state, false);
             if (!here.Pickup || !here.Looting)
                 continue;
-            var picker = _network.AllPlayers.FirstOrDefault(p => !p.Downed && p.GlobalPosition.DistanceTo(drop.Position) <= PickupRadius);
+            var blocked = _noPickup.TryGetValue(id, out var nb) && _clock < nb.Until ? nb.Peer : 0;
+            var picker = _network.AllPlayers.FirstOrDefault(p => !p.Downed && p.PeerId != blocked && p.GlobalPosition.DistanceTo(drop.Position) <= PickupRadius);
             if (picker is null || !_network.TryGetSession(picker.PeerId, out var session))
                 continue;
             _pickingUp.Add(id);
@@ -415,6 +424,7 @@ public partial class CombatNetwork : Node
     private void RemoveDropEverywhere(Guid id)
     {
         _drops.Remove(id);
+        _noPickup.Remove(id);
         foreach (var p in Multiplayer.GetPeers())
             RpcId(p, MethodName.HideDrop, id.ToString());
         HideDrop(id.ToString());

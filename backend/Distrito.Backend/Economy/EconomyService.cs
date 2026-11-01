@@ -119,6 +119,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             var txId = await NewLedgerTransactionAsync(c, tx, request.RequestId, "purchase",
                 $"Compra de {request.Quantity} × {itemName} a {request.NpcCode}", ct);
             await TransferMoneyAsync(c, tx, txId, from: buyer, to: seller, total, ct);
+            await EnsureFitsAsync(c, tx, buyer, itemCode, units, ct);
             await MoveItemsAsync(c, tx, txId, itemCode, units,
                 from: (seller, sellerLocation), to: (buyer, EconomyCatalog.CarriedLocation),
                 notEnough: "El depósito no tiene stock suficiente.", ct);
@@ -558,7 +559,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
 
     private static async Task MoveItemsAsync(
         NpgsqlConnection c, NpgsqlTransaction tx, Guid txId, string itemCode, int quantity,
-        (Guid Account, string Location) from, (Guid Account, string Location) to, string notEnough, CancellationToken ct)
+        (Guid Account, string Location) from, (Guid Account, string Location) to, string notEnough, CancellationToken ct, Guid? actor = null)
     {
         await using (var take = new NpgsqlCommand("""
             WITH src AS (
@@ -596,8 +597,8 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             INSERT INTO distrito.item_stacks (id, owner_account_id, item_code, location, quantity)
             VALUES (@id, @ta, @item, @tl, @q)
             ON CONFLICT (owner_account_id, item_code, location) DO UPDATE SET quantity = distrito.item_stacks.quantity + EXCLUDED.quantity;
-            INSERT INTO distrito.item_movements (transaction_id, item_code, from_account_id, from_location, to_account_id, to_location, quantity)
-            VALUES (@tx, @item, @fa, @fl, @ta, @tl, @q);
+            INSERT INTO distrito.item_movements (transaction_id, item_code, from_account_id, from_location, to_account_id, to_location, quantity, actor_character_id)
+            VALUES (@tx, @item, @fa, @fl, @ta, @tl, @q, @actor);
             """, c, tx);
         give.Parameters.AddWithValue("id", Guid.CreateVersion7());
         give.Parameters.AddWithValue("ta", to.Account);
@@ -607,6 +608,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         give.Parameters.AddWithValue("item", itemCode);
         give.Parameters.AddWithValue("q", quantity);
         give.Parameters.AddWithValue("tx", txId);
+        give.Parameters.AddWithValue("actor", (object?)actor ?? DBNull.Value);
         await give.ExecuteNonQueryAsync(ct);
     }
 

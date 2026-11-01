@@ -1,0 +1,5 @@
+{
+  // Capacidad de cada tipo de contenedor. null = sin límite.
+  // Decisión del equipo (2026-10-31): por ahora el personaje lleva sin límite; más adelante se configura acá.
+  "personal": { "kg": null, "litros": null }
+}

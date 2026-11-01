@@ -363,6 +363,19 @@ public partial class CombatNetwork
     }
 
     /// <summary>Antes de tirar la mercadería de un herido hay que descontar lo que disparó, y vuelve a las piñas.</summary>
+    /// <summary>
+    /// Antes de que un objeto salga del inventario (darlo o soltarlo): descuenta las balas ya disparadas y, si es
+    /// munición, vacía el cargador para que nadie siga tirando balas que ya no tiene.
+    /// </summary>
+    public async Task BeforeItemLeavesAsync(long peer, string itemCode)
+    {
+        foreach (var w in Weapons.All.Where(w => w.AmmoItem == itemCode))
+            _loaded.Remove((peer, w.Code));
+        if (_network.Backend is { } backend && _network.TryGetSession(peer, out var s))
+            await FlushAmmoAsync(backend, s.CharacterId);
+        SendAmmo(peer);
+    }
+
     private async Task BeforeKnockoutAsync(PlayerCharacter victim)
     {
         SetArmed(victim.PeerId, Weapons.Fists);

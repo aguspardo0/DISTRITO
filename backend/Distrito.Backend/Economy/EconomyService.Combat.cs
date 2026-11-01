@@ -56,19 +56,7 @@ public sealed partial class EconomyService
             foreach (var item in carried)
                 await MoveItemsAsync(c, tx, txId, item.ItemCode, item.Quantity,
                     from: (victim, EconomyCatalog.CarriedLocation), to: (ground, $"bulto:{r.DropId}"), notEnough: "Sin mercadería.", ct);
-            expires = clock.GetUtcNow().AddSeconds(Math.Clamp(r.Seconds, 10, 86400));
-            await using var place = new NpgsqlCommand("""
-                INSERT INTO distrito.world_drops (id, victim_id, x, y, z, created_at, expires_at) VALUES (@id, @v, @x, @y, @z, @now, @exp)
-                ON CONFLICT (id) DO NOTHING
-                """, c, tx);
-            place.Parameters.AddWithValue("id", r.DropId);
-            place.Parameters.AddWithValue("v", r.VictimId);
-            place.Parameters.AddWithValue("x", r.X);
-            place.Parameters.AddWithValue("y", r.Y);
-            place.Parameters.AddWithValue("z", r.Z);
-            place.Parameters.AddWithValue("now", clock.GetUtcNow());
-            place.Parameters.AddWithValue("exp", expires.Value);
-            await place.ExecuteNonQueryAsync(ct);
+            expires = await PlaceDropAsync(c, tx, r.DropId, r.VictimId, r.X, r.Y, r.Z, r.Seconds, "muerte", ct);
         }
         await tx.CommitAsync(ct);
         return new DropView(r.DropId, carried, r.X, r.Y, r.Z, expires);
@@ -135,8 +123,13 @@ public sealed partial class EconomyService
                 await mark.ExecuteNonQueryAsync(ct);
             }
             foreach (var (code, qty) in items)
-                await MoveItemsAsync(c, tx, txId, code, qty, from: (ground, location), to: (picker, EconomyCatalog.CarriedLocation), notEnough: "Sin mercadería.", ct);
-            return $"Levantaste {string.Join(", ", items.Select(i => $"{i.Qty} × {i.Code.Replace('-', ' ')}"))}.";
+                await EnsureFitsAsync(c, tx, picker, code, qty, ct);
+            foreach (var (code, qty) in items)
+                await MoveItemsAsync(c, tx, txId, code, qty, from: (ground, location), to: (picker, EconomyCatalog.CarriedLocation), notEnough: "Sin mercadería.", ct, actor: r.CharacterId);
+            var names = new List<string>();
+            foreach (var (code, qty) in items)
+                names.Add($"{qty} × {(await ItemInfoAsync(c, tx, code, ct)).Name}");
+            return $"Levantaste {string.Join(", ", names)}.";
         });
 
     /// <summary>Munición gastada (la descuenta el servidor de juego en tandas). Si hay menos, se descuenta lo que haya.</summary>
