@@ -80,7 +80,7 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [ ] Subfacciones (cuando haya familias de jugadores)
 - [x] PvP regulado a piñas: zonas en disputa y eventos, zona segura cerca de los locales, nivel 3+, herido 10 s, mercadería al suelo
 - [x] Correr (Shift)
-- [ ] Guerras declaradas entre cuadrillas (PvP en todo el barrio entre las dos, salvo zonas seguras)
+- [x] Guerras declaradas entre cuadrillas: empiezan a los 10 min, duran 24 h, PvP en todo el barrio entre las dos salvo zonas seguras
 - [ ] Armas de fuego
 - [ ] Prueba manual del equipo de la Etapa E
 

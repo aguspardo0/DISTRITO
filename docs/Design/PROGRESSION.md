@@ -65,3 +65,7 @@ cuadrillas/coaliciones con 10+ de influencia en la temporada) y en la zona de un
 5 m de un local (zona segura) ni con personajes de nivel 1 o 2. A 0 de vida: herido 10 s y reaparece en su punto de aparición;
 lo que llevaba encima queda en un bulto en el suelo (5 min) que levanta el primero que pasa por encima; la plata no se pierde.
 En partidas locales sin cuentas vale todo salvo la zona segura. Correr con Shift (7,5 m/s; caminar 5 m/s).
+
+Guerras: el jefe declara la guerra a otra cuadrilla por nombre; empieza a los 10 minutos (aviso) y dura 24 h. Mientras dura,
+los integrantes de las dos pueden pelear en todo el barrio salvo zonas seguras (siguen valiendo nivel 3+). Una guerra
+declarada a la vez por cuadrilla; con la misma cuadrilla, 24 h de espera después de que termina.
