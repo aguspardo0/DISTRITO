@@ -81,6 +81,7 @@ public static class Endpoints
         internalApi.MapPost("/crews/base", (CrewBaseBuyRequest r, EconomyService e, CancellationToken ct) => e.BuyCrewBaseAsync(r, ct));
         internalApi.MapPost("/crews/missions/turnin", (CrewMissionTurnInRequest r, EconomyService e, CancellationToken ct) => e.TurnInCrewMissionAsync(r, ct));
         internalApi.MapPost("/crews/missions/progress", (CrewMissionProgressRequest r, EconomyService e, CancellationToken ct) => e.CrewMissionProgressAsync(r, ct));
+        internalApi.MapPost("/crews/operation/start", (CrewOperationStartRequest r, EconomyService e, CancellationToken ct) => e.StartCrewOperationAsync(r, ct));
         internalApi.MapPost("/encargos/accion", (EncargoActionRequest r, EconomyService e, CancellationToken ct) => e.EncargoActionAsync(r, ct));
         internalApi.MapPost("/encargos/abandonar", (EncargoAbandonRequest r, EconomyService e, CancellationToken ct) => e.AbandonEncargoAsync(r, ct));
         internalApi.MapPost("/encargos/progreso", (EncargoProgressRequest r, EconomyService e, CancellationToken ct) => e.EncargoProgressAsync(r, ct));

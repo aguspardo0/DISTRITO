@@ -180,6 +180,9 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<EconomyActionResult>> TurnInCrewMissionAsync(string serverKey, CrewMissionTurnInRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/crews/missions/turnin", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<EconomyActionResult>> StartCrewOperationAsync(string serverKey, CrewOperationStartRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/crews/operation/start", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<EconomyActionResult>> EncargoActionAsync(string serverKey, EncargoActionRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/encargos/accion", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

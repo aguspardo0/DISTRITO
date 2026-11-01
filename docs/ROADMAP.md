@@ -98,7 +98,7 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Encargos personales: 8 tipos, 4 cada 2 h y uno del día; libreta (L). Aprobado: $8 + $1,50 por nivel (tope $45), 60–150 XP, +2 a +5 de reputación. «Venta» se reemplazó por «recado». Ver `docs/ENCARGOS.md`
 - [x] Seguimiento en pantalla, marcadores en el mapa y en el mundo, aviso al cumplir
 - [x] Historias de las tres familias, las da el capo (4 capítulos; premios: 5 % en el Almacén, 10 % en vehículos, mesa VIP)
-- [ ] Operaciones de cuadrilla (una por día, 3 etapas; $120–250 a la caja, 60–120 de prestigio)
+- [x] Operaciones de cuadrilla en el tablero (J): una por día, 3 etapas, 2+ integrantes; $120–250 a la caja y 60–120 de prestigio. Ver `docs/CUADRILLAS-SEDE.md`
 
 ### Cuadrillas: sede, prestigio y misiones; casino (pedido del equipo, 2026-11-01)
 - [x] Sede en los galpones de Los Muelles ($250 + $2/ciclo; zona segura adentro; depósito 500 kg; reaparición)

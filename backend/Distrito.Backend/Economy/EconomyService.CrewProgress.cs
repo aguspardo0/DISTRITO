@@ -104,9 +104,10 @@ public sealed partial class EconomyService
             w.Parameters.AddWithValue("c", seat.CrewId);
             debt = await w.ExecuteScalarAsync(ct) is long d0 ? d0 : 0;
         }
+        var operation = await OperationViewAsync(c, tx, seat.CrewId, rank, ct);
         await tx.CommitAsync(ct);
         return new CrewBoardView(true, seat.CrewName, prestige, rank, PrestigeRules.ForRank(Math.Min(rank + 1, PrestigeRules.MaxRank)),
-            shed, debt, missions, taken, seat.Role == "leader", MissionGenerator.SlotEnd(slot));
+            shed, debt, missions, taken, seat.Role == "leader", MissionGenerator.SlotEnd(slot), operation);
     }
 
     private static async Task<List<CrewMissionView>> MissionsAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid crewId, long slot, CancellationToken ct)
@@ -210,6 +211,10 @@ public sealed partial class EconomyService
             grow.Parameters.AddWithValue("c", crewId);
             await grow.ExecuteNonQueryAsync(ct);
         }
+        if (await AdvanceOperationAsync(c, tx, crewId, missionId, ct) is { } operation)
+            return reward > 0
+                ? $"{operation} {EconomyCatalog.FormatMoney(paid)} a la caja y +{prestige} de prestigio (rango {rankAfter})."
+                : operation;
         return $"¡Misión cumplida! {title}: {EconomyCatalog.FormatMoney(paid)} a la caja y +{prestige} de prestigio (rango {rankAfter}).";
     }
 
@@ -276,7 +281,10 @@ public sealed partial class EconomyService
             return await CompleteMissionAsync(c, tx, txId, seat.CrewId, r.MissionId, title, reward, prestige, payer, r.CharacterId, ct);
         });
 
-    /// <summary>Progreso por algo que pasó en el mundo (asaltos, guardias, vigilancia). Suma en la primera misión abierta de ese tipo.</summary>
+    /// <summary>
+    /// Progreso por algo que pasó en el mundo (asaltos, guardias, vigilancia). Suma en la primera misión abierta de ese tipo,
+    /// empezando por la etapa de la operación del día si la hay.
+    /// </summary>
     public Task<EconomyActionResult> CrewMissionProgressAsync(CrewMissionProgressRequest r, CancellationToken ct) =>
         RunAsync(r.CharacterId, r.RequestId, ct, async (c, tx) =>
         {
@@ -290,7 +298,7 @@ public sealed partial class EconomyService
             await using (var find = new NpgsqlCommand("""
                 SELECT id, title, target, progress, reward_cents, prestige, payer_family FROM distrito.crew_missions
                  WHERE crew_id = @c AND kind = @k AND status = 'abierta' AND expires_at > @now
-                   AND (npc_code IS NULL OR npc_code = @npc) ORDER BY slot DESC, idx LIMIT 1 FOR UPDATE
+                   AND (npc_code IS NULL OR npc_code = @npc) ORDER BY operation_day IS NULL, slot DESC, idx LIMIT 1 FOR UPDATE
                 """, c, tx))
             {
                 find.Parameters.AddWithValue("c", seat.CrewId);

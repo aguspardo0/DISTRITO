@@ -45,3 +45,14 @@ portero (E). **Ruleta** europea (color, paridad, mitad 1 a 1; número 35 a 1), *
 blackjack 3 a 2) y **dados** de línea de pase. Apuestas de **$1 a $50**; la **mesa VIP** (hasta $200) es para cuadrillas de
 rango 6. El azar lo tira el backend con un generador criptográfico; las apuestas van a la caja de Valenti y los premios
 salen de ahí. La casa tiene una ventaja chica y real (2,7 % / 1,4 % / ~0,5 %).
+
+## Operación del día (propuesta aprobada, 2026-11-01)
+- Una por día (hora de Argentina) y por cuadrilla. La encarga una familia, siempre contra otra. La puede empezar cualquiera desde el tablero (J), y hacen falta al menos **2 integrantes**.
+- Son **tres etapas en orden**, con lo que ya existe: reunirse dos en un lugar (botón «Cumplir» ahí), juntar algo en el depósito (se entrega desde la sede), asaltar el camión o una caja, o bajar a los guardias del contrabando.
+- Solo paga la última etapa: **$120–250 a la caja** (de la cuenta de la familia que encarga) y **60–120 de prestigio**, más con el rango.
+- Si la cuadrilla tiene una misión común del mismo tipo, lo que pasa en el mundo cuenta primero para la operación.
+- Hay tres operaciones:
+  - **El golpe del puerto** (Valenti): reconocimiento con Gaetano → 60 balas de pistola en el depósito → bajar a los dos guardias del contrabando.
+  - **La ruta del camión** (Caruso): seguir al camión desde el Almacén → 8 cajones de bebidas en el depósito → asaltar el camión de los Moretti.
+  - **Mano dura con los Valenti** (Moretti): presentarse en la Oficina Valenti → vaciar la caja de un local → volver juntos a cobrar.
+- Pruebas: `CrewOperationApiTests` (empezar, etapas en orden, paga y prestigio al final).

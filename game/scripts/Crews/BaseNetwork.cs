@@ -63,6 +63,25 @@ public partial class BaseNetwork : Node
     public void RequestBoard() => Send(MethodName.ServerBoard);
     public void BuyBase(int shed) => Send(MethodName.ServerBuyBase, shed);
     public void TurnIn(Guid mission) => Send(MethodName.ServerTurnIn, mission.ToString());
+    public void StartOperation() => Send(MethodName.ServerStartOperation);
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerStartOperation()
+    {
+        if (Multiplayer.IsServer())
+            _ = GuardAsync(Multiplayer.GetRemoteSenderId(), StartOperationAsync);
+    }
+
+    private async Task StartOperationAsync(long peer)
+    {
+        if (_network.Backend is not { } api || !_network.TryGetSession(peer, out var me))
+            return;
+        var result = await api.StartCrewOperationAsync(_network.ServerKey, new CrewOperationStartRequest(me.CharacterId, Guid.NewGuid().ToString()));
+        SendMessage(peer, result.IsSuccess ? result.Value!.Message : $"Hubo un problema: {result.Error!.Message}");
+        if (result is { IsSuccess: true, Value.Ok: true })
+            GD.Print($"[DISTRITO] CREW_OPERATION {me.CharacterName}: {result.Value.Message}");
+        await SendBoardAsync(peer);
+    }
 
     private void Send(StringName method, params Variant[] args)
     {
@@ -186,7 +205,8 @@ public partial class BaseNetwork : Node
         if (_network.Backend is not { } api || !_network.TryGetSession(peer, out var me) || _network.GetPlayer(peer) is not { } p)
             return;
         var board = (await api.GetCrewBoardAsync(_network.ServerKey, me.CharacterId)).Value;
-        if (board?.Missions.FirstOrDefault(m => m.Id == missionId) is not { } mission)
+        // La misión puede ser del tablero o la etapa actual de la operación del día.
+        if (board?.Missions.Append(board.Operation?.Current).FirstOrDefault(m => m?.Id == missionId) is not { } mission)
             return;
         var companions = new List<Guid>();
         switch (mission.Kind)
@@ -297,7 +317,16 @@ public partial class BaseNetwork : Node
             new(Guid.NewGuid(), MissionKinds.TruckJob, "Encargo de los Caruso: asaltar el camión de reparto de Moretti", "Cuando salga el camión…", null, null, 1, 0, 5200, 24, "abierta", end, "caruso"),
             new(Guid.NewGuid(), MissionKinds.Guard, "Vigilar la sede 4 minutos (con 2 de la cuadrilla)", "Estén adentro.", null, null, 8, 3, 3000, 14, "abierta", end, "valenti"),
             new(Guid.NewGuid(), MissionKinds.Gather, "Acopio: juntar 12 bolsas de café en el depósito", "Tenelas guardadas.", "bolsa-cafe", null, 12, 12, 4400, 20, "cumplida", end, "valenti"),
-        ], [1, 3], true, end);
+        ], [1, 3], true, end,
+            new CrewOperationView("ruta-camion", "La ruta del camión", CrewOperations.Templates[1].Intro, Distrito.Shared.Economy.EconomyCatalog.Caruso,
+                18_400, 81, CrewOperations.Running,
+                [
+                    new("Seguir al camión", CrewOperations.Templates[1].Stages[0].Detail, true, false),
+                    new("La coartada", CrewOperations.Templates[1].Stages[1].Detail, false, true),
+                    new("El asalto", CrewOperations.Templates[1].Stages[2].Detail, false, false),
+                ],
+                new(Guid.NewGuid(), MissionKinds.Gather, "La ruta del camión (2/3): La coartada", "Junten 8 cajones.", "cajon-bebidas", null, 8, 0, 0, 0, "abierta", end, "caruso"),
+                end, CrewOperations.MinMembers));
         BoardReceived?.Invoke();
     }
 }

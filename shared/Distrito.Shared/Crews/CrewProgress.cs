@@ -130,7 +130,20 @@ public sealed record CrewMissionView(
 /// <summary>Lo que muestra el panel: sede, prestigio y tablero.</summary>
 public sealed record CrewBoardView(
     bool InCrew, string? CrewName, int Prestige, int Rank, int NextRankAt, int? Shed, long BaseDebtCents,
-    List<CrewMissionView> Missions, List<int> TakenSheds, bool IsLeader, DateTimeOffset NextRefresh);
+    List<CrewMissionView> Missions, List<int> TakenSheds, bool IsLeader, DateTimeOffset NextRefresh,
+    CrewOperationView? Operation = null);
+
+/// <summary>Una etapa de la operación del día, para mostrar (la actual trae su misión para cumplirla).</summary>
+public sealed record CrewOperationStageView(string Title, string Detail, bool Done, bool Current);
+
+/// <summary>
+/// La operación del día de la cuadrilla: tres etapas en orden, paga al final. Status: «disponible» (se puede empezar),
+/// «en curso», «cumplida» o «vencida» (se terminó el día).
+/// </summary>
+public sealed record CrewOperationView(string Code, string Title, string Intro, string Family, long RewardCents, int Prestige,
+    string Status, List<CrewOperationStageView> Stages, CrewMissionView? Current, DateTimeOffset EndsAt, int MembersNeeded);
+
+public sealed record CrewOperationStartRequest(Guid CharacterId, string RequestId);
 
 public sealed record CrewBaseBuyRequest(Guid CharacterId, int Shed, string RequestId);
 public sealed record CrewMissionTurnInRequest(Guid CharacterId, Guid MissionId, string RequestId, IReadOnlyList<Guid>? Companions = null);
@@ -228,5 +241,72 @@ public static class MissionGenerator
                     null, null, minutes * 2, Pay(0.8), Fame(0.9), EconomyCatalog.Valenti); // progreso en medios minutos
             }
         }
+    }
+}
+
+/// <summary>
+/// Operaciones de cuadrilla (propuesta aprobada por el equipo, 2026-11-01): una por día y por cuadrilla, tres etapas en
+/// orden con lo que ya existe (reunirse en un lugar, juntar en el depósito, un asalto o un golpe), hacen falta al menos
+/// 2 integrantes y pagan al final $120–250 a la caja y 60–120 de prestigio (más con el rango). Las encarga una familia,
+/// siempre contra otra.
+/// </summary>
+public static class CrewOperations
+{
+    public const int MinMembers = 2;
+    public const string Available = "disponible";
+    public const string Running = "en curso";
+    public const string Done = "cumplida";
+    public const string Expired = "vencida";
+
+    public sealed record Stage(string Kind, string Title, string Detail, string? Item, string? Npc, int Target);
+    public sealed record Template(string Code, string Title, string Intro, string Family, IReadOnlyList<Stage> Stages);
+
+    public static readonly IReadOnlyList<Template> Templates =
+    [
+        new("golpe-puerto", "El golpe del puerto",
+            "Don Valenti quiere el contrabando del puerto, pero no quiere ensuciarse las manos. «Ustedes hacen el trabajo; yo pago bien y no pregunto.»",
+            EconomyCatalog.Valenti,
+            [
+                new(MissionKinds.Collection, "Reconocimiento en Los Muelles", "Vayan dos de la cuadrilla a hablar con Gaetano, el marinero, y marquen el terreno (botón «Cumplir» estando ahí).",
+                    null, EncargoRules.DocksContact, 1),
+                new(MissionKinds.Gather, "Armarse", "Junten 60 balas de pistola en el depósito de la cuadrilla y entréguenlas desde la sede.", "bala-pistola", null, 60),
+                new(MissionKinds.Contraband, "El golpe", "Cuando llegue el contrabando a Los Muelles (13, 19 o 23 h), bajen a los dos guardias.", null, null, 2),
+            ]),
+        new("ruta-camion", "La ruta del camión",
+            "Don Caruso está harto de que los Moretti le cobren de más. «Ese camión pasa todos los días por el Mercado. Que un día no llegue.»",
+            EconomyCatalog.Caruso,
+            [
+                new(MissionKinds.Collection, "Seguir al camión", "Vayan dos de la cuadrilla al Almacén Moretti, de donde sale el camión, y anoten la ruta (botón «Cumplir» estando ahí).",
+                    null, EconomyCatalog.DepositNpc, 1),
+                new(MissionKinds.Gather, "La coartada", "Junten 8 cajones de bebidas en el depósito: si preguntan, estaban repartiendo para una fiesta.", EconomyCatalog.DrinksCrateItem, null, 8),
+                new(MissionKinds.TruckJob, "El asalto", "Asalten el camión de reparto de los Moretti en su recorrida.", null, null, 1),
+            ]),
+        new("mano-dura", "Mano dura con los Valenti",
+            "Don Moretti no olvida una deuda. «Los Valenti se creen dueños de Bellmont con sus libros y su casino. Recuérdenles quién estaba primero.»",
+            EconomyCatalog.Moretti,
+            [
+                new(MissionKinds.Collection, "Mostrar los dientes", "Vayan dos de la cuadrilla a la Oficina Valenti y hagan saber que están (botón «Cumplir» estando ahí).",
+                    null, EconomyCatalog.ValentiOfficeNpc, 1),
+                new(MissionKinds.Shop, "Fondos para la guerra", "Vacíen la caja de un local del Mercado a punta de pistola.", null, null, 1),
+                new(MissionKinds.Collection, "La cobranza grande", "Vuelvan juntos a la Oficina Valenti y cobren lo que le deben a los Moretti (botón «Cumplir» estando ahí).",
+                    null, EconomyCatalog.ValentiOfficeNpc, 1),
+            ]),
+    ];
+
+    /// <summary>Día de la operación (hora de Argentina) y cuándo termina.</summary>
+    public static int DayOf(DateTimeOffset now) => EncargoRules.DayOf(now);
+    public static DateTimeOffset DayEnd(DateTimeOffset now) => EncargoRules.DayEnd(now);
+
+    /// <summary>La operación que le toca a una cuadrilla hoy (la misma para todos sus integrantes).</summary>
+    public static Template Pick(Guid crewId, int day) =>
+        Templates[(int)((uint)EncargoRules.StableId(crewId, "operacion", day).GetHashCode() % (uint)Templates.Count)];
+
+    /// <summary>Paga al terminar: $120–250 a la caja y 60–120 de prestigio, más con el rango.</summary>
+    public static (long Cents, int Prestige) Reward(int rank, int luck)
+    {
+        var level = Math.Clamp(rank, 1, PrestigeRules.MaxRank);
+        var dollars = Math.Clamp(120 + 14 * (level - 1) + Math.Clamp(luck, 0, 20), 120, 250);
+        var prestige = Math.Clamp(60 + 7 * (level - 1) + Math.Clamp(luck, 0, 20) / 2, 60, 120);
+        return (dollars * 100L, prestige);
     }
 }

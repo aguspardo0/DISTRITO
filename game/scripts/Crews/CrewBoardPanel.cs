@@ -154,6 +154,10 @@ public partial class CrewBoardPanel : PanelContainer
                 _left.AddChild(Text("Este galpón ya es sede de otra cuadrilla.", Muted));
         }
 
+        // ---- Operación del día ----
+        if (board.Operation is { } op)
+            AddOperation(op);
+
         // ---- Misiones ----
         var minutes = Math.Max(0, (int)(board.NextRefresh - DateTimeOffset.UtcNow).TotalMinutes);
         _right.AddChild(Text($"Misiones (tablero nuevo en {minutes / 60} h {minutes % 60} min)", Gold, 400, 16));
@@ -177,5 +181,58 @@ public partial class CrewBoardPanel : PanelContainer
             _right.AddChild(row);
             _right.AddChild(new HSeparator());
         }
+    }
+
+    /// <summary>La operación del día: quién la encarga, las tres etapas (hechas, la actual y las que faltan) y la paga.</summary>
+    private void AddOperation(CrewOperationView op)
+    {
+        var accent = Distrito.Game.Economy.EncargoLook.FamilyColor(op.Family);
+        var card = new PanelContainer();
+        card.AddThemeStyleboxOverride("panel", Distrito.Game.Economy.EncargoLook.Panel(0.6f, accent));
+        var box = new VBoxContainer();
+        box.AddThemeConstantOverride("separation", 3);
+        card.AddChild(box);
+        var left = Math.Max(0, (int)(op.EndsAt - DateTimeOffset.UtcNow).TotalMinutes);
+        box.AddChild(Text($"Operación del día: {op.Title}", accent.Lightened(0.3f), 390, 16));
+        box.AddChild(Text(op.Intro, Muted, 390));
+        box.AddChild(Text($"Paga al terminar: {EconomyCatalog.FormatMoney(op.RewardCents)} a la caja y +{op.Prestige} de prestigio · "
+                          + $"quedan {left / 60} h {left % 60} min", Gold, 390));
+        for (var i = 0; i < op.Stages.Count; i++)
+        {
+            var stage = op.Stages[i];
+            var mark = stage.Done ? "✔" : stage.Current ? "▶" : "·";
+            box.AddChild(Text($"{mark} {i + 1}. {stage.Title}", stage.Done ? Good : stage.Current ? null : Muted, 390));
+            if (stage.Current)
+                box.AddChild(Text(stage.Detail, Muted, 380));
+        }
+        switch (op.Status)
+        {
+            case CrewOperations.Available:
+                var start = new Button { Text = $"Empezar la operación (hacen falta {op.MembersNeeded} de la cuadrilla)" };
+                start.Pressed += _bases.StartOperation;
+                box.AddChild(start);
+                break;
+            case CrewOperations.Done:
+                box.AddChild(Text("Operación cumplida ✔ Mañana hay otra.", Good, 390));
+                break;
+            default:
+                if (op.Current is { } m)
+                {
+                    var progress = m.Kind == MissionKinds.Guard ? $"{m.Progress / 2.0:0.#}/{m.Target / 2.0:0.#} min" : $"{m.Progress}/{m.Target}";
+                    if (MissionKinds.IsTurnIn(m.Kind))
+                    {
+                        var label = m.Kind switch { MissionKinds.Gather => "Entregar el acopio (en la sede)", _ => "Cumplir (en el lugar, con la cuadrilla)" };
+                        var turnIn = new Button { Text = label };
+                        var id = m.Id;
+                        turnIn.Pressed += () => _bases.TurnIn(id);
+                        box.AddChild(turnIn);
+                    }
+                    else
+                        box.AddChild(Text($"Progreso {progress}", Gold, 390));
+                }
+                break;
+        }
+        _right.AddChild(card);
+        _right.AddChild(new HSeparator());
     }
 }
