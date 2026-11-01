@@ -42,6 +42,13 @@ public partial class InventoryPanel : PanelContainer
     {
         Visible = false;
         CustomMinimumSize = new Vector2(560, 0);
+        AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color(0.09f, 0.08f, 0.07f, 0.94f),
+            BorderColor = new Color(0.55f, 0.43f, 0.22f),
+            BorderWidthTop = 2, BorderWidthBottom = 2, BorderWidthLeft = 2, BorderWidthRight = 2,
+            CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4,
+        });
 
         var margin = new MarginContainer();
         foreach (var side in new[] { "left", "right", "top", "bottom" })

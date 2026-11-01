@@ -88,5 +88,16 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [ ] Documento PvP, etapas siguientes: sistema general de actividades PvP, visibilidad de objetivos en el mapa por actividad, integración con inventario e historial de pérdidas, ganchos de consecuencias, interfaz de actividad
 - [ ] Prueba manual del equipo de la Etapa E
 
+### Inventario, objetos y logística (documento del equipo, 2026-10-31)
+Base: el libro central de objetos que ya existía (item_stacks + item_movements); no se reemplaza. Ver `docs/INVENTARIO.md`.
+- [x] Etapa 1 — clases de objeto (armas, munición, herramientas, mercancías, materias primas, productos, documentos, equipamiento, misión) con descripción y propiedades opcionales; ventana de inventario (I) con peso y volumen
+- [x] Etapa 2 — dar en mano a alguien cerca (3 m), soltar en la calle (bulto que otro levanta), separar cantidades, equipar armas desde el inventario; capacidad configurable (`config/inventario.json`, por ahora sin límite)
+- [ ] Etapa 3 — almacenes con permisos (ver, depositar, retirar, administrar) — números del depósito de cuadrilla pendientes de aprobación
+- [ ] Etapa 4 — historial de movimientos visible (ya se registra quién, qué, cuánto, origen, destino, motivo y fecha)
+- [ ] Etapa 5 — proveedores y pedidos con tiempo de preparación
+- [ ] Etapa 6 — vehículos con carga
+- [ ] Etapa 7 — existencias visibles en el mundo (cajas, barriles, estanterías)
+- [ ] Etapa 8 — integración con negocios, contratos y economía
+
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.
