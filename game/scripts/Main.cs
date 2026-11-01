@@ -462,7 +462,7 @@ public partial class Main : Node3D
             }),
             ("cuadrilla", () => { _crewPanel?.Toggle(); }),
             ("mapa", () => { _crewPanel?.Toggle(); _mapPanel?.Toggle(); }),
-            ("inventario", () => { _mapPanel?.Toggle(); _inventoryPanel?.Toggle(); }),
+            ("inventario", () => { _mapPanel?.Toggle(); _inventoryPanel?.Toggle(); _inventory.Preview(); }),
             ("opciones", () => { _inventoryPanel?.Toggle(); _pause?.Open(); }),
         ]);
     }

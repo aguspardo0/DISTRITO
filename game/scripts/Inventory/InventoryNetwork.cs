@@ -38,6 +38,20 @@ public partial class InventoryNetwork : Node
         _combat = combat;
     }
 
+    /// <summary>Solo para la prueba visual: muestra un inventario de ejemplo sin servidor.</summary>
+    public void Preview()
+    {
+        Last = new InventoryView(
+        [
+            new("pistola", "Pistola", "Pistola semiautomática. Liviana y fácil de esconder.", ItemKinds.Weapon, "armas", 1, 1.1, 1, "illegal", 4000),
+            new("bala-pistola", "Bala de pistola", "Bala para pistola. Se gasta al disparar.", ItemKinds.Ammo, "municion", 14, 0.02, 0, "illegal", 29),
+            new("cajon-bebidas", "Cajón de bebidas", "Un cajón de bebidas para la barra del club.", ItemKinds.Goods, "alimentos", 3, 15, 20, "legal", 400),
+            new("bolsa-cafe", "Bolsa de café", "Café en grano. Con esto el puesto de café prepara lo que vende.", ItemKinds.RawMaterial, "alimentos", 2, 5, 8, "legal", 300),
+        ], null, null);
+        Nearby = [new NearbyPlayer(0, "Sal Moretti")];
+        InventoryReceived?.Invoke();
+    }
+
     // ================= Cliente → servidor =================
 
     public void Request() => Send(MethodName.ServerInventory);
