@@ -3,7 +3,7 @@ namespace Distrito.Shared.Economy;
 /// <summary>Estado de PvP del barrio para el servidor de juego.</summary>
 /// <summary>Estado de PvP del barrio para el servidor de juego. WarMembers: personaje → cuadrilla, de las que están en guerra.</summary>
 public sealed record CombatStateView(List<string> DisputedZones, List<string> EventZones,
-    List<WarPair>? Wars = null, Dictionary<Guid, Guid>? WarMembers = null, string? ZoneRulesJson, string? PveRulesJson = null = null);
+    List<WarPair>? Wars = null, Dictionary<Guid, Guid>? WarMembers = null, string? ZoneRulesJson = null, string? PveRulesJson = null);
 
 public sealed record WarPair(Guid CrewA, Guid CrewB);
 
