@@ -92,6 +92,9 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Los Muelles: zona libre al este del barrio (PvP y robos siempre; se configura en `config/zonas.json`), con galpones, cajones y muelle
 - [x] Panel de administración (F10) para pruebas: plata, objetos, nivel, ir a lugares y curarse; solo cuentas de `config/admins.json` o `Admin__Accounts`
 
+### Eventos PvE (pedido del equipo, 2026-11-01)
+- [x] Asaltos a NPC: camión de reparto de Moretti, cobrador de Valenti, contrabando en Los Muelles con guardias armados y caja de locales. Amenazar apuntando; botín real; −10 de reputación (y ánimo) con la familia asaltada. Ver `docs/ASALTOS.md` y `config/eventos-pve.json`
+
 ### Inventario, objetos y logística (documento del equipo, 2026-10-31)
 Base: el libro central de objetos que ya existía (item_stacks + item_movements); no se reemplaza. Ver `docs/INVENTARIO.md`.
 - [x] Etapa 1 — clases de objeto (armas, munición, herramientas, mercancías, materias primas, productos, documentos, equipamiento, misión) con descripción y propiedades opcionales; ventana de inventario (I) con peso y volumen
