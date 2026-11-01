@@ -101,7 +101,7 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
 - [x] Etapa 5 — pedidos por mayor al Almacén Moretti (aprobado: precio de mostrador, 10 % menos desde 20, mín. 5, 1 ciclo cada 10 unidades, 50 por ciclo en cola; retiro gratis o envío al depósito +10 % mín. $1 y 1 ciclo más; cancelar con reintegro mientras se prepara)
 - [x] Etapa 6 — vehículos (aprobado: camioneta de reparto $120, nivel 3, 400 kg; camión de carga $350, nivel 6, 1500 kg) en el Taller Caruso, propios o de cuadrilla; manejo arcade simulado en el servidor (G subir/bajar); carga desde el inventario; la carga queda adentro al bajarse y se puede forzar (5 s) donde la zona permite robos; el vehículo no se roba; persiste dónde quedó
 - [x] Etapa 7 — existencias visibles en el mundo, atadas a los datos reales: galpón «Depósitos Valenti» (bahías por cuadrilla con cartel y kg), estantes del Almacén Moretti (llenos/medio/poco) y pedidos listos en pallets, carga a la vista en camioneta y camión; bultos agrupados (nunca uno por unidad)
-- [ ] Etapa 8 — integración con negocios, contratos y economía
+- [x] Etapa 8 — fletes en consignación (aprobado: 20 cajas de repuestos de Moretti al Taller Caruso $60; 15 cajones de bebidas al Club de jazz $50; nivel 3; 15 min; si vencen se devuelve lo que tengas y lo que falte se cobra) y pedidos a Moretti con envío directo al negocio propio (+10 %, mín. $1). Las entregas siguen siendo a mano (decisión del equipo)
 
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.

@@ -78,3 +78,12 @@
   aparecen en pallets al lado, con cartel de listos y en preparación.
 - **Vehículos**: caja abierta (baranda en la camioneta, estacas en el camión) con la carga real adentro.
 - Bultos agrupados: un cajón o bolsa por unidad hasta 12 por tipo; la munición en cajas de 50 (`StockVisualRules`).
+
+## Integración con negocios y contratos (etapa 8)
+- **Fletes** (`EconomyCatalog.PartsFreight` y `DrinksFreight`, aprobados 2026-11-01): se aceptan en Moretti. Al aceptar, Moretti
+  te carga la mercadería (sale de su stock real, no la pagás); pagan solo el transporte: $60 por 20 cajas de repuestos al
+  Taller Caruso y $50 por 15 cajones de bebidas al Club de jazz (los recibe Moretti, que abastece la barra). Nivel 3, plazo
+  de 15 minutos. Si vence, vuelve a Moretti lo que tengas encima y lo que falte se cobra a precio de referencia.
+- **Envío al negocio**: en «Pedidos por mayor», si tenés un negocio que vende ese producto (bolsas de café → puesto de café,
+  cajones de bebidas → club), se lo podés mandar directo al stock del local (+10 %, mín. $1, 1 ciclo más).
+- Entregar contratos y reponer negocios se sigue haciendo a mano (decisión del equipo): se descarga del vehículo y se entrega.
