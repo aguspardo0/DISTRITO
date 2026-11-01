@@ -166,7 +166,7 @@ public partial class Main : Node3D
         {
             var test = new NetworkSelfTest { Name = "NetworkSelfTest" };
             test.Configure(_network, Options.TestSeconds, Options.ExpectPlayers,
-                expectMovement: Options.Bot && Options.ExpectSpawn is null, Options.ExpectSpawn);
+                expectMovement: Options.Bot && Options.ExpectSpawn is null && Options.BotFightWeapon is null, Options.ExpectSpawn);
             AddChild(test);
 
             if (Options.ExpectVisibleAtEnd is { } visible)

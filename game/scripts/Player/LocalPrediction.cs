@@ -53,6 +53,8 @@ public partial class LocalPrediction : CharacterBody3D
     /// <summary>La entrada que también se mandó al servidor.</summary>
     public void SetInput(float x, float z, bool jump, bool sprint = false) => _input = MovementRules.Sanitize(new MovementInput(x, z, jump, sprint));
 
+    private Vector3 _lastServerPosition;
+
     public override void _PhysicsProcess(double delta)
     {
         var dt = (float)delta;
@@ -72,9 +74,12 @@ public partial class LocalPrediction : CharacterBody3D
             Rotation = new Vector3(0, Mathf.Atan2(-horizontal.X, -horizontal.Y), 0);
 
         // 2. Reconciliar con la posición autoritativa del servidor.
+        // Si el servidor movió al personaje de golpe (reaparición, rescate), se salta directo.
+        var serverJump = _player.GlobalPosition.DistanceTo(_lastServerPosition);
+        _lastServerPosition = _player.GlobalPosition;
         var error = _player.GlobalPosition - GlobalPosition;
         var flatError = new Vector2(error.X, error.Z).Length();
-        if (flatError > SnapDistance || Mathf.Abs(error.Y) > 2f)
+        if (flatError > SnapDistance || Mathf.Abs(error.Y) > 2f || serverJump > 1.2f || _player.Downed)
         {
             GlobalPosition = _player.GlobalPosition;
             Velocity = Vector3.Zero;
