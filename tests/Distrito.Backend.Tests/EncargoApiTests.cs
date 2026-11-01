@@ -43,9 +43,10 @@ public class EncargoApiTests
     [Fact]
     public async Task Ofertas_tomar_entregar_y_cobrar()
     {
-        await using var factory = TestBackend.Create();
+        var user = TestBackend.UniqueUser("en");
+        await using var factory = TestBackend.Create(settings: new Dictionary<string, string> { ["Admin:Accounts"] = user });
         var api = TestBackend.Api(factory);
-        var me = await Player(api, TestBackend.UniqueUser("en"));
+        var me = await Player(api, user);
 
         var snapshot = (await api.GetEconomyAsync(Key, me)).Value!;
         var offers = snapshot.OfferedEncargos.ToList();
@@ -81,9 +82,10 @@ public class EncargoApiTests
     [Fact]
     public async Task Cobro_al_rival_sobre_y_sobre_perdido_al_abandonar()
     {
-        await using var factory = TestBackend.Create();
+        var user = TestBackend.UniqueUser("co");
+        await using var factory = TestBackend.Create(settings: new Dictionary<string, string> { ["Admin:Accounts"] = user });
         var api = TestBackend.Api(factory);
-        var me = await Player(api, TestBackend.UniqueUser("co"));
+        var me = await Player(api, user);
         var offers = (await api.GetEconomyAsync(Key, me)).Value!.OfferedEncargos.Where(o => !o.Daily).Take(2).ToList();
         foreach (var o in offers)
             Assert.True((await Act(api, me, o.Id, "aceptar", o.GiverNpc)).Value!.Ok);
@@ -147,9 +149,10 @@ public class EncargoApiTests
     [Fact]
     public async Task Recado_con_sobre_sellado_y_vencimiento()
     {
-        await using var factory = TestBackend.Create();
+        var user = TestBackend.UniqueUser("re");
+        await using var factory = TestBackend.Create(settings: new Dictionary<string, string> { ["Admin:Accounts"] = user });
         var api = TestBackend.Api(factory);
-        var me = await Player(api, TestBackend.UniqueUser("re"), level: 1);
+        var me = await Player(api, user, level: 1);
         var offer = (await api.GetEconomyAsync(Key, me)).Value!.OfferedEncargos.First(o => !o.Daily);
         Assert.True((await Act(api, me, offer.Id, "aceptar", offer.GiverNpc)).Value!.Ok);
         await Force(offer.Id, EncargoKinds.Recado, null, 0, EconomyCatalog.JazzClubNpc);

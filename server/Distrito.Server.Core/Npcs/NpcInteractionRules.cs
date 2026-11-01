@@ -62,7 +62,7 @@ public static class NpcInteractionRules
     }).ToList();
 
     /// <summary>Gaetano, el marinero de Los Muelles: entrega los paquetes de los encargos.</summary>
-    public static readonly NpcDefinition DocksContact = new(EncargoRules.DocksContact, "Gaetano, el marinero", new Vector3(58f, 0, 3.2f));
+    public static readonly NpcDefinition DocksContact = new(EncargoRules.DocksContact, "Gaetano, el marinero", new Vector3(47f, 0, 3.4f));
 
     public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner, JazzClub, Casino, .. Bosses, .. FamilyContacts, DocksContact];
 
