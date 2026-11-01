@@ -26,6 +26,18 @@ public class ZoneRulesTests
         Assert.False(rules.For(TerritoryRules.Corner, new ZoneContext(true, true, true, true)).Pvp);     // la zona segura gana
         Assert.False(rules.For(TerritoryRules.Office, default).LoseGoodsOnDeath);                       // regla propia de zona
         Assert.True(rules.For(TerritoryRules.Workshops, default).LoseGoodsOnDeath);
+        Assert.True(rules.For(TerritoryRules.Docks, default).Pvp);                                      // Los Muelles: zona libre
+        Assert.True(rules.For(TerritoryRules.Docks, default).Robbery);
+    }
+
+    [Fact]
+    public void Los_muelles_son_zona_libre_lejos_de_los_locales()
+    {
+        var docks = new System.Numerics.Vector3(60, 0, 0);
+        Assert.Equal(TerritoryRules.Docks, CombatRules.ZoneAt(docks));
+        var (rules, _) = ZoneRules.Parse(File.ReadAllText(RepoFile("config/zonas.json")));
+        Assert.True(CombatRules.PermissionsAt(docks, rules!, new CombatState(new HashSet<string>(), new HashSet<string>(), rules)).Pvp);
+        Assert.False(CombatRules.PermissionsAt(new System.Numerics.Vector3(0, 0, 0), rules!, new CombatState(new HashSet<string>(), new HashSet<string>(), rules)).Pvp);
     }
 
     [Fact]

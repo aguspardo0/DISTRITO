@@ -32,8 +32,10 @@ public class MapPresenceTests
     {
         Assert.All(MapPresence.Buildings, b =>
         {
-            Assert.InRange(MathF.Abs(b.X) + b.Width / 2, 0, MapPresence.HalfExtent);
-            Assert.InRange(MathF.Abs(b.Z) + b.Depth / 2, 0, MapPresence.HalfExtent);
+            Assert.InRange(b.X - b.Width / 2, MapPresence.MinX, MapPresence.MaxX);
+            Assert.InRange(b.X + b.Width / 2, MapPresence.MinX, MapPresence.MaxX);
+            Assert.InRange(b.Z - b.Depth / 2, MapPresence.MinZ, MapPresence.MaxZ);
+            Assert.InRange(b.Z + b.Depth / 2, MapPresence.MinZ, MapPresence.MaxZ);
         });
     }
 }

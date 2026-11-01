@@ -8,7 +8,10 @@ namespace Distrito.Game.Map;
 /// <summary>Mapa del barrio (tecla M): edificios, lugares y todos los jugadores conectados.</summary>
 public partial class MapPanel : Control
 {
-    private const float SizePx = 420f;
+    private const float WidthPx = 600f;
+    private static readonly float Scale = WidthPx / (MapPresence.MaxX - MapPresence.MinX);
+    private static readonly float HeightPx = Scale * (MapPresence.MaxZ - MapPresence.MinZ);
+    private static readonly Color FreeZone = new(0.55f, 0.18f, 0.14f, 0.35f);
     private static readonly Color Paper = new(0.12f, 0.11f, 0.1f, 0.98f);
     private static readonly Color Building = new(0.32f, 0.29f, 0.25f);
     private static readonly Color Brass = new(0.83f, 0.68f, 0.38f);
@@ -31,7 +34,7 @@ public partial class MapPanel : Control
     public override void _Ready()
     {
         Visible = false;
-        CustomMinimumSize = new Vector2(SizePx, SizePx + 48);
+        CustomMinimumSize = new Vector2(WidthPx, HeightPx + 48);
         MouseFilter = MouseFilterEnum.Ignore;
     }
 
@@ -48,23 +51,27 @@ public partial class MapPanel : Control
     }
 
     private static Vector2 ToMap(float x, float z) =>
-        new((x + MapPresence.HalfExtent) / (2 * MapPresence.HalfExtent) * SizePx,
-            24 + (z + MapPresence.HalfExtent) / (2 * MapPresence.HalfExtent) * SizePx);
+        new((x - MapPresence.MinX) * Scale, 24 + (z - MapPresence.MinZ) * Scale);
 
     public override void _Draw()
     {
         var font = ThemeDB.FallbackFont;
-        DrawRect(new Rect2(0, 0, SizePx, SizePx + 48), Paper);
+        DrawRect(new Rect2(0, 0, WidthPx, HeightPx + 48), Paper);
+        // Los Muelles: zona libre, sombreada en rojo.
+        var docksCorner = ToMap(MapPresence.DocksStartX, MapPresence.MinZ);
+        DrawRect(new Rect2(docksCorner, new Vector2((MapPresence.MaxX - MapPresence.DocksStartX) * Scale, HeightPx)), FreeZone);
+        DrawString(font, docksCorner + new Vector2(6, HeightPx - 8), "LOS MUELLES — zona libre (PvP sin protección)",
+            HorizontalAlignment.Left, -1, 12, new Color(0.95f, 0.55f, 0.4f));
         if (Economy?.Invoke()?.Families is { } families)
         {
             var line = string.Join("   ", families.Select(f => $"{f.Name.Replace("Familia ", "")}: {Distrito.Shared.Economy.FamilyRules.Display(f.Mood).Split(' ')[0]}"));
-            DrawString(ThemeDB.FallbackFont, new Vector2(8, SizePx + 41), line, HorizontalAlignment.Left, SizePx - 16, 13, Brass);
+            DrawString(ThemeDB.FallbackFont, new Vector2(8, HeightPx + 41), line, HorizontalAlignment.Left, WidthPx - 16, 13, Brass);
         }
-        DrawRect(new Rect2(0, 24, SizePx, SizePx), Brass, filled: false, width: 2);
+        DrawRect(new Rect2(0, 24, WidthPx, HeightPx), Brass, filled: false, width: 2);
         DrawString(font, new Vector2(8, 17), $"BELLMONT — {_map.Markers.Count} conectado(s) · [M] cerrar",
             HorizontalAlignment.Left, -1, 14, Brass);
 
-        var scale = SizePx / (2 * MapPresence.HalfExtent);
+        var scale = Scale;
         foreach (var b in MapPresence.Buildings)
         {
             var corner = ToMap(b.X - b.Width / 2, b.Z - b.Depth / 2);

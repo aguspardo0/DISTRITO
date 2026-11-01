@@ -35,6 +35,9 @@ public static class TerritoryRules
     public const string Warehouse = "calle-almacen";
     public const string Workshops = "los-talleres";
     public const string Office = "la-oficina";
+
+    /// <summary>Los Muelles: zona libre (no es territorio en disputa; ver config/zonas.json).</summary>
+    public const string Docks = "los-muelles";
     public const string Corner = "la-esquina";
 
     public const int ContractPoints = 3;
@@ -53,7 +56,7 @@ public static class TerritoryRules
         (Warehouse, "Calle del Almacén"), (Workshops, "Los Talleres"), (Office, "La Oficina"), (Corner, "La Esquina"),
     ];
 
-    public static string NameOf(string zone) => Zones.FirstOrDefault(z => z.Code == zone).Name ?? zone;
+    public static string NameOf(string zone) => zone == Docks ? "Los Muelles" : Zones.FirstOrDefault(z => z.Code == zone).Name ?? zone;
 
     public static string? ZoneOfNpc(string npcCode) => npcCode switch
     {

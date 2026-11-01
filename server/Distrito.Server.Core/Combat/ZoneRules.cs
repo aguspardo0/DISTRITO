@@ -48,7 +48,8 @@ public sealed class ZoneRules
     public static ZoneRules ServerDefault { get; } = Parse("""
         { "base": { "pvp": false, "armas": true, "cuerpoACuerpo": true, "saqueo": true, "robos": false, "persecuciones": false,
                     "vehiculos": true, "recogida": true, "actividades": true, "perderMercaderiaAlMorir": true, "segundosBulto": 300 },
-          "zonas": {}, "excepciones": { "disputa": { "pvp": true }, "evento": { "pvp": true }, "guerra": { "pvp": true } },
+          "zonas": { "los-muelles": { "pvp": true, "robos": true, "persecuciones": true } },
+          "excepciones": { "disputa": { "pvp": true }, "evento": { "pvp": true }, "guerra": { "pvp": true } },
           "zonaSegura": { "radio": 5, "pvp": false, "armas": false, "cuerpoACuerpo": false, "robos": false, "saqueo": false } }
         """).Rules!;
 
@@ -91,8 +92,10 @@ public sealed class ZoneRules
         if (obj["zonas"] is JsonObject zs)
             foreach (var (zone, node) in zs)
             {
-                if (TerritoryRules.Zones.All(z => z.Code != zone))
-                    errors.Add($"zonas: '{zone}' no existe (usá {string.Join(", ", TerritoryRules.Zones.Select(z => z.Code))}).");
+                if (zone.StartsWith('_'))
+                    continue; // comentario
+                if (zone != TerritoryRules.Docks && TerritoryRules.Zones.All(z => z.Code != zone))
+                    errors.Add($"zonas: '{zone}' no existe (usá {string.Join(", ", TerritoryRules.Zones.Select(z => z.Code).Append(TerritoryRules.Docks))}).");
                 zones[zone] = Section(node, $"zonas.{zone}", false);
             }
         var exceptions = new Dictionary<string, Dictionary<string, object>>();

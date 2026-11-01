@@ -40,6 +40,7 @@ public partial class Main : Node3D
 
     public override void _Ready()
     {
+        Distrito.Game.World.DocksBuilder.Build(GetNode<Node3D>("World"));
         try
         {
             Options = LaunchOptions.Parse(OS.GetCmdlineUserArgs());
@@ -295,11 +296,18 @@ public partial class Main : Node3D
         health.AddThemeFontSizeOverride("font_size", 18);
         health.AddThemeColorOverride("font_shadow_color", Colors.Black);
         layer.AddChild(UiAnchor.Wrap(health, UiAnchor.End, UiAnchor.End, right: 20, bottom: 46, name: "HealthArea"));
+        // Aviso al entrar a Los Muelles (zona libre).
+        var freeZone = new Label { Text = "LOS MUELLES — zona libre: acá te pueden atacar y robar", Visible = false };
+        freeZone.AddThemeFontSizeOverride("font_size", 17);
+        freeZone.AddThemeColorOverride("font_color", new Color(0.95f, 0.5f, 0.38f));
+        freeZone.AddThemeColorOverride("font_shadow_color", Colors.Black);
+        layer.AddChild(UiAnchor.Wrap(freeZone, UiAnchor.Center, UiAnchor.Start, top: 110, name: "FreeZoneArea"));
         GetTree().ProcessFrame += () =>
         {
             if (!IsInstanceValid(health))
                 return;
             var me = _network.LocalPlayer;
+            freeZone.Visible = me is not null && Distrito.Server.Core.World.MapPresence.InDocks(me.VisualPosition.X);
             health.Text = me is null ? "" : me.Dead ? "Muerto — volvés en unos segundos"
                 : me.Downed ? "Herido — esperá que te levante un compañero"
                 : $"♥ {me.Health}";

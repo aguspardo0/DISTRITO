@@ -39,7 +39,7 @@ public static class CombatRules
     public static readonly float PunchConeCos = MathF.Cos(50f * MathF.PI / 180f);
 
     /// <summary>Zona de un punto del barrio: la del NPC más cercano.</summary>
-    public static string ZoneAt(Vector3 p) =>
+    public static string ZoneAt(Vector3 p) => Distrito.Server.Core.World.MapPresence.InDocks(p.X) ? TerritoryRules.Docks :
         NpcInteractionRules.All
             .Select(n => (Zone: TerritoryRules.ZoneOfNpc(n.Code), Dist: Vector2.Distance(new(n.Position.X, n.Position.Z), new(p.X, p.Z))))
             .Where(x => x.Zone is not null)
