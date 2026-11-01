@@ -47,10 +47,22 @@ public partial class NpcInteractionController : Node
         _dialog = new NpcDialogPanel { Name = "NpcDialog" };
         hud.AddChild(UiAnchor.Wrap(_dialog, UiAnchor.Center, UiAnchor.End, bottom: 30, name: "DialogArea"));
 
-        _dialog.OptionChosen += (npc, option) => _economy.Choose(npc, option);
+        _dialog.OptionChosen += (npc, option) =>
+        {
+            if (option == NpcInteractionRules.SupplierOrdersOption)
+            {
+                _dialog.Close();
+                SupplierRequested?.Invoke(npc);
+            }
+            else
+                _economy.Choose(npc, option);
+        };
         _economy.DialogReceived += dialog => _dialog.ShowDialog(dialog);
         _economy.EconomyChanged += ShowEconomy;
     }
+
+    /// <summary>El jugador eligió «Pedidos por mayor» en un proveedor: se abre la ventana de pedidos.</summary>
+    public event Action<string>? SupplierRequested;
 
     private double _timerRefresh;
 

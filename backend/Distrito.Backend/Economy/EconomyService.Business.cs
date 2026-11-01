@@ -284,6 +284,7 @@ public sealed class BusinessCycleWorker(EconomyService economy, IConfiguration c
                 if (expired > 0)
                     logger.LogInformation("Contratos vencidos: {Expired}", expired);
                 await economy.RunWarehouseRentAsync(economy.CurrentCycle(), stoppingToken);
+                await economy.DeliverSupplierOrdersAsync(economy.CurrentCycle(), stoppingToken);
                 var sold = await economy.RunBusinessCyclesAsync(economy.CurrentCycle(), stoppingToken);
                 if (sold > 0)
                     logger.LogInformation("Ciclo económico: {Sold} unidades vendidas", sold);

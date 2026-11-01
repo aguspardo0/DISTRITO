@@ -26,6 +26,7 @@ public partial class Main : Node3D
     private CrewPanel? _crewPanel;
     private Distrito.Game.Inventory.InventoryNetwork _inventory = null!;
     private Distrito.Game.Inventory.InventoryPanel? _inventoryPanel;
+    private Distrito.Game.Inventory.SupplierPanel? _supplierPanel;
     private Distrito.Game.Map.MapNetwork _map = null!;
     private Distrito.Game.Combat.CombatNetwork _combat = null!;
     private Distrito.Game.Map.MapPanel? _mapPanel;
@@ -270,6 +271,11 @@ public partial class Main : Node3D
         layer.AddChild(UiAnchor.Wrap(_inventoryPanel, UiAnchor.Center, UiAnchor.Center, name: "InventoryArea"));
         _inventoryPanel.Initialize(_inventory, _combat, _network, _economy);
 
+        _supplierPanel = new Distrito.Game.Inventory.SupplierPanel { Name = "SupplierPanel" };
+        layer.AddChild(UiAnchor.Wrap(_supplierPanel, UiAnchor.Center, UiAnchor.Center, name: "SupplierArea"));
+        _supplierPanel.Initialize(_inventory);
+        interaction.SupplierRequested += npc => _supplierPanel.Open(npc);
+
         // Las opciones van arriba de todo lo demás.
         _pause = new PauseMenu { Name = "PauseMenu" };
         layer.AddChild(_pause);
@@ -464,7 +470,13 @@ public partial class Main : Node3D
             ("mapa", () => { _crewPanel?.Toggle(); _mapPanel?.Toggle(); }),
             ("inventario", () => { _mapPanel?.Toggle(); _inventoryPanel?.Toggle(); _inventory.Preview(); }),
             ("deposito", () => _inventoryPanel?.ShowWarehouseTab()),
-            ("opciones", () => { _inventoryPanel?.Toggle(); _pause?.Open(); }),
+            ("pedidos", () =>
+            {
+                _inventoryPanel?.Toggle();
+                _supplierPanel?.Open(Distrito.Shared.Economy.EconomyCatalog.DepositNpc);
+                _inventory.PreviewSupplier();
+            }),
+            ("opciones", () => { _supplierPanel?.Close(); _pause?.Open(); }),
         ]);
     }
 
@@ -474,6 +486,7 @@ public partial class Main : Node3D
         if (_crewPanel is { IsOpen: true }) _crewPanel.Toggle();
         if (_mapPanel is { Visible: true }) _mapPanel.Toggle();
         if (_inventoryPanel is { IsOpen: true }) _inventoryPanel.Toggle();
+        _supplierPanel?.Close();
         _interaction?.Dialog.Close();
         _network.Leave();
         GetNode<Camera3D>("OverviewCamera").Current = true;
@@ -504,8 +517,8 @@ public partial class Main : Node3D
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Escape } && _network.LocalPlayer is not null && _pause is not null)
         {
             // Esc cierra primero lo que esté abierto; si no hay nada, abre o cierra las opciones.
-            if (_interaction?.Dialog is { IsOpen: true })
-                return; // el diálogo se cierra solo con Esc
+            if (_interaction?.Dialog is { IsOpen: true } || _supplierPanel is { IsOpen: true })
+                return; // el diálogo y los pedidos se cierran solos con Esc
             if (_crewPanel is { IsOpen: true }) _crewPanel.Toggle();
             else if (_inventoryPanel is { IsOpen: true }) _inventoryPanel.Toggle();
             else if (_mapPanel is { Visible: true }) _mapPanel.Toggle();

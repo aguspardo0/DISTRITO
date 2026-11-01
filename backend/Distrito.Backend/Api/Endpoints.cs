@@ -64,6 +64,10 @@ public static class Endpoints
         internalApi.MapPost("/warehouse/open", (WarehouseOpenRequest r, EconomyService e, CancellationToken ct) => e.OpenWarehouseAsync(r, ct));
         internalApi.MapPost("/warehouse/move", (WarehouseMoveRequest r, EconomyService e, CancellationToken ct) => e.MoveWarehouseAsync(r, ct));
         internalApi.MapPost("/warehouse/permissions", (WarehousePermissionsRequest r, EconomyService e, CancellationToken ct) => e.SetWarehousePermissionsAsync(r, ct));
+        internalApi.MapGet("/supplier/{characterId:guid}", (Guid characterId, string npc, EconomyService e, CancellationToken ct) => e.SupplierAsync(characterId, npc, ct));
+        internalApi.MapPost("/supplier/order", (SupplierOrderRequest r, EconomyService e, CancellationToken ct) => e.PlaceSupplierOrderAsync(r, ct));
+        internalApi.MapPost("/supplier/cancel", (SupplierOrderActionRequest r, EconomyService e, CancellationToken ct) => e.CancelSupplierOrderAsync(r, ct));
+        internalApi.MapPost("/supplier/pickup", (SupplierOrderActionRequest r, EconomyService e, CancellationToken ct) => e.PickupSupplierOrderAsync(r, ct));
         internalApi.MapPost("/inventory/give", (GiveItemRequest r, EconomyService e, CancellationToken ct) => e.GiveAsync(r, ct));
         internalApi.MapPost("/inventory/drop", (DropItemRequest r, EconomyService e, CancellationToken ct) => e.DropAsync(r, ct));
         internalApi.MapPost("/combat/pickup", (PickupRequest r, EconomyService e, CancellationToken ct) => e.PickupAsync(r, ct));

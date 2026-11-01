@@ -132,6 +132,18 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<EconomyActionResult>> SetWarehousePermissionsAsync(string serverKey, WarehousePermissionsRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/warehouse/permissions", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<SupplierView>> GetSupplierAsync(string serverKey, Guid characterId, string supplierCode, CancellationToken ct = default) =>
+        SendAsync<SupplierView>(HttpMethod.Get, $"internal/supplier/{characterId}?npc={Uri.EscapeDataString(supplierCode)}", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> PlaceSupplierOrderAsync(string serverKey, SupplierOrderRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/supplier/order", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> CancelSupplierOrderAsync(string serverKey, SupplierOrderActionRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/supplier/cancel", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> PickupSupplierOrderAsync(string serverKey, SupplierOrderActionRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/supplier/pickup", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<EconomyActionResult>> GiveItemAsync(string serverKey, GiveItemRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/inventory/give", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
