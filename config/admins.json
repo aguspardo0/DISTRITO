@@ -2,5 +2,5 @@
   // Cuentas (nombre de usuario) que pueden abrir el panel de administración en el juego (tecla F10).
   // Ejemplo: "cuentas": ["agus", "socio"]
   // También se pueden poner en el servidor con la variable de entorno Admin__Accounts="agus,socio".
-  "cuentas": []
+  "cuentas": ["Axeelander", "Gusa"]
 }
