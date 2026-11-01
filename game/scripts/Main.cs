@@ -363,6 +363,7 @@ public partial class Main : Node3D
         _encargoTracker = new EncargoTracker { Name = "EncargoTracker" };
         layer.AddChild(UiAnchor.Wrap(_encargoTracker, UiAnchor.End, UiAnchor.Start, right: 16, top: 150, name: "EncargoTrackerArea"));
         _encargoTracker.Initialize(_economy, () => _network.LocalPlayer?.VisualPosition, () => _encargoPreview);
+        _encargoTracker.HiddenWhen = () => _encargoPanel is { IsOpen: true } || _mapPanel is { Visible: true };
         _encargoMarkers = new EncargoMarkers { Name = "EncargoMarkers" };
         GetNode<Node3D>("World").AddChild(_encargoMarkers);
         _encargoMarkers.Initialize(_economy, () => _encargoPreview);

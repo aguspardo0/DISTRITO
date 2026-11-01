@@ -234,6 +234,9 @@ public partial class EncargoTracker : PanelContainer
     private VBoxContainer _box = null!;
     private double _tick;
 
+    /// <summary>Se esconde mientras esto dé verdadero (por ejemplo, con la libreta abierta, que ya muestra lo mismo).</summary>
+    public Func<bool> HiddenWhen { get; set; } = () => false;
+
     public void Initialize(EconomyNetwork economy, Func<Vector3?> me, Func<EconomySnapshot?>? preview = null)
     {
         _snapshot = () => preview?.Invoke() ?? economy.LastSnapshot;
@@ -263,7 +266,7 @@ public partial class EncargoTracker : PanelContainer
     public void Refresh()
     {
         var active = _snapshot()?.ActiveEncargos.ToList() ?? [];
-        Visible = active.Count > 0;
+        Visible = active.Count > 0 && !HiddenWhen();
         foreach (var child in _box.GetChildren()) child.QueueFree();
         if (active.Count == 0)
             return;
