@@ -73,6 +73,41 @@ if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='distri
   sudo -u postgres createdb -O distrito distrito
 fi
 
+# --- Copias de seguridad de la base ---
+# Scripts (los sube deploy.sh junto con este archivo) y timer cada 6 horas. Ver docs/DEPLOY.md.
+here="$(dirname "$0")"
+install -m 750 "$here/backup-db.sh" /usr/local/sbin/distrito-backup
+install -m 750 "$here/restore-db.sh" /usr/local/sbin/distrito-restore
+cat > /etc/systemd/system/distrito-backup.service <<EOF
+[Unit]
+Description=DISTRITO copia de seguridad de la base
+After=postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/distrito-backup programada
+EOF
+cat > /etc/systemd/system/distrito-backup.timer <<EOF
+[Unit]
+Description=DISTRITO copia de seguridad cada 6 horas
+
+[Timer]
+OnCalendar=*-*-* 00/6:15:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+systemctl enable --now distrito-backup.timer >/dev/null
+# Antes de instalar el release nuevo (el backend aplica migraciones al arrancar), copia de lo que hay.
+if [ "$(sudo -u postgres psql -d distrito -tAc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'")" -gt 0 ]; then
+  log "Copia de seguridad antes del despliegue"
+  /usr/local/sbin/distrito-backup predespliegue
+fi
+
 # --- Release ---
 release="$APP/releases/$COMMIT"
 log "Instalando release $COMMIT"

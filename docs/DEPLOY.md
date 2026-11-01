@@ -46,11 +46,33 @@ ls /opt/distrito/releases      # se conservan los últimos 3; /opt/distrito/curr
 ```
 
 Volver a un release anterior: `sudo ln -sfn /opt/distrito/releases/<commit> /opt/distrito/current && sudo systemctl restart distrito-backend distrito-gameserver`.
+Ojo: si el release nuevo aplicó migraciones, volver atrás el código no alcanza; restaurá también la copia «predespliegue» de ese despliegue (abajo).
+
+## Copias de seguridad de la base
+
+- **Programadas:** cada 6 horas (00:15, 06:15, 12:15, 18:15 UTC, con hasta 5 min de variación), timer `distrito-backup.timer`. Se guardan las últimas **28** (una semana).
+- **Antes de cada despliegue:** `setup-server.sh` hace una copia «predespliegue» antes de instalar el release (el backend aplica migraciones al arrancar). Se guardan las últimas **5**.
+- **Manuales:** `sudo distrito-backup manual` (se guardan las últimas 10). `distrito-restore` hace una automáticamente antes de pisar la base.
+- Formato: `pg_dump -Fc` de la base `distrito`, en `/var/backups/distrito/distrito-<fecha UTC>-<tipo>.dump` (carpeta 700, archivos 600, dueño root). Cada copia se verifica leyéndola entera con `pg_restore --list`; si queda menos de 300 MB libres no se hace y falla con error.
+- La CI, después de desplegar, muestra el estado del timer y las últimas copias como aviso, y falla si el timer no está activo.
+
+```bash
+sudo systemctl list-timers distrito-backup.timer     # próxima ejecución
+sudo journalctl -u distrito-backup -n 20            # resultado de las últimas
+sudo ls -lt /var/backups/distrito
+sudo distrito-backup manual                         # copia ahora
+sudo distrito-restore --ultima                      # restaurar la más reciente
+sudo distrito-restore /var/backups/distrito/<archivo>.dump
+```
+
+`distrito-restore` hace una copia manual del estado actual, para el juego y el backend, recrea la base desde la copia, levanta el backend (espera `/health/ready`) y después el servidor de juego. Los jugadores conectados se desconectan durante el proceso (segundos con el tamaño actual).
+
+**Límite:** las copias viven en el mismo servidor. Protegen contra errores (una migración mala, un bug que borra datos, un error manual), **no** contra perder la máquina. Para eso falta una copia fuera del servidor (decisión pendiente: backups automáticos de Vultr o copias cifradas en otro lugar). Nunca subirlas sin cifrar al repo ni a artefactos de la CI: el repo es público.
 
 ## Riesgos conocidos
 
 - Oracle puede **recuperar instancias Always Free inactivas** y dar de baja cuentas sin uso. Conviene entrar a la consola de vez en cuando.
-- Sin copias de seguridad de la base todavía. Pendiente antes de que haya datos que importen.
+- Las copias de seguridad están solo en el servidor (ver arriba): perder la máquina es perder los datos.
 
 ## Prueba visual de la interfaz
 

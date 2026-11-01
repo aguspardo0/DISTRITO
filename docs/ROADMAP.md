@@ -116,5 +116,9 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
 - [x] Etapa 7 — existencias visibles en el mundo, atadas a los datos reales: galpón «Depósitos Valenti» (bahías por cuadrilla con cartel y kg), estantes del Almacén Moretti (llenos/medio/poco) y pedidos listos en pallets, carga a la vista en camioneta y camión; bultos agrupados (nunca uno por unidad)
 - [x] Etapa 8 — fletes en consignación (aprobado: 20 cajas de repuestos de Moretti al Taller Caruso $60; 15 cajones de bebidas al Club de jazz $50; nivel 3; 15 min; si vencen se devuelve lo que tengas y lo que falte se cobra) y pedidos a Moretti con envío directo al negocio propio (+10 %, mín. $1). Las entregas siguen siendo a mano (decisión del equipo)
 
+### Operación del servidor
+- [x] Copias de seguridad automáticas de la base: cada 6 h (se guardan 28), antes de cada despliegue (5), verificadas, con restauración en un comando (`docs/DEPLOY.md`).
+- [ ] Copia fuera del servidor (decisión pendiente del equipo: backups de Vultr o copia cifrada externa).
+
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.
