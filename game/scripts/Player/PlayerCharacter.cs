@@ -38,6 +38,10 @@ public partial class PlayerCharacter : CharacterBody3D
     [Export]
     public int Health { get; set; } = Distrito.Server.Core.Combat.CombatRules.MaxHealth;
 
+    /// <summary>Arma en la mano (código de Weapons, "punos" = sin arma). La fija el servidor.</summary>
+    [Export]
+    public string Weapon { get; set; } = Distrito.Shared.Economy.Weapons.Fists;
+
     /// <summary>Herido: no se mueve hasta reaparecer.</summary>
     [Export]
     public bool Downed { get; set; }
@@ -186,6 +190,7 @@ public partial class PlayerCharacter : CharacterBody3D
         if (_model is null || delta <= 0)
             return;
         _model.SetDowned(Downed);
+        _model.SetWeapon(Weapon);
         var now = _visual.GlobalPosition;
         var moved = new Vector2(now.X - _lastVisualPosition.X, now.Z - _lastVisualPosition.Z).Length();
         _lastVisualPosition = now;

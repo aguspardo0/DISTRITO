@@ -67,6 +67,23 @@ fi
 line=$(grep -h NET_TEST_ fight-victim.log | tail -1)
 if grep -q NET_TEST_OK fight-victim.log; then note "PvP (herido)" "reapareció y siguió conectado — ${line#*\] }"; else error "PvP (herido)" "${line:-sin resultado}"; fi
 
+# ---------- 1d. PvP con pistola ----------
+PORT=7805
+"$GODOT" --headless --path game -- --server --port $PORT > gun-server.log 2>&1 &
+srv=$!
+sleep 4
+client gun-victim.log $PORT --bot-goto 3,-2 --test-seconds 30 --expect-players 2 & a=$!
+sleep 1
+client gun-attacker.log $PORT --bot-fight-weapon pistola --test-seconds 30 --expect-players 2 & b=$!
+wait $a; wait $b
+kill $srv 2>/dev/null; wait $srv 2>/dev/null
+line=$(grep -h NET_TEST_ gun-attacker.log | tail -1)
+if grep -q NET_TEST_OK gun-attacker.log && grep -q COMBAT_KO gun-server.log; then
+  note "PvP con pistola" "$(grep COMBAT_KO gun-server.log | head -1 | sed 's/.*COMBAT_KO //') — ${line#*\] }"
+else
+  error "PvP con pistola" "${line:-sin resultado} $(grep -h 'bot-pelea' gun-attacker.log | tail -1)"
+fi
+
 # ---------- 2. Red mala: latencia, variación y pérdida de paquetes ----------
 # netem sobre la interfaz local: 60 ms ± 20 ms por sentido (≈120 ms de ida y vuelta) y 3 % de pérdida.
 # Dos bots caminan; se exige que sigan conectados, se vean y que la predicción local converja con el servidor.

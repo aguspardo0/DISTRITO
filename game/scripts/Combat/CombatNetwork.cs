@@ -42,11 +42,23 @@ public partial class CombatNetwork : Node
     {
         _network = network;
         _economy = economy;
-        LocalPlayerController.Punch += RequestPunch;
+        LocalPlayerController.Punch += OnPunchKey;
         _network.PlayerAdmitted += (peer, _) => SendDropsTo(peer);
+        InitializeWeapons();
     }
 
-    public override void _ExitTree() => LocalPlayerController.Punch -= RequestPunch;
+    public override void _ExitTree()
+    {
+        LocalPlayerController.Punch -= OnPunchKey;
+        LocalPlayerController.WeaponKey -= OnWeaponKey;
+    }
+
+    /// <summary>Clic o F: piña con las manos vacías (con un arma, el disparo lo maneja ProcessLocalShooting).</summary>
+    private void OnPunchKey()
+    {
+        if (_myWeapon == Weapons.Fists)
+            RequestPunch();
+    }
 
     // ================= Cliente → servidor =================
 
@@ -72,6 +84,7 @@ public partial class CombatNetwork : Node
     public override void _Process(double delta)
     {
         _clock += delta;
+        ProcessLocalShooting(delta);
         if (Multiplayer.MultiplayerPeer is not ENetMultiplayerPeer || !Multiplayer.IsServer())
             return;
         if (_network.Backend is { } backend)
@@ -86,6 +99,7 @@ public partial class CombatNetwork : Node
                 _nextLevels = _clock + LevelRefreshSeconds;
                 _ = RefreshLevelsAsync(backend);
             }
+            ProcessAmmoFlush();
             if (_clock >= _nextPickupCheck)
             {
                 _nextPickupCheck = _clock + 0.3;
@@ -110,11 +124,11 @@ public partial class CombatNetwork : Node
 
     private async Task RefreshLevelsAsync(Distrito.Shared.Api.DistritoApiClient backend)
     {
-        foreach (var (_, session) in _network.AuthenticatedPlayers.ToList())
+        foreach (var (peer, session) in _network.AuthenticatedPlayers.ToList())
         {
             var snapshot = await backend.GetEconomyAsync(_network.ServerKey, session.CharacterId);
             if (snapshot.IsSuccess)
-                _levels[session.CharacterId] = snapshot.Value!.ProgressOrEmpty.Level;
+                OnSnapshotSent(peer, snapshot.Value!);
         }
     }
 
@@ -164,14 +178,21 @@ public partial class CombatNetwork : Node
             return;
         }
 
-        target.Health = Math.Max(0, target.Health - CombatRules.PunchDamage);
-        SendHit(peer);
+        ApplyDamage(attacker, target, CombatRules.PunchDamage);
+    }
+
+    private void ApplyDamage(PlayerCharacter attacker, PlayerCharacter target, int damage)
+    {
+        if (damage <= 0 || target.Downed)
+            return;
+        target.Health = Math.Max(0, target.Health - damage);
+        SendHit(attacker.PeerId);
         if (target.Health > 0)
             return;
 
         target.Downed = true;
         GD.Print($"[DISTRITO] COMBAT_KO {attacker.DisplayName} dejó herido a {target.DisplayName}");
-        SendMessage(peer, $"Dejaste herido a {target.DisplayName}.");
+        SendMessage(attacker.PeerId, $"Dejaste herido a {target.DisplayName}.");
         SendMessage(target.PeerId, $"{attacker.DisplayName} te dejó herido. Volvés en {CombatRules.RespawnSeconds:0} segundos.");
         _ = DropGoodsAsync(target);
         var victimPeer = target.PeerId;
@@ -191,6 +212,7 @@ public partial class CombatNetwork : Node
 
     private async Task DropGoodsAsync(PlayerCharacter victim)
     {
+        await BeforeKnockoutAsync(victim);
         if (_network.Backend is not { } backend || !_network.TryGetSession(victim.PeerId, out var session))
             return;
         var id = Guid.NewGuid();

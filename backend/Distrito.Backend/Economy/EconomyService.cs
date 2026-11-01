@@ -95,7 +95,16 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             if (request.Quantity is < 1 or > 100)
                 throw new EconomyRejected("invalid_quantity", "Cantidad inválida.");
 
-            var (itemName, basePrice) = await LoadItemAsync(c, tx, request.ItemCode, ct);
+            // Cajas de munición: se cobran juntas y suman varias balas. Armas: piden nivel.
+            var pack = Weapons.Pack(request.ItemCode);
+            var itemCode = pack?.AmmoItem ?? request.ItemCode;
+            var units = request.Quantity * (pack?.Rounds ?? 1);
+            if (Weapons.Find(request.ItemCode) is { } weapon &&
+                (await LoadProgressAsync(c, tx, request.CharacterId, ct)).Level < weapon.MinLevel)
+                throw new EconomyRejected("level_too_low", $"La {weapon.Name.ToLowerInvariant()} pide nivel {weapon.MinLevel}.");
+            var (loadedName, loadedPrice) = await LoadItemAsync(c, tx, itemCode, ct);
+            var itemName = pack?.Name ?? loadedName;
+            var basePrice = pack?.PriceCents ?? loadedPrice;
             var unitPrice = FamilyRules.SellPrice(basePrice, await MoodOfNpcAsync(c, tx, request.NpcCode, ct));
             var buyer = await EnsureCharacterAccountAsync(c, tx, request.CharacterId, ct);
             var seller = await AccountIdByCodeAsync(c, tx, request.NpcCode, ct);
@@ -110,7 +119,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             var txId = await NewLedgerTransactionAsync(c, tx, request.RequestId, "purchase",
                 $"Compra de {request.Quantity} × {itemName} a {request.NpcCode}", ct);
             await TransferMoneyAsync(c, tx, txId, from: buyer, to: seller, total, ct);
-            await MoveItemsAsync(c, tx, txId, request.ItemCode, request.Quantity,
+            await MoveItemsAsync(c, tx, txId, itemCode, units,
                 from: (seller, sellerLocation), to: (buyer, EconomyCatalog.CarriedLocation),
                 notEnough: "El depósito no tiene stock suficiente.", ct);
 

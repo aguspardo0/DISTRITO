@@ -8,6 +8,26 @@ public class NpcInteractionRulesTests
 {
     private static readonly ContractTemplate Contract = EconomyCatalog.SparePartsDelivery;
 
+    /// <summary>Opciones sin la armería del Taller Caruso (compras).</summary>
+    private static List<NpcOption> NonShop(NpcDialog d) => d.Options.Where(o => !o.Id.StartsWith("buy:")).ToList();
+
+    [Fact]
+    public void La_armeria_vende_segun_el_nivel_y_siempre_municion()
+    {
+        var low = NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, State());
+        Assert.DoesNotContain(low.Options, o => o.Id == "buy:pistola");
+        Assert.Contains(low.Options, o => o.Id == "buy:caja-balas-pistola");
+        var lvl5 = new EconomySnapshot(2000, [], [], 0, Progress: new Distrito.Shared.Progression.ProgressView(1000, 0, 0, 0));
+        var opts = NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, lvl5).Options.Select(o => o.Id).ToList();
+        Assert.Contains("buy:pistola", opts);
+        Assert.Contains("buy:escopeta", opts);
+        Assert.DoesNotContain("buy:thompson", opts);
+        Assert.Equal(0, Weapons.Shotgun.DamageAt(12f)); // a 12 m ya no hace daño
+        Assert.Equal(60, Weapons.Shotgun.DamageAt(5f));
+        Assert.Equal(30, Weapons.Shotgun.DamageAt(9f));
+        Assert.Equal(0, Weapons.Pistol.DamageAt(21f));
+    }
+
     private static EconomySnapshot State(bool contract = false, int boxes = 0, long balance = 2000) => new(
         balance,
         boxes > 0 ? [new InventoryItem(Contract.ItemCode, "Caja de repuestos", boxes)] : [],
@@ -32,19 +52,19 @@ public class NpcInteractionRulesTests
     [Fact]
     public void El_taller_solo_ofrece_entregar_con_contrato_y_caja()
     {
-        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, State()).Options);
-        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, State(contract: true)).Options);
-        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, State(boxes: 1)).Options);
+        Assert.Empty(NonShop(NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, State())));
+        Assert.Empty(NonShop(NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, State(contract: true))));
+        Assert.Empty(NonShop(NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, State(boxes: 1))));
 
         var dialog = NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, State(contract: true, boxes: 1));
-        Assert.StartsWith("deliver:", Assert.Single(dialog.Options).Id);
+        Assert.StartsWith("deliver:", Assert.Single(NonShop(dialog)).Id);
     }
 
     [Fact]
     public void Resolver_traduce_opciones_disponibles_a_acciones()
     {
         var state = State(contract: true, boxes: 1);
-        var deliverId = NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, state).Options[0].Id;
+        var deliverId = NonShop(NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, state))[0].Id;
 
         var action = NpcInteractionRules.Resolve(EconomyCatalog.WorkshopNpc, deliverId, state);
 
@@ -92,7 +112,7 @@ public class NpcInteractionRulesTests
         Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.ValentiOfficeNpc, $"accept:{collection.Code}", Contracts(carusoRep: 4)));
         Assert.NotNull(NpcInteractionRules.Resolve(EconomyCatalog.ValentiOfficeNpc, $"accept:{collection.Code}", Contracts(carusoRep: 5)));
 
-        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, Contracts(carusoRep: 5)).Options);
+        Assert.Empty(NonShop(NpcInteractionRules.DialogFor(EconomyCatalog.WorkshopNpc, Contracts(carusoRep: 5))));
         var deliver = NpcInteractionRules.Resolve(EconomyCatalog.WorkshopNpc, $"deliver:{OrderId}", Contracts(collection.Code, carusoRep: 5));
         Assert.Equal(collection.Code, deliver!.Code);
     }

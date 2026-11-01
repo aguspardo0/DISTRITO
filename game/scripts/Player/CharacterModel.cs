@@ -16,6 +16,30 @@ public partial class CharacterModel : Node3D
     private float _punch;
     private bool _downed;
 
+    private string _weapon = Distrito.Shared.Economy.Weapons.Fists;
+    private MeshInstance3D? _gun;
+
+    /// <summary>Muestra el arma en la mano derecha (y el brazo apuntando adelante).</summary>
+    public void SetWeapon(string code)
+    {
+        if (code == _weapon)
+            return;
+        _weapon = code;
+        _gun?.QueueFree();
+        _gun = null;
+        if (code == Distrito.Shared.Economy.Weapons.Fists)
+            return;
+        var length = code == "pistola" ? 0.2f : code == "escopeta" ? 0.75f : 0.6f;
+        _gun = new MeshInstance3D
+        {
+            Mesh = new BoxMesh { Size = new Vector3(0.05f, 0.09f, length) },
+            MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(code == "pistola" ? "#1a1a1a" : "#3a2616"), Roughness = 0.5f },
+            Position = new Vector3(0, -0.64f, -length / 2 + 0.05f),
+            RotationDegrees = new Vector3(-90, 0, 0),
+        };
+        _armR.AddChild(_gun);
+    }
+
     /// <summary>Piña: el brazo derecho sale hacia adelante un instante.</summary>
     public void Punch() => _punch = 0.3f;
 
@@ -119,6 +143,8 @@ public partial class CharacterModel : Node3D
         _legR.Rotation = new Vector3(-swing, 0, 0);
         _armL.Rotation = new Vector3(-swing * 0.7f, 0, 0);
         _armR.Rotation = new Vector3(swing * 0.7f, 0, 0);
+        if (_weapon != Distrito.Shared.Economy.Weapons.Fists && !_downed)
+            _armR.Rotation = new Vector3(Mathf.DegToRad(85f), 0, 0); // apuntando
         if (_punch > 0)
         {
             _punch -= delta;

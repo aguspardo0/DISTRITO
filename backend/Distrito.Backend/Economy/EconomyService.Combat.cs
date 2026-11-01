@@ -80,6 +80,37 @@ public sealed partial class EconomyService
             return $"Levantaste {string.Join(", ", items.Select(i => $"{i.Qty} × {i.Code.Replace('-', ' ')}"))}.";
         });
 
+    /// <summary>Munición gastada (la descuenta el servidor de juego en tandas). Si hay menos, se descuenta lo que haya.</summary>
+    public async Task<int> UseAmmoAsync(AmmoUseRequest r, CancellationToken ct)
+    {
+        if (r.Rounds <= 0 || Weapons.All.All(w => w.AmmoItem != r.AmmoItem))
+            return 0;
+        await using var c = await db.OpenConnectionAsync(ct);
+        await using var tx = await c.BeginTransactionAsync(ct);
+        var shooter = await EnsureCharacterAccountAsync(c, tx, r.CharacterId, ct);
+        var ground = await AccountIdByCodeAsync(c, tx, GroundAccount, ct);
+        await LockAccountsAsync(c, tx, ct, shooter, ground);
+        if (await ExistsAsync(c, tx, "SELECT 1 FROM distrito.ledger_transactions WHERE idempotency_key = @k", r.RequestId, ct))
+        {
+            await tx.CommitAsync(ct);
+            return 0;
+        }
+        await using var have = new NpgsqlCommand(
+            "SELECT COALESCE(sum(quantity), 0)::int FROM distrito.item_stacks WHERE owner_account_id = @a AND item_code = @i AND location = @l", c, tx);
+        have.Parameters.AddWithValue("a", shooter);
+        have.Parameters.AddWithValue("i", r.AmmoItem);
+        have.Parameters.AddWithValue("l", EconomyCatalog.CarriedLocation);
+        var used = Math.Min(r.Rounds, (int)(await have.ExecuteScalarAsync(ct))!);
+        if (used > 0)
+        {
+            var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "ammo_used", "Munición gastada", ct);
+            await MoveItemsAsync(c, tx, txId, r.AmmoItem, used, from: (shooter, EconomyCatalog.CarriedLocation), to: (ground, "disparado"),
+                notEnough: "Sin munición.", ct);
+        }
+        await tx.CommitAsync(ct);
+        return used;
+    }
+
     private async Task<List<InventoryItem>> ItemsAtAsync(Guid account, string location, CancellationToken ct)
     {
         var list = new List<InventoryItem>();

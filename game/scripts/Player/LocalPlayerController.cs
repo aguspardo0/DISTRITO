@@ -13,6 +13,9 @@ public partial class LocalPlayerController : Node
 
     /// <summary>El jugador quiere pegar (clic izquierdo o F). Lo atiende CombatNetwork.</summary>
     public static event Action? Punch;
+
+    /// <summary>Teclas 1–4: elegir arma (1 = piñas).</summary>
+    public static event Action<int>? WeaponKey;
     private const float MinPitch = -1.2f;
     private const float MaxPitch = 0.3f;
     private const float CameraDistance = 4.5f;
@@ -85,6 +88,10 @@ public partial class LocalPlayerController : Node
         else if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.F } && Input.MouseMode == Input.MouseModeEnum.Captured)
         {
             Punch?.Invoke();
+        }
+        else if (@event is InputEventKey { Pressed: true, Echo: false } key && key.PhysicalKeycode is >= Key.Key1 and <= Key.Key4)
+        {
+            WeaponKey?.Invoke((int)(key.PhysicalKeycode - Key.Key1) + 1);
         }
     }
 

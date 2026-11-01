@@ -303,6 +303,21 @@ public static class NpcInteractionRules
             text = "¡Justo lo que necesitaba! ¿Me la dejás?";
         }
 
+        // Armería del Taller Caruso.
+        var level = s.ProgressOrEmpty.Level;
+        var locked = new List<string>();
+        foreach (var w in Weapons.All)
+        {
+            if (level >= w.MinLevel)
+                options.Add(new NpcOption($"buy:{w.Code}", $"Comprar {w.Name.ToLowerInvariant()} ({EconomyCatalog.FormatMoney(Price(s, EconomyCatalog.WorkshopNpc, w.PriceCents))})"));
+            else
+                locked.Add($"{w.Name.ToLowerInvariant()} (nivel {w.MinLevel})");
+        }
+        foreach (var pack in Weapons.Packs)
+            options.Add(new NpcOption($"buy:{pack.Code}", $"Comprar {pack.Name.ToLowerInvariant()} ({EconomyCatalog.FormatMoney(Price(s, EconomyCatalog.WorkshopNpc, pack.PriceCents))})"));
+        if (locked.Count > 0)
+            text += $"\n\nPor la puerta de atrás también vendemos fierros. Todavía no te vendo: {string.Join(", ", locked)}.";
+
         var collection = EconomyCatalog.CarusoCollection;
         if (s.ActiveContract(collection.Code) is { } debt)
         {

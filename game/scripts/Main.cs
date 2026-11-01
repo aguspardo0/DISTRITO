@@ -18,7 +18,7 @@ namespace Distrito.Game;
 public partial class Main : Node3D
 {
     private const string ControlsHelp =
-        "WASD: moverse   Shift: correr   Clic/F: piña   Mouse: cámara   Espacio: saltar   E: hablar   C: cuadrilla   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
+        "WASD: moverse   Shift: correr   Clic: piña/disparar   1-4: arma   Mouse: cámara   Espacio: saltar   E: hablar   C: cuadrilla   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
 
     private GameNetwork _network = null!;
     private EconomyNetwork _economy = null!;
@@ -201,7 +201,7 @@ public partial class Main : Node3D
             {
                 var fightBot = new FightBot { Name = "FightBot" };
                 AddChild(fightBot);
-                fightBot.Initialize(_network, _combat);
+                fightBot.Initialize(_network, _combat, Options.BotFightWeapon);
                 test.ExpectFight(fightBot);
             }
 
@@ -264,6 +264,22 @@ public partial class Main : Node3D
         _pause = new PauseMenu { Name = "PauseMenu" };
         layer.AddChild(_pause);
         _pause.LeaveRequested += LeaveMatch;
+        // Arma en la mano: mira en el centro y balas abajo a la derecha.
+        var crosshair = new Label { Text = "+", HorizontalAlignment = HorizontalAlignment.Center, Visible = false };
+        crosshair.AddThemeFontSizeOverride("font_size", 26);
+        crosshair.AddThemeColorOverride("font_shadow_color", Colors.Black);
+        layer.AddChild(UiAnchor.Wrap(crosshair, UiAnchor.Center, UiAnchor.Center, name: "Crosshair"));
+        var ammo = new Label();
+        ammo.AddThemeFontSizeOverride("font_size", 18);
+        ammo.AddThemeColorOverride("font_color", new Color(0.95f, 0.8f, 0.45f));
+        ammo.AddThemeColorOverride("font_shadow_color", Colors.Black);
+        layer.AddChild(UiAnchor.Wrap(ammo, UiAnchor.End, UiAnchor.End, right: 20, bottom: 20, name: "AmmoArea"));
+        _combat.AmmoChanged += () =>
+        {
+            ammo.Text = _combat.AmmoText;
+            crosshair.Visible = _combat.AmmoText.Length > 0;
+        };
+
         _combat.MessageReceived += text =>
         {
             if (_hud is not null)

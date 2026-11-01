@@ -56,6 +56,7 @@ public static class Endpoints
         });
         internalApi.MapPost("/crews/war", (DeclareWarRequest r, CrewService s, CancellationToken ct) => s.DeclareWarAsync(r, ct));
         internalApi.MapPost("/combat/knockout", (KnockoutRequest r, EconomyService e, CancellationToken ct) => e.KnockoutAsync(r, ct));
+        internalApi.MapPost("/combat/ammo", async (AmmoUseRequest r, EconomyService e, CancellationToken ct) => Results.Ok(await e.UseAmmoAsync(r, ct)));
         internalApi.MapPost("/combat/pickup", (PickupRequest r, EconomyService e, CancellationToken ct) => e.PickupAsync(r, ct));
         internalApi.MapPost("/economy/pact", (PactRequest r, EconomyService e, CancellationToken ct) => e.SignPactAsync(r, ct));
         internalApi.MapPost("/economy/business/hire", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.SetEmployeeAsync(r, hire: true, ct));

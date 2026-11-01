@@ -110,6 +110,9 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<DropView>> KnockoutAsync(string serverKey, KnockoutRequest request, CancellationToken ct = default) =>
         SendAsync<DropView>(HttpMethod.Post, "internal/combat/knockout", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<int>> UseAmmoAsync(string serverKey, AmmoUseRequest request, CancellationToken ct = default) =>
+        SendAsync<int>(HttpMethod.Post, "internal/combat/ammo", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<EconomyActionResult>> PickupAsync(string serverKey, PickupRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/combat/pickup", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

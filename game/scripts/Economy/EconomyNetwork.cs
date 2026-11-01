@@ -202,8 +202,13 @@ public partial class EconomyNetwork : Node
             RpcId(peer, MethodName.ReceiveDialog, dialog.NpcCode, dialog.Title, dialog.Text, ids, labels);
     }
 
+    /// <summary>Servidor: cada vez que se le manda la economía a un jugador (lo usa el combate para saber armas y balas).</summary>
+    public event Action<long, EconomySnapshot>? SnapshotSent;
+
     private void SendSnapshot(long peer, EconomySnapshot snapshot)
     {
+        if (Multiplayer.IsServer())
+            SnapshotSent?.Invoke(peer, snapshot);
         var json = JsonSerializer.Serialize(snapshot, Json);
         if (peer == Multiplayer.GetUniqueId())
             ReceiveEconomy(json);

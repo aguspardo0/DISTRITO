@@ -17,7 +17,11 @@ public partial class FightBot : Node
     public bool Completed { get; private set; }
     public int Hits => _combat.ConfirmedHits;
 
-    public void Initialize(GameNetwork network, CombatNetwork combat) => (_network, _combat) = (network, combat);
+    private string? _weapon;
+    private bool _armed;
+
+    public void Initialize(GameNetwork network, CombatNetwork combat, string? weapon = null) =>
+        (_network, _combat, _weapon) = (network, combat, weapon);
 
     public override void _Process(double delta)
     {
@@ -42,6 +46,22 @@ public partial class FightBot : Node
         }
 
         var to = new Vector2(target.GlobalPosition.X - me.GlobalPosition.X, target.GlobalPosition.Z - me.GlobalPosition.Z);
+        if (_weapon is not null)
+        {
+            if (!_armed)
+            {
+                _armed = true;
+                _combat.RequestWeapon(_weapon);
+            }
+            // Con arma: se acerca hasta 6 m y dispara al pecho.
+            controller.ScriptedDirection = to.Length() > 6f ? to.Normalized() : Vector2.Zero;
+            if (to.Length() <= 8f && _clock >= _nextPunch)
+            {
+                _nextPunch = _clock + 0.55;
+                _combat.RequestShot(target.GlobalPosition + Vector3.Up * 1.1f);
+            }
+            return;
+        }
         if (to.Length() > CloseEnough)
         {
             controller.ScriptedDirection = to.Normalized();
