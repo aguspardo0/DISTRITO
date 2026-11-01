@@ -9,7 +9,7 @@ public class NpcInteractionRulesTests
     private static readonly ContractTemplate Contract = EconomyCatalog.SparePartsDelivery;
 
     /// <summary>Opciones sin la armería del Taller Caruso (compras).</summary>
-    private static List<NpcOption> NonShop(NpcDialog d) => d.Options.Where(o => !o.Id.StartsWith("buy:")).ToList();
+    private static List<NpcOption> NonShop(NpcDialog d) => d.Options.Where(o => !o.Id.StartsWith("buy:") && !o.Id.StartsWith("ui:")).ToList();
 
     [Fact]
     public void La_armeria_vende_segun_el_nivel_y_siempre_municion()
