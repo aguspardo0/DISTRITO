@@ -651,7 +651,7 @@ public partial class Main : Node3D
                 _encargoPanel?.Toggle();
                 _rewardBanner?.ShowIfCompleted("¡Encargo cumplido! Los Caruso deben plata\nCobraste $21.00, +79 de experiencia y +3 de reputación con los Moretti.\n¡Subiste a nivel 4!");
             }),
-            ("tablero", () => { _encargoPreview = null; _encargoTracker?.Refresh(); _encargoMarkers?.Refresh(); _boardPanel?.Toggle(); _bases.Preview(); }),
+            ("tablero", () => { if (_rewardBanner is not null) _rewardBanner.Visible = false; _encargoPreview = null; _encargoTracker?.Refresh(); _encargoMarkers?.Refresh(); _boardPanel?.Toggle(); _bases.Preview(); }),
             ("casino", () => { _boardPanel?.Toggle(); _casinoPanel?.Open(); _casinoPanel?.Preview(); }),
             ("habilidades", () =>
             {
