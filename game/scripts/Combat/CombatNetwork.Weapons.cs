@@ -130,6 +130,8 @@ public partial class CombatNetwork
         var to = from + camera.ProjectRayNormal(center) * 60f;
         var query = PhysicsRayQueryParameters3D.Create(from, to);
         query.Exclude = [_network.LocalPlayer.GetRid()];
+        if (Distrito.Game.Transport.VehicleNetwork.Find(_network.LocalPlayer.Vehicle) is { } mine)
+            query.Exclude.Add(mine.GetRid()); // manejando: se apunta por la ventanilla, no al propio vehículo
         var hit = camera.GetWorld3D().DirectSpaceState.IntersectRay(query);
         RequestShot(hit.Count > 0 ? (Vector3)hit["position"] : to);
     }
@@ -191,8 +193,8 @@ public partial class CombatNetwork
 
     private void HandleShot(long peer, Vector3 aimPoint)
     {
-        if (_network.GetPlayer(peer) is not { Downed: false, Vehicle.Length: 0 } shooter)
-            return;
+        if (_network.GetPlayer(peer) is not { Downed: false } shooter)
+            return; // manejando también se dispara: es la ventaja del que va en vehículo
         var code = _armed.GetValueOrDefault(peer, Weapons.Fists);
         if (Weapons.Find(code) is not { } weapon)
             return;
@@ -289,8 +291,8 @@ public partial class CombatNetwork
         var bestT = float.MaxValue;
         foreach (var p in _network.AllPlayers)
         {
-            if (p == shooter || p.Dead || p.Vehicle.Length > 0)
-                continue;
+            if (p == shooter || p.Dead)
+                continue; // los que manejan también pueden recibir tiros (van sentados en la cabina)
             // Un herido está tirado: su cápsula es baja (se lo puede rematar).
             var bottom = p.GlobalPosition + Vector3.Up * (p.Downed ? 0.05f : 0.2f);
             var top = p.GlobalPosition + Vector3.Up * (p.Downed ? 0.45f : 1.7f);
@@ -323,7 +325,10 @@ public partial class CombatNetwork
     private float WallDistance(Vector3 origin, Vector3 dir, float range)
     {
         var query = PhysicsRayQueryParameters3D.Create(origin, origin + dir * range);
-        query.Exclude = new Godot.Collections.Array<Rid>(_network.AllPlayers.Select(p => p.GetRid()));
+        // Los vehículos en marcha no frenan las balas (se le dispara al que maneja y él dispara por la ventanilla);
+        // los estacionados sí sirven de cobertura.
+        query.Exclude = new Godot.Collections.Array<Rid>(_network.AllPlayers.Select(p => p.GetRid())
+            .Concat(Distrito.Game.Transport.VehicleNetwork.DrivenBodies()));
         var hit = GetViewport().World3D.DirectSpaceState.IntersectRay(query);
         return hit.Count > 0 ? origin.DistanceTo((Vector3)hit["position"]) : float.MaxValue;
     }

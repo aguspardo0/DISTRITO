@@ -59,7 +59,9 @@
 - Se compran en el **Taller Caruso** (E → «Vehículos»): camioneta de reparto $120 (nivel 3, 400 kg, ~47 km/h) y camión de
   carga $350 (nivel 6, 1500 kg, ~32 km/h). Propios, o el jefe los compra para la cuadrilla con la caja (`shared/.../Vehicles.cs`).
 - Los maneja el dueño o cualquiera de su cuadrilla: **G** para subir y bajar, W/S acelerar y frenar, A/D doblar, Espacio freno.
-  El servidor simula el manejo; adentro no se pega ni se dispara y no te pueden pegar (por ahora).
+  El servidor simula el manejo. Decisión del equipo (2026-11-01): al que maneja se le puede disparar, y como ventaja él dispara
+  por la ventanilla con el arma en la mano (2–4 y mouse). Piñas no (ni dar ni recibir). Los vehículos en marcha no frenan
+  balas; los estacionados sirven de cobertura. Si el conductor queda herido, se baja y el vehículo queda ahí.
 - La carga vive en el libro central (`vehiculo:<id>` de la cuenta dueña), con capacidad en kg. Se carga y descarga desde la
   pestaña **Vehículo** del inventario estando al lado o manejando.
 - Al bajarse o si el conductor queda herido, el vehículo queda estacionado con la carga. Uno ajeno puede **forzar la caja**

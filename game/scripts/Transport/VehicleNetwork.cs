@@ -35,6 +35,10 @@ public partial class VehicleNetwork : Node
 
     public event Action<string>? MessageReceived;
 
+    /// <summary>Vehículos que alguien está manejando (no frenan balas).</summary>
+    public static IEnumerable<Rid> DrivenBodies() =>
+        _instance?._vehicles.Values.Where(v => v.DriverPeer != 0).Select(v => v.GetRid()) ?? [];
+
     public static VehicleBody? Find(string id) =>
         _instance is not null && Guid.TryParse(id, out var guid) && _instance._vehicles.TryGetValue(guid, out var v) ? v : null;
 
@@ -260,7 +264,8 @@ public partial class VehicleNetwork : Node
         v.DriverPeer = peer;
         player.Vehicle = v.Id.ToString();
         GD.Print($"[DISTRITO] VEHICLE_ENTER {player.DisplayName} → {v.Type.Name} de {v.OwnerName}");
-        SendMessage(peer, $"Manejás la {v.Type.Name.ToLowerInvariant()}: W/S acelerar y frenar, A/D doblar, Espacio freno, G para bajar.");
+        SendMessage(peer, $"Manejás la {v.Type.Name.ToLowerInvariant()}: W/S acelerar y frenar, A/D doblar, Espacio freno, G para bajar. "
+                          + "Con un arma en la mano (2–4) disparás por la ventanilla con el mouse; ojo, a vos también te pueden tirar.");
     }
 
     private void Eject(VehicleBody v, bool announce)
