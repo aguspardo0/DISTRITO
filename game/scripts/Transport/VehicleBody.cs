@@ -72,15 +72,19 @@ public partial class VehicleBody : CharacterBody3D
         Box(new Vector3(w * 0.25f, h * 0.22f, 0.08f), new Vector3(0, 0.85f, -l * 0.48f), chrome);          // parrilla
         Box(new Vector3(w * 0.92f, h * 0.45f, l * 0.22f), new Vector3(0, 1.2f, -l * 0.1f), paint);         // cabina
         Box(new Vector3(w * 0.8f, h * 0.18f, 0.05f), new Vector3(0, 1.35f, -l * 0.215f), glass);           // parabrisas
+        // Caja de carga abierta (la carga se ve): baranda baja en la camioneta, estacas altas en el camión.
+        var (bedStart, bedEnd) = BedSpan(type);
+        var bedLength = bedEnd - bedStart;
+        var bedCenter = (bedStart + bedEnd) / 2;
+        var rail = truck ? 0.9f : 0.35f;
+        Box(new Vector3(w * 0.95f, 0.08f, bedLength), new Vector3(0, 0.72f, bedCenter), wood);
+        Box(new Vector3(0.08f, rail, bedLength), new Vector3(w * 0.45f, 0.76f + rail / 2, bedCenter), wood);
+        Box(new Vector3(0.08f, rail, bedLength), new Vector3(-w * 0.45f, 0.76f + rail / 2, bedCenter), wood);
+        Box(new Vector3(w * 0.95f, rail, 0.08f), new Vector3(0, 0.76f + rail / 2, bedEnd), wood);
         if (truck)
-            Box(new Vector3(w, h * 0.55f, l * 0.55f), new Vector3(0, 1.35f, l * 0.22f), wood);              // caja cerrada
-        else
-        {
-            Box(new Vector3(w * 0.95f, 0.08f, l * 0.45f), new Vector3(0, 0.72f, l * 0.25f), wood);          // caja abierta
-            Box(new Vector3(0.08f, 0.35f, l * 0.45f), new Vector3(w * 0.45f, 0.9f, l * 0.25f), wood);
-            Box(new Vector3(0.08f, 0.35f, l * 0.45f), new Vector3(-w * 0.45f, 0.9f, l * 0.25f), wood);
-            Box(new Vector3(w * 0.95f, 0.35f, 0.08f), new Vector3(0, 0.9f, l * 0.47f), wood);
-        }
+            for (var i = 0; i <= 4; i++)
+                foreach (var side in new[] { -1f, 1f })
+                    Box(new Vector3(0.1f, rail + 0.25f, 0.1f), new Vector3(side * w * 0.46f, 0.76f + (rail + 0.25f) / 2, bedStart + bedLength * i / 4f), dark);
         foreach (var side in new[] { -1f, 1f })
             foreach (var z in new[] { -l * 0.32f, l * 0.3f })
             {
@@ -95,6 +99,23 @@ public partial class VehicleBody : CharacterBody3D
         Box(new Vector3(0.18f, 0.18f, 0.06f), new Vector3(w * 0.3f, 0.95f, -l * 0.49f), chrome);          // faros
         Box(new Vector3(0.18f, 0.18f, 0.06f), new Vector3(-w * 0.3f, 0.95f, -l * 0.49f), chrome);
         return model;
+    }
+
+    /// <summary>Dónde va la caja de carga (z local, de adelante hacia atrás).</summary>
+    private static (float Start, float End) BedSpan(VehicleType type) =>
+        type.Code == Vehicles.Truck.Code ? (type.Length * 0.02f, type.Length * 0.48f) : (type.Length * 0.04f, type.Length * 0.47f);
+
+    private Node3D? _cargo;
+
+    /// <summary>Muestra la carga real en la caja (bultos agrupados). Lo llama VisualStock cuando cambian las existencias.</summary>
+    public void SetCargo(List<StockPile> items)
+    {
+        _cargo?.QueueFree();
+        _cargo = new Node3D { Name = "Cargo" };
+        var (start, end) = BedSpan(Type);
+        _cargo.Position = new Vector3(0, 0.77f, (start + end) / 2);
+        AddChild(_cargo);
+        Distrito.Game.World.StockProps.Layout(_cargo, items, Type.Width * 0.82f, end - start - 0.1f, levels: Type.Code == Vehicles.Truck.Code ? 3 : 2);
     }
 
     public void SetInput(float throttle, float steer, bool brake, double clock)

@@ -70,6 +70,7 @@ public static class Endpoints
         internalApi.MapPost("/supplier/pickup", (SupplierOrderActionRequest r, EconomyService e, CancellationToken ct) => e.PickupSupplierOrderAsync(r, ct));
         internalApi.MapGet("/admin/{characterId:guid}", (Guid characterId, EconomyService e, CancellationToken ct) => e.AdminAsync(characterId, ct));
         internalApi.MapPost("/admin/grant", (AdminGrantRequest r, EconomyService e, CancellationToken ct) => e.AdminGrantAsync(r, ct));
+        internalApi.MapGet("/world/stock", (EconomyService e, CancellationToken ct) => e.WorldStockAsync(ct));
         internalApi.MapGet("/vehicles", (EconomyService e, CancellationToken ct) => e.VehiclesAsync(ct));
         internalApi.MapPost("/vehicles/buy", (VehicleBuyRequest r, EconomyService e, CancellationToken ct) => e.BuyVehicleAsync(r, ct));
         internalApi.MapPost("/vehicles/park", async (VehicleParkRequest r, EconomyService e, CancellationToken ct) => { await e.ParkVehicleAsync(r, ct); return Results.NoContent(); });

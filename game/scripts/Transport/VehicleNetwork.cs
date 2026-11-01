@@ -391,6 +391,7 @@ public partial class VehicleNetwork : Node
         if (result.Value.Drop is { } drop)
         {
             GD.Print($"[DISTRITO] VEHICLE_FORCED {me.CharacterName} forzó el vehículo de {v.OwnerName}");
+            Distrito.Game.World.VisualStock.RequestRefresh();
             _combat.PlaceDrop(drop, seconds);
         }
     }
@@ -429,7 +430,10 @@ public partial class VehicleNetwork : Node
     /// <summary>Solo para la prueba visual: una camioneta y un camión al lado del jugador.</summary>
     public void Preview(Vector3 near)
     {
-        ShowVehicle(JsonSerializer.Serialize(new VehicleView(Guid.NewGuid(), Vehicles.Pickup.Code, "Sal Moretti", null, null, near.X - 2.5, 0, near.Z - 6, 0.6), DistritoApiClient.Json));
-        ShowVehicle(JsonSerializer.Serialize(new VehicleView(Guid.NewGuid(), Vehicles.Truck.Code, "Los del Puerto", null, null, near.X + 3, 0, near.Z - 7, -0.4), DistritoApiClient.Json));
+        var (pickup, truck) = (Guid.NewGuid(), Guid.NewGuid());
+        ShowVehicle(JsonSerializer.Serialize(new VehicleView(pickup, Vehicles.Pickup.Code, "Sal Moretti", null, null, near.X - 2.5, 0, near.Z - 6, 0.6), DistritoApiClient.Json));
+        ShowVehicle(JsonSerializer.Serialize(new VehicleView(truck, Vehicles.Truck.Code, "Los del Puerto", null, null, near.X + 3, 0, near.Z - 7, -0.4), DistritoApiClient.Json));
+        _vehicles[pickup].SetCargo([new("cajon-bebidas", ItemKinds.Goods, 5, 75)]);
+        _vehicles[truck].SetCargo([new("caja-repuestos", ItemKinds.Goods, 20, 240), new("bolsa-cafe", ItemKinds.RawMaterial, 6, 30)]);
     }
 }

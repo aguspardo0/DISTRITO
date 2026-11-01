@@ -172,8 +172,10 @@ public partial class InventoryNetwork : Node
 
     /// <summary>¿El jugador está en el lugar del depósito (cerca de algún NPC de esa zona)?</summary>
     private bool IsAtPlace(long peer, string place) =>
-        _network.GetPlayer(peer) is { } p && NpcInteractionRules.All.Any(n =>
-            TerritoryRules.ZoneOfNpc(n.Code) == place && NpcInteractionRules.InRange(new System.Numerics.Vector3(p.GlobalPosition.X, p.GlobalPosition.Y, p.GlobalPosition.Z), n));
+        _network.GetPlayer(peer) is { } p && (
+            (place == TerritoryRules.Office && Distrito.Game.World.VisualStock.AtShed(p.GlobalPosition)) // el galpón de depósitos
+            || NpcInteractionRules.All.Any(n => TerritoryRules.ZoneOfNpc(n.Code) == place
+                && NpcInteractionRules.InRange(new System.Numerics.Vector3(p.GlobalPosition.X, p.GlobalPosition.Y, p.GlobalPosition.Z), n)));
 
     private async Task WarehouseActionAsync(long peer, bool needsPlace,
         Func<DistritoApiClient, Guid, Task<ApiResult<EconomyActionResult>>> action)
@@ -279,6 +281,7 @@ public partial class InventoryNetwork : Node
 
     private async Task<InventoryView?> SendInventoryAsync(long peer)
     {
+        Distrito.Game.World.VisualStock.RequestRefresh(); // lo guardado o cargado se ve enseguida
         if (_network.Backend is not { } api || !_network.TryGetSession(peer, out var session))
         {
             SendMessage(peer, "El inventario necesita un servidor con cuentas.");

@@ -28,3 +28,18 @@ public class SupplierRulesTests
         Assert.Equal(5, SupplierRules.PrepCycles(50, 0));   // 50 unidades: 5 ciclos propios
     }
 }
+
+public class StockVisualRulesTests
+{
+    [Fact]
+    public void Bultos_agrupados_con_tope()
+    {
+        Assert.Equal(0, StockVisualRules.Props(new StockPile("bolsa-cafe", ItemKinds.RawMaterial, 0, 0)));
+        Assert.Equal(5, StockVisualRules.Props(new StockPile("bolsa-cafe", ItemKinds.RawMaterial, 5, 25)));
+        Assert.Equal(StockVisualRules.MaxPropsPerPile, StockVisualRules.Props(new StockPile("caja-repuestos", ItemKinds.Goods, 400, 4800)));
+        Assert.Equal(3, StockVisualRules.Props(new StockPile("bala-pistola", ItemKinds.Ammo, 120, 2.4))); // cajas de 50
+        Assert.Equal(3, StockVisualRules.ShelfLevel(99_000));
+        Assert.Equal(1, StockVisualRules.ShelfLevel(10));
+        Assert.Equal(0, StockVisualRules.ShelfLevel(0));
+    }
+}

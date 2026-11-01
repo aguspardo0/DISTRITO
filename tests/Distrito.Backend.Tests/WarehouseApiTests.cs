@@ -87,6 +87,12 @@ public class WarehouseApiTests
         Assert.False(hidden.CanView);
         Assert.Empty(hidden.Items);
 
+        // Lo guardado aparece en las existencias del mundo (para dibujarlo en el galpón).
+        var world = (await api.GetWorldStockAsync(Key)).Value!;
+        Assert.Contains(world.Suppliers, sp => sp.SupplierCode == EconomyCatalog.DepositNpc && sp.Items.Count > 0);
+        if (world.Warehouses.FirstOrDefault(x => x.Id == stored.Id) is { } shown) // solo las primeras bahías se dibujan
+            Assert.Equal(2, shown.Items.Single().Quantity);
+
         // No se retira más de lo que hay.
         Assert.Equal("not_enough_items", (await Move(api, leader, 9, deposit: false)).Value!.ErrorCode);
     }

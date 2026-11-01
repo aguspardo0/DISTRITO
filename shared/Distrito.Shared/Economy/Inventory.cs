@@ -106,3 +106,36 @@ public sealed record AdminView(bool IsAdmin, List<InventoryItem> Items);
 
 /// <summary>Regalo de admin: plata (centavos), un objeto y/o fijar el nivel. Lo que venga en 0/null no se toca.</summary>
 public sealed record AdminGrantRequest(Guid CharacterId, long Cents, string? ItemCode, int Quantity, int? Level, string RequestId);
+
+/// <summary>Un tipo de objeto apilado en algún lugar del mundo (para dibujarlo agrupado).</summary>
+public sealed record StockPile(string ItemCode, string Kind, int Quantity, double WeightKg);
+
+/// <summary>Depósito de cuadrilla en el galpón de Valenti: bahía asignada por orden de apertura.</summary>
+public sealed record WarehouseStock(Guid Id, string CrewName, int Bay, List<StockPile> Items, double? CapacityKg);
+
+/// <summary>Existencias de un proveedor y sus pedidos apartados (listos y en preparación).</summary>
+public sealed record SupplierStock(string SupplierCode, List<StockPile> Items, int ReadyOrders, int PreparingOrders);
+
+public sealed record VehicleStock(Guid VehicleId, List<StockPile> Items);
+
+/// <summary>
+/// Inventario, etapa 7: lo que hay guardado, en venta y cargado, para que el mundo lo muestre. Sale de los datos reales
+/// del libro; el servidor de juego lo consulta y lo reparte, los clientes solo lo dibujan.
+/// </summary>
+public sealed record WorldStockView(List<WarehouseStock> Warehouses, List<SupplierStock> Suppliers, List<VehicleStock> Vehicles);
+
+/// <summary>Cómo se dibuja una pila: cuántos bultos (agrupados, nunca uno por unidad) y de qué tipo.</summary>
+public static class StockVisualRules
+{
+    public const int MaxPropsPerPile = 12;
+    public const int WarehouseBays = 6;
+
+    /// <summary>Unidades que representa cada bulto según la clase (la munición viene en cajas de 50).</summary>
+    public static int UnitsPerProp(string kind) => kind == ItemKinds.Ammo ? 50 : 1;
+
+    public static int Props(StockPile pile) =>
+        pile.Quantity <= 0 ? 0 : Math.Min(MaxPropsPerPile, (pile.Quantity + UnitsPerProp(pile.Kind) - 1) / UnitsPerProp(pile.Kind));
+
+    /// <summary>Estante de proveedor: lleno, medio o poco según cuánto queda (stock inicial ~100.000).</summary>
+    public static int ShelfLevel(int quantity) => quantity >= 50_000 ? 3 : quantity >= 5_000 ? 2 : quantity > 0 ? 1 : 0;
+}

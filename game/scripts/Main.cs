@@ -30,6 +30,7 @@ public partial class Main : Node3D
     private Distrito.Game.Admin.AdminNetwork _admin = null!;
     private Distrito.Game.Transport.VehicleNetwork _vehicles = null!;
     private Distrito.Game.Transport.VehicleShopPanel? _vehicleShop;
+    private Distrito.Game.World.VisualStock _stock = null!;
     private Distrito.Game.Admin.AdminPanel? _adminPanel;
     private Distrito.Game.Map.MapNetwork _map = null!;
     private Distrito.Game.Combat.CombatNetwork _combat = null!;
@@ -98,6 +99,10 @@ public partial class Main : Node3D
         _inventory = new Distrito.Game.Inventory.InventoryNetwork { Name = "Inventory" };
         AddChild(_inventory);
         _inventory.Initialize(_network, _economy, _combat);
+
+        _stock = new Distrito.Game.World.VisualStock { Name = "VisualStock" };
+        AddChild(_stock);
+        _stock.Initialize(_network);
 
         _vehicles = new Distrito.Game.Transport.VehicleNetwork { Name = "Vehicles" };
         AddChild(_vehicles);
@@ -522,7 +527,14 @@ public partial class Main : Node3D
                 _inventory.Preview();
                 _inventoryPanel?.ShowVehicleTab();
             }),
-            ("admin", () => { _inventoryPanel?.Toggle(); _adminPanel?.Toggle(); _admin.Preview(); }),
+            ("existencias", () =>
+            {
+                _inventoryPanel?.Toggle();
+                _stock.Preview();
+                if (_network.LocalPlayer is { } me)
+                    me.GlobalPosition = new Vector3(-23f, 0.2f, 13f); // mirando el galpón de depósitos a lo largo
+            }),
+            ("admin", () => { _adminPanel?.Toggle(); _admin.Preview(); }),
             ("opciones", () => { _adminPanel?.Toggle(); _pause?.Open(); }),
         ]);
     }

@@ -74,6 +74,7 @@ public partial class InventoryNetwork
         if (result is { IsSuccess: true, Value.Ok: true })
             GD.Print($"[DISTRITO] SUPPLIER {me.CharacterName}: {result.Value.Message}");
         _economy.RefreshPeer(peer);
+        Distrito.Game.World.VisualStock.RequestRefresh();
         await SendSupplierAsync(peer, npc);
     }
 
