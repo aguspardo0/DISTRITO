@@ -106,8 +106,8 @@ public static class CityBuilder
 
         // En el Mercado, un cartel indica para dónde queda cada barrio.
         var avenue = b.Avenue;
-        var toMarket = new Vector2(-b.Inward.X, -b.Inward.Y);
-        var sign = b.Entrance + toMarket * (b.Inward.X != 0 ? avenue.Width - 2 : avenue.Depth - 2);
+        var back = b.Inward.X != 0 ? avenue.Width - 2 : avenue.Depth - 2; // hacia el Mercado, casi al final de la avenida
+        var sign = new Vector2(b.Entrance.X - b.Inward.X * back, b.Entrance.Y - b.Inward.Y * back);
         city.AddChild(new Label3D
         {
             Name = $"Signpost_{area.Code}", Text = $"→ {area.Name}\n{b.Boss}",
