@@ -29,6 +29,7 @@ public static class Endpoints
             Results.Ok(await economy.GetSnapshotAsync(characterId, ct)));
         internalApi.MapPost("/economy/contracts/accept", (AcceptContractRequest r, EconomyService e, CancellationToken ct) => e.AcceptContractAsync(r, ct));
         internalApi.MapPost("/economy/buy", (BuyItemRequest r, EconomyService e, CancellationToken ct) => e.BuyAsync(r, ct));
+        internalApi.MapPost("/economy/sell", (SellItemRequest r, EconomyService e, CancellationToken ct) => e.SellAsync(r, ct));
         internalApi.MapGet("/crews/status/{characterId:guid}", async (Guid characterId, CrewService crews, CancellationToken ct) =>
             Results.Ok(await crews.GetStatusAsync(characterId, ct)));
         internalApi.MapPost("/crews/create", (CreateCrewRequest r, CrewService s, CancellationToken ct) => s.CreateAsync(r, ct));

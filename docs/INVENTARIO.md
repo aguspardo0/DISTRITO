@@ -87,3 +87,8 @@
 - **Envío al negocio**: en «Pedidos por mayor», si tenés un negocio que vende ese producto (bolsas de café → puesto de café,
   cajones de bebidas → club), se lo podés mandar directo al stock del local (+10 %, mín. $1, 1 ciclo más).
 - Entregar contratos y reponer negocios se sigue haciendo a mano (decisión del equipo): se descarga del vehículo y se entrega.
+
+## Venta a NPC (aprobado 2026-11-01)
+Para que el principio se sostenga solo con NPC: el Almacén Moretti compra café, bebidas y repuestos; el Taller Caruso,
+armas y munición. Pagan el **60 %** del precio de referencia, con un tope de **20 unidades por hora** por jugador.
+Lo vendido vuelve al stock real del local y la plata sale de su caja. Se vende desde el diálogo (E) con lo que llevás encima.

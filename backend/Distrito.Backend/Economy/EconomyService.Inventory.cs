@@ -183,4 +183,42 @@ public sealed partial class EconomyService
         await place.ExecuteNonQueryAsync(ct);
         return expires;
     }
+
+    /// <summary>Vender a un NPC lo que él vende: 60 % del precio de referencia, tope de 20 unidades por hora por jugador.</summary>
+    public Task<EconomyActionResult> SellAsync(SellItemRequest r, CancellationToken ct) =>
+        RunAsync(r.CharacterId, r.RequestId, ct, async (c, tx) =>
+        {
+            if (!NpcSaleRules.Buys(r.NpcCode, r.ItemCode))
+                throw new EconomyRejected("not_bought", "Acá no compran eso.");
+            if (r.Quantity <= 0)
+                throw new EconomyRejected("invalid_quantity", "Cantidad inválida.");
+            var me = await EnsureCharacterAccountAsync(c, tx, r.CharacterId, ct);
+            var npc = await AccountIdByCodeAsync(c, tx, r.NpcCode, ct);
+            await LockAccountsAsync(c, tx, ct, me, npc);
+            await using var sold = new NpgsqlCommand("""
+                SELECT COALESCE(sum(m.quantity), 0)::int FROM distrito.item_movements m JOIN distrito.ledger_transactions t ON t.id = m.transaction_id
+                 WHERE t.kind = 'npc_sale' AND m.actor_character_id = @c AND t.created_at > @since
+                """, c, tx);
+            sold.Parameters.AddWithValue("c", r.CharacterId);
+            sold.Parameters.AddWithValue("since", clock.GetUtcNow().AddHours(-1));
+            var left = NpcSaleRules.UnitsPerHour - (int)(await sold.ExecuteScalarAsync(ct))!;
+            if (left <= 0)
+                throw new EconomyRejected("sale_limit", $"Ya vendiste {NpcSaleRules.UnitsPerHour} unidades en la última hora. Volvé más tarde.");
+            var have = await QuantityAsync(c, tx, me, r.ItemCode, EconomyCatalog.CarriedLocation, ct);
+            var quantity = Math.Min(Math.Min(r.Quantity, left), have);
+            var (name, reference) = await LoadItemAsync(c, tx, r.ItemCode, ct);
+            if (quantity <= 0)
+                throw new EconomyRejected("not_enough_items", $"No tenés {name} encima.");
+            var price = NpcSaleRules.Price(reference, quantity);
+            if (price <= 0)
+                throw new EconomyRejected("too_cheap", "Por tan poco no te compran: juntá más.");
+            if (await BalanceAsync(c, tx, npc, ct) < price)
+                throw new EconomyRejected("npc_no_funds", "No tienen plata para comprarte eso ahora.");
+            var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "npc_sale", $"Venta de {quantity} × {name} a {r.NpcCode}", ct);
+            await MoveItemsAsync(c, tx, txId, r.ItemCode, quantity, from: (me, EconomyCatalog.CarriedLocation), to: (npc, StockLocation(r.NpcCode)),
+                notEnough: $"No tenés {name} encima.", ct, actor: r.CharacterId);
+            await TransferMoneyAsync(c, tx, txId, from: npc, to: me, price, ct);
+            return $"Vendiste {quantity} × {name} por {EconomyCatalog.FormatMoney(price)}."
+                   + (quantity < r.Quantity && quantity == left ? $" (tope de {NpcSaleRules.UnitsPerHour} por hora)" : "");
+        });
 }

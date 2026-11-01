@@ -7,9 +7,9 @@ public sealed record NpcOption(string Id, string Label);
 
 public sealed record NpcDialog(string NpcCode, string Title, string Text, IReadOnlyList<NpcOption> Options);
 
-public enum NpcActionKind { AcceptContract, Buy, Deliver, BuyLicense, Restock, Withdraw, HireHelper, FireHelper, SignPact }
+public enum NpcActionKind { AcceptContract, Buy, Deliver, BuyLicense, Restock, Withdraw, HireHelper, FireHelper, SignPact, Sell }
 
-public sealed record NpcAction(NpcActionKind Kind, string Code, Guid? ContractId = null);
+public sealed record NpcAction(NpcActionKind Kind, string Code, Guid? ContractId = null, int Quantity = 1);
 
 /// <summary>NPC fijo del barrio de prueba.</summary>
 public sealed record NpcDefinition(string Code, string Name, Vector3 Position);
@@ -70,6 +70,15 @@ public static class NpcInteractionRules
             _ => ("…", new List<NpcOption>()),
         };
         var options = rawOptions;
+        // Venta a NPC: cada local compra lo que vende (60 %, tope por hora); se ofrece lo que llevás encima.
+        if (NpcSaleRules.Buyers.TryGetValue(npc.Code, out var buys))
+            foreach (var item in s.Inventory.Where(i => buys.Contains(i.ItemCode) && i.Quantity > 0))
+            {
+                options.Add(new NpcOption($"sell1:{item.ItemCode}", $"Vender 1 × {item.Name} ({NpcSaleRules.PricePercent} % del precio)"));
+                if (item.Quantity > 1)
+                    options.Add(new NpcOption($"sellall:{item.ItemCode}",
+                        $"Vender {Math.Min(item.Quantity, NpcSaleRules.UnitsPerHour)} × {item.Name} (tope {NpcSaleRules.UnitsPerHour} por hora)"));
+            }
         if (SupplierRules.Catalog.ContainsKey(npc.Code))
             options.Add(new NpcOption(SupplierOrdersOption,
                 $"Pedidos por mayor (desde {SupplierRules.MinUnits}; {SupplierRules.VolumeDiscountPercent} % menos desde {SupplierRules.VolumeDiscountFrom})"));
@@ -117,6 +126,8 @@ public static class NpcInteractionRules
             "hire" => new NpcAction(NpcActionKind.HireHelper, parts[1]),
             "fire" => new NpcAction(NpcActionKind.FireHelper, parts[1]),
             "pact" => new NpcAction(NpcActionKind.SignPact, parts[1]),
+            "sell1" => new NpcAction(NpcActionKind.Sell, parts[1], Quantity: 1),
+            "sellall" => new NpcAction(NpcActionKind.Sell, parts[1], Quantity: Math.Min(s.QuantityOf(parts[1]), NpcSaleRules.UnitsPerHour)),
             "deliver" when Guid.TryParse(parts[1], out var id) =>
                 new NpcAction(NpcActionKind.Deliver, s.ActiveContracts.First(c => c.Id == id).TemplateCode, id),
             _ => null,

@@ -99,6 +99,7 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Protección de novato: el PvP (atacar, ser atacado, forzar vehículos) se desbloquea en nivel 5; antes, todo es contra NPC
 - [x] Admin: prestigio de cuadrilla, tablero nuevo, adelantar ciclos, pedidos listos y sacar eventos PvE al instante
 - [x] Arreglo: la rueda del mouse ya no esconde el cursor dentro de las ventanas
+- [x] Venta a NPC: 60 % del precio, tope 20 unidades por hora por jugador
 - [ ] Árbol de habilidades con pantalla propia (siguiente)
 
 ### Eventos PvE (pedido del equipo, 2026-11-01)

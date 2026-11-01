@@ -142,3 +142,25 @@ public static class StockVisualRules
     /// <summary>Estante de proveedor: lleno, medio o poco según cuánto queda (stock inicial ~100.000).</summary>
     public static int ShelfLevel(int quantity) => quantity >= 50_000 ? 3 : quantity >= 5_000 ? 2 : quantity > 0 ? 1 : 0;
 }
+
+/// <summary>
+/// Venta a NPC (aprobado por el equipo 2026-11-01): para que el principio se sostenga solo con NPC. Cada local compra lo
+/// que vende, al 60 % del precio de referencia, con un tope de 20 unidades por hora por jugador.
+/// </summary>
+public static class NpcSaleRules
+{
+    public const int PricePercent = 60;
+    public const int UnitsPerHour = 20;
+
+    public static readonly IReadOnlyDictionary<string, string[]> Buyers = new Dictionary<string, string[]>
+    {
+        [EconomyCatalog.DepositNpc] = [EconomyCatalog.CoffeeBagItem, EconomyCatalog.DrinksCrateItem, EconomyCatalog.SparePartsItem],
+        [EconomyCatalog.WorkshopNpc] = ["pistola", "escopeta", "thompson", "bala-pistola", "cartucho", "bala-thompson"],
+    };
+
+    public static bool Buys(string npc, string item) => Buyers.TryGetValue(npc, out var items) && items.Contains(item);
+
+    public static long Price(long referenceCents, int quantity) => referenceCents * quantity * PricePercent / 100;
+}
+
+public sealed record SellItemRequest(Guid CharacterId, string NpcCode, string ItemCode, int Quantity, string RequestId);

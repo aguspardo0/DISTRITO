@@ -96,3 +96,29 @@ public class InventoryApiTests
             new DropItemRequest(me, EconomyCatalog.CoffeeBagItem, 9, Guid.NewGuid(), Guid.NewGuid().ToString(), 0, 0, 0))).Value!.Result.ErrorCode);
     }
 }
+
+[Trait("Category", "Database")]
+public class NpcSaleApiTests
+{
+    private const string Key = TestBackend.ServerKey;
+
+    [Fact]
+    public async Task Se_vende_al_60_por_ciento_con_tope_por_hora()
+    {
+        var user = TestBackend.UniqueUser("vn");
+        await using var factory = TestBackend.Create(settings: new Dictionary<string, string> { ["Admin:Accounts"] = user });
+        var api = TestBackend.Api(factory);
+        await api.RegisterAsync(user, "contraseña-larga-1");
+        var token = (await api.LoginAsync(user, "contraseña-larga-1")).Value!.Token;
+        var me = (await api.CreateCharacterAsync(token, TestBackend.UniqueCharacterName())).Value!.Id;
+        await api.AdminGrantAsync(Key, new AdminGrantRequest(me, 0, EconomyCatalog.SparePartsItem, 25, null, Guid.NewGuid().ToString()));
+        var before = (await api.GetEconomyAsync(Key, me)).Value!.BalanceCents;
+
+        Assert.Equal("not_bought", (await api.SellAsync(Key, new SellItemRequest(me, EconomyCatalog.WorkshopNpc, EconomyCatalog.SparePartsItem, 1, Guid.NewGuid().ToString()))).Value!.ErrorCode);
+        var sold = (await api.SellAsync(Key, new SellItemRequest(me, EconomyCatalog.DepositNpc, EconomyCatalog.SparePartsItem, 25, Guid.NewGuid().ToString()))).Value!;
+        Assert.True(sold.Ok, sold.Message);
+        Assert.Equal(5, sold.Snapshot.QuantityOf(EconomyCatalog.SparePartsItem));         // tope de 20 por hora
+        Assert.Equal(before + 20 * 800 * 60 / 100, sold.Snapshot.BalanceCents);            // 60 % de $8
+        Assert.Equal("sale_limit", (await api.SellAsync(Key, new SellItemRequest(me, EconomyCatalog.DepositNpc, EconomyCatalog.SparePartsItem, 1, Guid.NewGuid().ToString()))).Value!.ErrorCode);
+    }
+}
