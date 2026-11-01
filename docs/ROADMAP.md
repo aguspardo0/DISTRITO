@@ -81,7 +81,7 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] PvP regulado a piñas: zonas en disputa y eventos, zona segura cerca de los locales, nivel 3+, herido 10 s, mercadería al suelo
 - [x] Correr (Shift)
 - [x] Guerras declaradas entre cuadrillas: empiezan a los 10 min, duran 24 h, PvP en todo el barrio entre las dos salvo zonas seguras
-- [ ] Armas de fuego
+- [x] Armas de fuego: pistola (nivel 3), escopeta (5), Thompson (8); munición por cajas; se pierden al quedar herido
 - [ ] Prueba manual del equipo de la Etapa E
 
 ## Más adelante (sin orden fijado)

@@ -69,3 +69,15 @@ En partidas locales sin cuentas vale todo salvo la zona segura. Correr con Shift
 Guerras: el jefe declara la guerra a otra cuadrilla por nombre; empieza a los 10 minutos (aviso) y dura 24 h. Mientras dura,
 los integrantes de las dos pueden pelear en todo el barrio salvo zonas seguras (siguen valiendo nivel 3+). Una guerra
 declarada a la vez por cuadrilla; con la misma cuadrilla, 24 h de espera después de que termina.
+
+# Armas (aprobado el 2026-10-31; las armas se pierden al quedar herido)
+
+| Arma | Precio | Nivel | Daño | Alcance | Cadencia | Cargador | Munición |
+|---|---|---|---|---|---|---|---|
+| Pistola | $40 | 3 | 25 | 20 m | 0,5 s | 7 | caja de 7 a $2 |
+| Escopeta | $70 | 5 | 60 hasta 6 m, baja hasta 0 a 12 m | 12 m | 1,2 s | 2 | caja de 6 a $3 |
+| Thompson | $150 | 8 | 12 | 25 m | 0,1 s (automática) | 50 | tambor de 50 a $8 |
+
+Las vende el Taller Caruso (con el ánimo de la familia). Teclas 1–4 (1 = piñas), clic para disparar hacia la mira; recarga
+automática de 1,5 s. El servidor calcula el tiro desde los ojos del que dispara; las paredes cubren. Al quedar herido, armas y
+munición quedan en el bulto. En partidas locales sin cuentas las armas son libres y la munición infinita (para probar).
