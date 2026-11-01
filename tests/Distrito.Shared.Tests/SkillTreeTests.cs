@@ -13,9 +13,9 @@ public class SkillTreeTests
         Assert.NotNull(SkillTree.WhyNot(SkillTree.ToughSkin, 1, none));                 // nivel 1: sin puntos
         Assert.Null(SkillTree.WhyNot(SkillTree.ToughSkin, 2, none));
         Assert.NotNull(SkillTree.WhyNot(SkillTree.SteadyHand, 8, none));                // pide Piel dura
-        Assert.NotNull(SkillTree.WhyNot(SkillTree.SteadyHand, 4, new() { [SkillTree.ToughSkin] = 1 })); // pide nivel 5
-        Assert.Null(SkillTree.WhyNot(SkillTree.SteadyHand, 5, new() { [SkillTree.ToughSkin] = 1 }));
-        Assert.NotNull(SkillTree.WhyNot(SkillTree.ToughSkin, 9, new() { [SkillTree.ToughSkin] = 2 }));  // al máximo
+        Assert.NotNull(SkillTree.WhyNot(SkillTree.SteadyHand, 4, new Dictionary<string, int> { [SkillTree.ToughSkin] = 1 })); // pide nivel 5
+        Assert.Null(SkillTree.WhyNot(SkillTree.SteadyHand, 5, new Dictionary<string, int> { [SkillTree.ToughSkin] = 1 }));
+        Assert.NotNull(SkillTree.WhyNot(SkillTree.ToughSkin, 9, new Dictionary<string, int> { [SkillTree.ToughSkin] = 2 }));  // al máximo
         Assert.Equal(20, SkillTree.Effect(new Dictionary<string, int> { [SkillTree.ToughSkin] = 2 }, SkillTree.ToughSkin));
     }
 
