@@ -57,7 +57,7 @@ public sealed class ZoneRules
         var errors = new List<string>();
         JsonNode? root;
         try { root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }); }
-        catch (JsonException ex) { return (null, [$"El archivo no es JSON válido: {ex.Message}"]); }
+        catch (JsonException bad) { return (null, [$"El archivo no es JSON válido: {bad.Message}"]); }
         if (root is not JsonObject obj)
             return (null, ["El archivo tiene que ser un objeto { ... }."]);
 
