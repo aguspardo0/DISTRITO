@@ -127,6 +127,20 @@ public partial class MapPanel : Control
             DrawString(font, at + new Vector2(-3.5f, 4), number.ToString(), HorizontalAlignment.Left, -1, 10, Paper);
         }
 
+        // Encargos en curso: a dónde hay que ir ahora (aro del color de la familia y una línea desde tu posición).
+        var pulse = 10 + 3 * Mathf.Sin(Time.GetTicksMsec() / 250f);
+        foreach (var e in economy?.ActiveEncargos ?? [])
+        {
+            if (Distrito.Game.Economy.EncargoLook.PositionOf(e.NextNpc) is not { } target)
+                continue;
+            var color = Distrito.Game.Economy.EncargoLook.FamilyColor(e.Family);
+            var at = ToMap(target.X, target.Z);
+            DrawArc(at, pulse, 0, Mathf.Tau, 28, color, 3);
+            DrawArc(at, pulse + 4, 0, Mathf.Tau, 28, color with { A = 0.35f }, 2);
+            if (_network.LocalPlayer is { } walker)
+                DrawDashedLine(ToMap(walker.VisualPosition.X, walker.VisualPosition.Z), at, color with { A = 0.8f }, 2, 6);
+        }
+
         var me = Multiplayer.MultiplayerPeer is null ? 0 : Multiplayer.GetUniqueId();
         foreach (var m in _map.Markers.Where(m => m.Peer != me))
         {
@@ -166,24 +180,27 @@ public partial class MapPanel : Control
         DrawString(font, new Vector2(origin.X + 16, y + 4), $"Capo (recibe desde {Distrito.Shared.Economy.FamilyPeople.BossReputation} de reputación)", HorizontalAlignment.Left, -1, 10, Others);
         y += 16;
         DrawCircle(new Vector2(origin.X + 5, y), 4, accent);
-        DrawString(font, new Vector2(origin.X + 16, y + 4), "Su gente: con ellos se empieza", HorizontalAlignment.Left, -1, 10, Others);
+        DrawString(font, new Vector2(origin.X + 16, y + 4), "Su gente: dan los encargos (L)", HorizontalAlignment.Left, -1, 10, Others);
         y += 16;
         DrawRect(new Rect2(origin.X, y - 5, 10, 10), FreeZone with { A = 0.9f });
         DrawString(font, new Vector2(origin.X + 16, y + 4), "Zona libre: PvP sin protección", HorizontalAlignment.Left, -1, 10, Others);
-        y += 20;
-        DrawString(font, new Vector2(origin.X, y + 4), "El Mercado:", HorizontalAlignment.Left, -1, 11, Brass);
+        y += 16;
+        DrawArc(new Vector2(origin.X + 5, y), 5, 0, Mathf.Tau, 16, Self, 2);
+        DrawString(font, new Vector2(origin.X + 16, y + 4), "A dónde ir por tus encargos", HorizontalAlignment.Left, -1, 10, Others);
+        y += 16;
+        DrawString(font, new Vector2(origin.X, y + 4), "Lugares:", HorizontalAlignment.Left, -1, 11, Brass);
         y += 16;
         var number = 0;
-        foreach (var npc in NpcInteractionRules.Market)
+        foreach (var npc in NpcInteractionRules.Market.Append(NpcInteractionRules.DocksContact))
         {
             number++;
-            DrawCircle(new Vector2(origin.X + 5, y), 6, Brass);
+            DrawCircle(new Vector2(origin.X + 5, y), 5.5f, Brass);
             DrawString(font, new Vector2(origin.X + 1.5f, y + 4), number.ToString(), HorizontalAlignment.Left, -1, 10, Paper);
             var owner = Distrito.Shared.Economy.TerritoryRules.ZoneOfNpc(npc.Code) is { } zone && territory?.Zone(zone) is { ControllerCrew: { } crew } ? crew : null;
             DrawString(font, new Vector2(origin.X + 16, y + 4), npc.Name, HorizontalAlignment.Left, -1, 10, Others);
             if (owner is not null)
                 DrawString(font, new Vector2(origin.X + 130, y + 4), $"«{owner}»", HorizontalAlignment.Left, -1, 10, CrewColor(owner));
-            y += 15;
+            y += 12;
         }
     }
 

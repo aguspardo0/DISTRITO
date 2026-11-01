@@ -180,6 +180,15 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<EconomyActionResult>> TurnInCrewMissionAsync(string serverKey, CrewMissionTurnInRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/crews/missions/turnin", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<EconomyActionResult>> EncargoActionAsync(string serverKey, EncargoActionRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/encargos/accion", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> AbandonEncargoAsync(string serverKey, EncargoAbandonRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/encargos/abandonar", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> EncargoProgressAsync(string serverKey, EncargoProgressRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/encargos/progreso", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<EconomyActionResult>> CrewMissionProgressAsync(string serverKey, CrewMissionProgressRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/crews/missions/progress", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

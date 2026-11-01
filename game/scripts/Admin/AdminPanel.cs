@@ -161,6 +161,16 @@ public partial class AdminPanel : PanelContainer
         crew.AddChild(board);
         _content.AddChild(crew);
 
+        Section("Familias");
+        var families = new HFlowContainer();
+        foreach (var (label, amount) in new[] { ("+10 reputación", 10), ($"+{Distrito.Shared.Economy.FamilyPeople.BossReputation} (el capo te recibe)", Distrito.Shared.Economy.FamilyPeople.BossReputation) })
+        {
+            var b = new Button { Text = label, TooltipText = "Con las tres familias a la vez." };
+            b.Pressed += () => _admin.Tool("reputacion", amount);
+            families.AddChild(b);
+        }
+        _content.AddChild(families);
+
         Section("Tiempo");
         var time = new HFlowContainer();
         foreach (var (label, amount) in new[] { ("Adelantar 1 ciclo", 1), ("12 ciclos (1 h)", 12) })

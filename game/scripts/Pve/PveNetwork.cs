@@ -359,6 +359,8 @@ public partial class PveNetwork : Node
             GD.Print($"[DISTRITO] PVE_ROBBED {name}: {reason} — {result.Value.Message}");
             if (shopCode is not null)
                 MissionEvent?.Invoke(peer, Distrito.Shared.Crews.MissionKinds.Shop, shopCode);
+            else
+                MissionEvent?.Invoke(peer, Distrito.Shared.Economy.EncargoRules.Collector, null); // el cobrador (cuenta para los encargos)
             _economy.RefreshPeer(peer);
         }
     }

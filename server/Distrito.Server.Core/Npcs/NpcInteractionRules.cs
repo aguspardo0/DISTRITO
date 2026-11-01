@@ -7,7 +7,7 @@ public sealed record NpcOption(string Id, string Label);
 
 public sealed record NpcDialog(string NpcCode, string Title, string Text, IReadOnlyList<NpcOption> Options);
 
-public enum NpcActionKind { AcceptContract, Buy, Deliver, BuyLicense, Restock, Withdraw, HireHelper, FireHelper, SignPact, Sell }
+public enum NpcActionKind { AcceptContract, Buy, Deliver, BuyLicense, Restock, Withdraw, HireHelper, FireHelper, SignPact, Sell, Encargo }
 
 public sealed record NpcAction(NpcActionKind Kind, string Code, Guid? ContractId = null, int Quantity = 1);
 
@@ -61,10 +61,25 @@ public static class NpcInteractionRules
         return new NpcDefinition(c.Code, c.Name, new Vector3(spot.X, 0, spot.Y));
     }).ToList();
 
-    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner, JazzClub, Casino, .. Bosses, .. FamilyContacts];
+    /// <summary>Gaetano, el marinero de Los Muelles: entrega los paquetes de los encargos.</summary>
+    public static readonly NpcDefinition DocksContact = new(EncargoRules.DocksContact, "Gaetano, el marinero", new Vector3(58f, 0, 3.2f));
 
-    /// <summary>NPC del Mercado (proveedores y comercios), sin la gente de los barrios.</summary>
-    public static readonly IReadOnlyList<NpcDefinition> Market = All.Except(Bosses).Except(FamilyContacts).ToList();
+    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner, JazzClub, Casino, .. Bosses, .. FamilyContacts, DocksContact];
+
+    /// <summary>NPC del Mercado (proveedores y comercios), sin la gente de los barrios ni el marinero.</summary>
+    public static readonly IReadOnlyList<NpcDefinition> Market = All.Except(Bosses).Except(FamilyContacts).Except([DocksContact]).ToList();
+
+    /// <summary>Nombre para mostrar en textos de encargos («Tano Ricci», «el Taller Caruso»…).</summary>
+    public static string DisplayName(string code) => code switch
+    {
+        EconomyCatalog.DepositNpc => "el Almacén Moretti",
+        EconomyCatalog.WorkshopNpc => "el Taller Caruso",
+        EconomyCatalog.ValentiOfficeNpc => "la Oficina Valenti",
+        EconomyCatalog.CoffeeCornerNpc => "la Esquina del café",
+        EconomyCatalog.JazzClubNpc => "el Club de jazz",
+        CasinoRules.Npc => "el portero de El Trébol",
+        _ => Find(code)?.Name ?? code,
+    };
 
     public static NpcDefinition? Find(string code) => All.FirstOrDefault(n => n.Code == code);
 
@@ -89,9 +104,12 @@ public static class NpcInteractionRules
                 "Un local vacío con escenario. Con licencia de la Oficina Valenti puede ser un club de jazz; las bebidas las vende el Almacén Moretti."),
             EconomyCatalog.MorettiBossNpc or EconomyCatalog.ValentiBossNpc or EconomyCatalog.CarusoBossNpc => BossDialog(npcCode, s),
             _ when FamilyPeople.Find(npcCode) is { } contact => ContactDialog(contact, s),
+            EncargoRules.DocksContact => ("Un marinero viejo remienda una red. «Gaetano, para servirle. Acá llegan cosas que no figuran en ningún papel. "
+                + "Si alguien de las familias le dijo que pase, tengo algo para usted. Si no, yo no vi nada.»", new List<NpcOption>()),
             _ => ("…", new List<NpcOption>()),
         };
         var options = rawOptions;
+        EncargoOptions(npc.Code, s, ref text, options);
         // Venta a NPC: cada local compra lo que vende (60 %, tope por hora); se ofrece lo que llevás encima.
         if (NpcSaleRules.Buyers.TryGetValue(npc.Code, out var buys))
             foreach (var item in s.Inventory.Where(i => buys.Contains(i.ItemCode) && i.Quantity > 0))
@@ -166,6 +184,50 @@ public static class NpcInteractionRules
         return ($"{greeting}\n\n{standing} (Reputación con la familia: {rep}.)", new List<NpcOption>());
     }
 
+    /// <summary>
+    /// Encargos en el diálogo: quien los da los ofrece (con su texto) y en cada lugar aparece el paso que toca ahí
+    /// (entregar, cobrar la deuda, buscar el paquete, dejar el sobre, contar lo que viste).
+    /// </summary>
+    private static void EncargoOptions(string npcCode, EconomySnapshot s, ref string text, List<NpcOption> options)
+    {
+        foreach (var e in s.ActiveEncargos.Where(e => e.NextNpc == npcCode))
+        {
+            if (EncargoKinds.IsEvent(e.Kind) && e.Stage == 0)
+                continue; // se cumple con lo que pasa en el mundo
+            var label = (e.Kind, e.Stage) switch
+            {
+                (EncargoKinds.Cobro, 0) => $"Cobrar la deuda de la familia {EncargoGenerator.FamilyName(e.Family)}",
+                (EncargoKinds.Paquete, 0) => "Buscar el paquete",
+                (EncargoKinds.Recado, 0) => "Entregar el sobre sellado",
+                (EncargoKinds.Entrega or EncargoKinds.Contrarreloj, 0) => $"Entregar {e.Quantity} × {EncargoRules.ItemName(e.ItemCode)}",
+                (EncargoKinds.Reparto, 0) => $"Descargar {e.Quantity} × {EncargoRules.ItemName(e.ItemCode)} del vehículo",
+                (EncargoKinds.Cobro, _) => "Dar el sobre de la cobranza",
+                (EncargoKinds.Paquete, _) => "Dar el paquete",
+                (EncargoKinds.Vigilar, _) => "Contar lo que viste",
+                _ => "Avisar que está hecho",
+            };
+            options.Insert(0, new NpcOption($"encargo:paso:{e.Id}", $"★ {label} — «{e.Title}»"));
+        }
+        var offers = s.OfferedEncargos.Where(e => e.GiverNpc == npcCode).ToList();
+        if (offers.Count == 0)
+            return;
+        var full = s.ActiveEncargos.Count() >= EncargoRules.MaxActive;
+        text += "
+
+Trabajo:";
+        foreach (var e in offers)
+        {
+            text += $"
+• {e.Title}: {e.Detail}";
+            if (!full)
+                options.Add(new NpcOption($"encargo:aceptar:{e.Id}",
+                    $"Tomar «{e.Title}» — {EconomyCatalog.FormatMoney(e.RewardCents)}, +{e.Xp} XP, +{e.Reputation} de reputación"));
+        }
+        if (full)
+            text += $"
+(Ya tenés {EncargoRules.MaxActive} encargos en curso: terminá o abandoná uno en la libreta, tecla L.)";
+    }
+
     /// <summary>La gente de la familia: su saludo y cuánto falta para que el capo te reciba.</summary>
     private static (string, List<NpcOption>) ContactDialog(FamilyContact contact, EconomySnapshot s)
     {
@@ -196,6 +258,8 @@ public static class NpcInteractionRules
             "pact" => new NpcAction(NpcActionKind.SignPact, parts[1]),
             "sell1" => new NpcAction(NpcActionKind.Sell, parts[1], Quantity: 1),
             "sellall" => new NpcAction(NpcActionKind.Sell, parts[1], Quantity: Math.Min(s.QuantityOf(parts[1]), NpcSaleRules.UnitsPerHour)),
+            "encargo" when parts[1].Split(':') is [var step, var raw] && Guid.TryParse(raw, out var encargo) =>
+                new NpcAction(NpcActionKind.Encargo, step, encargo),
             "deliver" when Guid.TryParse(parts[1], out var id) =>
                 new NpcAction(NpcActionKind.Deliver, s.ActiveContracts.First(c => c.Id == id).TemplateCode, id),
             _ => null,

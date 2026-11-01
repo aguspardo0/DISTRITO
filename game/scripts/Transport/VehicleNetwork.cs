@@ -39,6 +39,10 @@ public partial class VehicleNetwork : Node
     public static IEnumerable<Rid> DrivenBodies() =>
         _instance?._vehicles.Values.Where(v => v.DriverPeer != 0).Select(v => v.GetRid()) ?? [];
 
+    /// <summary>Vehículos estacionados cerca de un punto (para entregas desde la carga, como el reparto de un encargo).</summary>
+    public static List<Guid> Near(Vector3 point, float radius) =>
+        _instance?._vehicles.Where(kv => kv.Value.GlobalPosition.DistanceTo(point) <= radius).Select(kv => kv.Key).ToList() ?? [];
+
     public static VehicleBody? Find(string id) =>
         _instance is not null && Guid.TryParse(id, out var guid) && _instance._vehicles.TryGetValue(guid, out var v) ? v : null;
 

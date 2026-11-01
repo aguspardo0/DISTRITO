@@ -100,6 +100,15 @@ public sealed partial class EconomyService
                 await DeliverSupplierOrdersAsync(CurrentCycle(), ct);
                 return await AdminDoneAsync(r, $"Admin: {n} pedidos listos (los envíos ya llegaron).", ct);
             }
+            case "reputacion":
+                // Reputación con las tres familias (para probar que el capo te reciba sin hacer todos los encargos).
+                return await RunAsync(r.CharacterId, r.RequestId, ct, async (c, tx) =>
+                {
+                    var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "admin_tool", "Admin: reputación", ct);
+                    foreach (var family in new[] { EconomyCatalog.Moretti, EconomyCatalog.Valenti, EconomyCatalog.Caruso })
+                        await GrantReputationAsync(c, tx, r.CharacterId, new ReputationReward(family, Math.Min(amount, EconomyCatalog.MaxReputation)), "admin", txId, ct);
+                    return $"Admin: +{amount} de reputación con las tres familias.";
+                });
         }
         return await RunAsync(r.CharacterId, r.RequestId, ct, async (c, tx) =>
         {

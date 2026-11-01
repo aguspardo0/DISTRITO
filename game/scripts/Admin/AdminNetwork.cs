@@ -16,13 +16,17 @@ public partial class AdminNetwork : Node
 {
     public static readonly (string Name, Vector3 Spot)[] Places =
     [
-        ("Centro del barrio", new Vector3(0, 0.2f, 0)),
+        ("El Mercado (centro)", new Vector3(0, 0.2f, 0)),
         ("Almacén Moretti", new Vector3(-8, 0.2f, -5)),
         ("Oficina Valenti", new Vector3(-9, 0.2f, 0.5f)),
         ("Taller Caruso", new Vector3(10, 0.2f, 0)),
         ("Los Muelles", new Vector3(55, 0.2f, 0)),
         ("Casino El Trébol", new Vector3(24, 0.2f, 13.5f)),
+        // Los barrios de las familias: en el bulevar, mirando hacia la plaza.
+        .. Distrito.Server.Core.World.CityLayout.Barrios.Select(b => (b.Area.Name, ToGodot(b.ToWorld(20, 3)))),
     ];
+
+    private static Vector3 ToGodot(System.Numerics.Vector2 p) => new(p.X, 0.2f, p.Y);
 
     private GameNetwork _network = null!;
     private EconomyNetwork _economy = null!;

@@ -56,8 +56,15 @@ public sealed record EconomySnapshot(
     List<EventView>? Events = null,
     List<FamilyPactView>? Pacts = null,
     Guid? FactionId = null,
-    Dictionary<string, int>? Skills = null)
+    Dictionary<string, int>? Skills = null,
+    List<EncargoView>? Encargos = null)
 {
+    /// <summary>Encargos en curso (máximo 2).</summary>
+    public IEnumerable<EncargoView> ActiveEncargos => Encargos?.Where(e => e.IsActive) ?? [];
+
+    /// <summary>Encargos que se ofrecen ahora (los del turno y el del día).</summary>
+    public IEnumerable<EncargoView> OfferedEncargos => Encargos?.Where(e => e.IsOffer) ?? [];
+
     /// <summary>Efecto de una habilidad del árbol (0 si no la tiene).</summary>
     public double Skill(string code) => Distrito.Shared.Progression.SkillTree.Effect(Skills, code);
 

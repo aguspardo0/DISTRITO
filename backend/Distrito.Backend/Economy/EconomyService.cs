@@ -27,6 +27,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         await using var tx = await connection.BeginTransactionAsync(ct);
         await EnsureCharacterAccountAsync(connection, tx, characterId, ct);
         await ExpireContractsAsync(connection, tx, characterId, ct);
+        await ExpireEncargosAsync(connection, tx, characterId, ct);
         var snapshot = await LoadSnapshotAsync(connection, tx, characterId, ct);
         await tx.CommitAsync(ct);
         return snapshot;
@@ -464,6 +465,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         {
             await EnsureCharacterAccountAsync(connection, tx, characterId, ct);
             await ExpireContractsAsync(connection, tx, characterId, ct);
+            await ExpireEncargosAsync(connection, tx, characterId, ct);
 
             // Idempotencia: si este pedido ya se aplicó, se devuelve el estado actual sin repetir nada.
             if (await ExistsAsync(connection, tx, "SELECT 1 FROM distrito.ledger_transactions WHERE idempotency_key = @k", requestId, ct))
@@ -758,6 +760,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         var pacts = await LoadPactsAsync(c, tx, characterId, ct);
         var faction = await FactionOfCrewAsync(c, tx, await CrewOfCharacterAsync(c, tx, characterId, ct), ct);
         var skills = await SkillRanksAsync(c, tx, characterId, ct);
-        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory, events, pacts, faction, skills);
+        var encargos = await LoadEncargosAsync(c, tx, characterId, progress.Level, ct);
+        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory, events, pacts, faction, skills, encargos);
     }
 }

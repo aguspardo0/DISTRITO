@@ -6,6 +6,7 @@ using Distrito.Server.Core.Npcs;
 using Distrito.Game.Network;
 using Distrito.Game.UI;
 using Distrito.Shared.Api;
+using Distrito.Shared.Economy;
 using Distrito.Shared.Launch;
 using Godot;
 
@@ -18,7 +19,7 @@ namespace Distrito.Game;
 public partial class Main : Node3D
 {
     private const string ControlsHelp =
-        "WASD: moverse   Shift: correr   Clic: piña/disparar   1-4: arma   Mouse: cámara   Espacio: saltar   E: hablar   G: subir/bajar del vehículo   I: inventario   C: cuadrilla   J: tablero   K: habilidades   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
+        "WASD: moverse   Shift: correr   Clic: piña/disparar   1-4: arma   Mouse: cámara   Espacio: saltar   E: hablar   G: subir/bajar del vehículo   I: inventario   C: cuadrilla   J: tablero   L: encargos   K: habilidades   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
 
     private GameNetwork _network = null!;
     private EconomyNetwork _economy = null!;
@@ -35,6 +36,13 @@ public partial class Main : Node3D
     private Distrito.Game.Pve.PveNetwork _pve = null!;
     private BaseNetwork _bases = null!;
     private CrewBoardPanel? _boardPanel;
+    private EncargoNetwork _encargos = null!;
+    private EncargoPanel? _encargoPanel;
+    private EncargoTracker? _encargoTracker;
+    private EncargoMarkers? _encargoMarkers;
+    private RewardBanner? _rewardBanner;
+    /// <summary>Encargos de ejemplo para las capturas de prueba.</summary>
+    private EconomySnapshot? _encargoPreview;
     private Distrito.Game.Casino.CasinoNetwork _casino = null!;
     private Distrito.Game.Player.SkillNetwork _skills = null!;
     private Distrito.Game.Player.SkillTreePanel? _skillPanel;
@@ -129,6 +137,10 @@ public partial class Main : Node3D
         _bases = new BaseNetwork { Name = "Bases" };
         AddChild(_bases);
         _bases.Initialize(_network, _economy, _combat, _pve);
+
+        _encargos = new EncargoNetwork { Name = "Encargos" };
+        AddChild(_encargos);
+        _encargos.Initialize(_network, _economy, _pve);
 
         _vehicles = new Distrito.Game.Transport.VehicleNetwork { Name = "Vehicles" };
         AddChild(_vehicles);
@@ -342,6 +354,26 @@ public partial class Main : Node3D
         _boardPanel = new CrewBoardPanel { Name = "CrewBoard" };
         layer.AddChild(UiAnchor.Wrap(_boardPanel, UiAnchor.Center, UiAnchor.Center, name: "CrewBoardArea"));
         _boardPanel.Initialize(_bases, () => _network.LocalPlayer?.GlobalPosition);
+
+        // Encargos: libreta (L), seguimiento arriba a la derecha, marcadores en el mundo y aviso al cumplir.
+        _encargoPanel = new EncargoPanel { Name = "EncargoPanel" };
+        layer.AddChild(UiAnchor.Wrap(_encargoPanel, UiAnchor.Center, UiAnchor.Center, name: "EncargoArea"));
+        _encargoPanel.Initialize(_encargos, _economy);
+        _encargoPanel.PreviewData = () => _encargoPreview;
+        _encargoTracker = new EncargoTracker { Name = "EncargoTracker" };
+        layer.AddChild(UiAnchor.Wrap(_encargoTracker, UiAnchor.End, UiAnchor.Start, right: 16, top: 150, name: "EncargoTrackerArea"));
+        _encargoTracker.Initialize(_economy, () => _network.LocalPlayer?.VisualPosition, () => _encargoPreview);
+        _encargoMarkers = new EncargoMarkers { Name = "EncargoMarkers" };
+        GetNode<Node3D>("World").AddChild(_encargoMarkers);
+        _encargoMarkers.Initialize(_economy, () => _encargoPreview);
+        _rewardBanner = new RewardBanner { Name = "RewardBanner" };
+        layer.AddChild(UiAnchor.Wrap(_rewardBanner, UiAnchor.Center, UiAnchor.Start, top: 150, name: "RewardBannerArea"));
+        _economy.DialogReceived += dialog => _rewardBanner.ShowIfCompleted(dialog.Text);
+        _encargos.MessageReceived += text =>
+        {
+            if (_hud is not null)
+                _hud.Text = $"{text}\n{ControlsHelp}";
+        };
 
         _vehicleShop = new Distrito.Game.Transport.VehicleShopPanel { Name = "VehicleShop" };
         layer.AddChild(UiAnchor.Wrap(_vehicleShop, UiAnchor.Center, UiAnchor.Center, name: "VehicleShopArea"));
@@ -605,7 +637,20 @@ public partial class Main : Node3D
             ("barrio-moretti", () => ShowBarrio(Distrito.Server.Core.World.CityLayout.Moretti)),
             ("barrio-valenti", () => ShowBarrio(Distrito.Server.Core.World.CityLayout.Valenti)),
             ("barrio-caruso", () => ShowBarrio(Distrito.Server.Core.World.CityLayout.Caruso)),
-            ("tablero", () => { _boardPanel?.Toggle(); _bases.Preview(); }),
+            ("encargos", () =>
+            {
+                // Dos encargos en curso (uno con premio por rapidez) y las ofertas del turno, con seguimiento y marcadores.
+                _encargoPreview = EncargoPreview();
+                _encargoTracker?.Refresh();
+                _encargoMarkers?.Refresh();
+                _encargoPanel?.Toggle();
+            }),
+            ("encargo-cumplido", () =>
+            {
+                _encargoPanel?.Toggle();
+                _rewardBanner?.ShowIfCompleted("¡Encargo cumplido! Los Caruso deben plata\nCobraste $21.00, +79 de experiencia y +3 de reputación con los Moretti.\n¡Subiste a nivel 4!");
+            }),
+            ("tablero", () => { _encargoPreview = null; _encargoTracker?.Refresh(); _encargoMarkers?.Refresh(); _boardPanel?.Toggle(); _bases.Preview(); }),
             ("casino", () => { _boardPanel?.Toggle(); _casinoPanel?.Open(); _casinoPanel?.Preview(); }),
             ("habilidades", () =>
             {
@@ -621,6 +666,24 @@ public partial class Main : Node3D
             ("admin", () => { _skillPanel?.Toggle(); if (_skillPanel is not null) _skillPanel.PreviewData = null; _adminPanel?.Toggle(); _admin.Preview(); }),
             ("opciones", () => { _adminPanel?.Toggle(); _pause?.Open(); }),
         ]);
+    }
+
+    private static EconomySnapshot EncargoPreview()
+    {
+        var id = Guid.NewGuid();
+        var drafts = EncargoGenerator.Generate(id, EncargoRules.SlotOf(DateTimeOffset.UtcNow), 6);
+        var now = DateTimeOffset.UtcNow;
+        var offers = drafts.Skip(1).Select(d => EncargoGenerator.ToOffer(d, now.AddMinutes(70))).ToList();
+        offers.Add(EncargoGenerator.ToOffer(EncargoGenerator.Daily(id, EncargoRules.DayOf(now), 6), now.AddHours(9)));
+        var first = drafts[0];
+        var active = new List<EncargoView>
+        {
+            EncargoGenerator.ToOffer(first, now.AddMinutes(38)) with { Status = EncargoStatus.Active },
+            new(Guid.NewGuid(), EncargoKinds.Contrarreloj, "npc:moretti-sofia", EconomyCatalog.Moretti, "Contra el reloj",
+                "«Los Valenti nos quieren ganar de mano.»", EconomyCatalog.DrinksCrateItem, 2, null, 0, 2, 0, 2400, 92, 3,
+                EncargoStatus.Active, false, now.AddMinutes(4), now.AddMinutes(4), now.AddMinutes(2)),
+        };
+        return new EconomySnapshot(2500, [], [], 0, [new ReputationView(EconomyCatalog.Moretti, "Familia Moretti", 34)], Encargos: [.. active, .. offers]);
     }
 
     private void ShowBarrio(Distrito.Server.Core.World.BarrioPlan b)
@@ -642,6 +705,7 @@ public partial class Main : Node3D
         if (_adminPanel is { IsOpen: true }) _adminPanel.Toggle();
         if (_boardPanel is { IsOpen: true }) _boardPanel.Toggle();
         if (_skillPanel is { IsOpen: true }) _skillPanel.Toggle();
+        if (_encargoPanel is { IsOpen: true }) _encargoPanel.Toggle();
         _supplierPanel?.Close();
         _vehicleShop?.Close();
         _casinoPanel?.Close();
@@ -682,6 +746,7 @@ public partial class Main : Node3D
             else if (_adminPanel is { IsOpen: true }) _adminPanel.Toggle();
             else if (_boardPanel is { IsOpen: true }) _boardPanel.Toggle();
             else if (_skillPanel is { IsOpen: true }) _skillPanel.Toggle();
+            else if (_encargoPanel is { IsOpen: true }) _encargoPanel.Toggle();
             else if (_mapPanel is { Visible: true }) _mapPanel.Toggle();
             else if (_pause.IsOpen) _pause.Close();
             else _pause.Open();
@@ -697,6 +762,8 @@ public partial class Main : Node3D
             _skillPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.J } && _network.LocalPlayer is not null)
             _boardPanel?.Toggle();
+        if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.L } && _network.LocalPlayer is not null)
+            _encargoPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.F10 } && _network.LocalPlayer is not null)
             _adminPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.I } && _network.LocalPlayer is not null)
