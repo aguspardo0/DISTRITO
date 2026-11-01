@@ -57,3 +57,11 @@ Gana con más de la mitad de los integrantes; cierra a las 24 h o cuando ya no p
 Acuerdos con familias: el jefe firma en el NPC de la familia; pide 50 de reputación sumada de la cuadrilla con esa familia y
 $50 de la caja (van a la familia). Uno por familia y temporada. Da +5 % en los contratos que paga la familia (a la cuadrilla o
 su coalición) y +2 de influencia por día en la zona de la familia (aparte del tope diario).
+
+# PvP (decisión del equipo, 2026-10-31: regulado)
+
+Vida 100; piña 15 (clic o F), alcance 1,8 m de frente, una cada 0,6 s. Se puede pelear en zonas en disputa (dos o más
+cuadrillas/coaliciones con 10+ de influencia en la temporada) y en la zona de un evento mientras dura. Nunca a menos de
+5 m de un local (zona segura) ni con personajes de nivel 1 o 2. A 0 de vida: herido 10 s y reaparece en su punto de aparición;
+lo que llevaba encima queda en un bulto en el suelo (5 min) que levanta el primero que pasa por encima; la plata no se pierde.
+En partidas locales sin cuentas vale todo salvo la zona segura. Correr con Shift (7,5 m/s; caminar 5 m/s).
