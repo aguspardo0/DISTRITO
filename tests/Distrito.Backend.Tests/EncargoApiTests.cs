@@ -156,12 +156,13 @@ public class EncargoApiTests
         var offer = (await api.GetEconomyAsync(Key, me)).Value!.OfferedEncargos.First(o => !o.Daily);
         Assert.True((await Act(api, me, offer.Id, "aceptar", offer.GiverNpc)).Value!.Ok);
         await Force(offer.Id, EncargoKinds.Recado, null, 0, EconomyCatalog.JazzClubNpc);
-        // El sobre lo da la familia al tomar el recado; acá se fuerza el tipo, así que se lo damos a mano.
+        // El sobre lo da la familia al tomar el recado; acá se fuerza el tipo, así que se lo damos a mano (si ya lo tiene, queda igual).
         await using (var db = NpgsqlDataSource.Create(TestBackend.ConnectionString))
         {
             await using var give = db.CreateCommand("""
                 INSERT INTO distrito.item_stacks (id, owner_account_id, item_code, location, quantity)
                 SELECT gen_random_uuid(), id, 'sobre-sellado', 'encima', 1 FROM distrito.economic_accounts WHERE character_id = @c
+                ON CONFLICT (owner_account_id, item_code, location) DO NOTHING
                 """);
             give.Parameters.AddWithValue("c", me);
             await give.ExecuteNonQueryAsync();
