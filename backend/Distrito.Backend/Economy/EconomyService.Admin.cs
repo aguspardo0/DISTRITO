@@ -76,7 +76,7 @@ public sealed partial class EconomyService
                 return await FailAsync(r.CharacterId, "not_admin", "Esa cuenta no es de administración.", ct);
             await tx0.CommitAsync(ct);
         }
-        var amount = Math.Clamp(r.Amount, 1, 1000);
+        var amount = Math.Clamp(r.Amount, 1, 10_000);
         switch (r.Tool)
         {
             case "ciclos":
