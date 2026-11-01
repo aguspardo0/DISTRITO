@@ -59,6 +59,9 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<EconomyActionResult>> AcceptContractAsync(string serverKey, AcceptContractRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/economy/contracts/accept", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<EconomyActionResult>> LearnSkillAsync(string serverKey, Distrito.Shared.Progression.LearnSkillRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/skills/learn", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<EconomyActionResult>> SellAsync(string serverKey, SellItemRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/economy/sell", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

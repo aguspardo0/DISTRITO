@@ -209,7 +209,8 @@ public sealed partial class EconomyService
             var (name, reference) = await LoadItemAsync(c, tx, r.ItemCode, ct);
             if (quantity <= 0)
                 throw new EconomyRejected("not_enough_items", $"No tenés {name} encima.");
-            var price = NpcSaleRules.Price(reference, quantity);
+            var price = NpcSaleRules.Price(reference, quantity)
+                        * (100 + (long)await SkillAsync(c, tx, r.CharacterId, Distrito.Shared.Progression.SkillTree.Salesman, ct)) / 100; // Buen vendedor
             if (price <= 0)
                 throw new EconomyRejected("too_cheap", "Por tan poco no te compran: juntá más.");
             if (await BalanceAsync(c, tx, npc, ct) < price)

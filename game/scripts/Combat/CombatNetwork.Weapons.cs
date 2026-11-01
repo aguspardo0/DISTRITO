@@ -140,11 +140,24 @@ public partial class CombatNetwork
 
     // ================= Servidor =================
 
+    /// <summary>Efecto de una habilidad del árbol para un jugador (según su última economía conocida).</summary>
+    public double Skill(long peer, string code) =>
+        _network.TryGetSession(peer, out var s) && _snapshots.TryGetValue(s.CharacterId, out var snap) ? snap.Skill(code) : 0;
+
+    /// <summary>Vida máxima: 100 + Piel dura.</summary>
+    public int MaxHealthOf(long peer) => CombatRules.MaxHealth + (int)Skill(peer, Distrito.Shared.Progression.SkillTree.ToughSkin);
+
+    private double ReloadSecondsOf(long peer) => Weapons.ReloadSeconds * (1 - Skill(peer, Distrito.Shared.Progression.SkillTree.QuickReload) / 100);
+
     private void OnSnapshotSent(long peer, EconomySnapshot snapshot)
     {
         if (!_network.TryGetSession(peer, out var session))
             return;
+        var wasMax = MaxHealthOf(peer);
         _snapshots[session.CharacterId] = snapshot;
+        // Piel dura: si estaba con la vida llena, queda llena con el nuevo máximo.
+        if (_network.GetPlayer(peer) is { Downed: false } me && me.Health >= wasMax)
+            me.Health = MaxHealthOf(peer);
         _levels[session.CharacterId] = snapshot.ProgressOrEmpty.Level;
         foreach (var w in Weapons.All)
         {
@@ -215,13 +228,13 @@ public partial class CombatNetwork
                 SendMessage(peer, $"Sin {weapon.AmmoName}. Comprá en el Taller Caruso.");
                 return;
             }
-            _reloadUntil[peer] = _clock + Weapons.ReloadSeconds;
+            _reloadUntil[peer] = _clock + ReloadSecondsOf(peer);
             _loaded[key] = Math.Min(weapon.Magazine, available);
             SendMessage(peer, "Recargando…");
             foreach (var p in Multiplayer.GetPeers())
                 RpcId(p, MethodName.ReloadFx, peer);
             ReloadFx(peer);
-            GetTree().CreateTimer(Weapons.ReloadSeconds).Timeout += () => SendAmmo(peer);
+            GetTree().CreateTimer(ReloadSecondsOf(peer)).Timeout += () => SendAmmo(peer);
             return;
         }
 
@@ -280,7 +293,7 @@ public partial class CombatNetwork
             }
             return;
         }
-        ApplyDamage(shooter, target, weapon.DamageAt(distance));
+        ApplyDamage(shooter, target, (int)Math.Round(weapon.DamageAt(distance) * (1 + Skill(peer, Distrito.Shared.Progression.SkillTree.SteadyHand) / 100))); // Pulso firme
     }
 
     /// <summary>Posición del cañón: mano derecha, a la altura del pecho, hacia adelante según el largo del arma.</summary>
@@ -431,7 +444,7 @@ public partial class CombatNetwork
         if (target.Health > 0)
             return;
         target.Downed = true;
-        _bleedUntil[target.PeerId] = _clock + CombatRules.BleedSeconds;
+        _bleedUntil[target.PeerId] = _clock + CombatRules.BleedSeconds + Skill(target.PeerId, Distrito.Shared.Progression.SkillTree.ColdBlood);
         GD.Print($"[DISTRITO] COMBAT_KO {attackerName} dejó herido a {target.DisplayName}");
         SendMessage(target.PeerId, $"{attackerName} te dejó herido. Si en {CombatRules.BleedSeconds:0} s no te levanta un compañero, morís.");
     }

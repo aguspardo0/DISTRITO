@@ -55,8 +55,12 @@ public sealed record EconomySnapshot(
     TerritoryView? Territory = null,
     List<EventView>? Events = null,
     List<FamilyPactView>? Pacts = null,
-    Guid? FactionId = null)
+    Guid? FactionId = null,
+    Dictionary<string, int>? Skills = null)
 {
+    /// <summary>Efecto de una habilidad del árbol (0 si no la tiene).</summary>
+    public double Skill(string code) => Distrito.Shared.Progression.SkillTree.Effect(Skills, code);
+
     public string MoodOf(string familyCode) => Families?.FirstOrDefault(f => f.FamilyCode == familyCode)?.Mood ?? FamilyRules.Neutral;
 
     /// <summary>El negocio propio de ese tipo (el puesto de café también está en <see cref="Business"/>).</summary>

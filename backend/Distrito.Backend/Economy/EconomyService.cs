@@ -73,6 +73,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             cmd.Parameters.AddWithValue("k", request.RequestId);
             var extraSeconds = template.HasTimeLimit
                 ? ProgressionRules.ExtraDeadlineSeconds((await LoadProgressAsync(c, tx, request.CharacterId, ct)).LogisticsLevel)
+                  + (int)await SkillAsync(c, tx, request.CharacterId, Distrito.Shared.Progression.SkillTree.OnTime, ct) // Puntual
                 : 0;
             cmd.Parameters.AddWithValue("exp", template.HasTimeLimit
                 ? clock.GetUtcNow().AddSeconds(template.TimeLimitSeconds + extraSeconds)
@@ -131,6 +132,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                 EconomyCatalog.WorkshopNpc => PrestigeRules.CarusoDiscountPercent(rankForDiscount),
                 _ => 0,
             };
+            discount += (int)await SkillAsync(c, tx, request.CharacterId, Distrito.Shared.Progression.SkillTree.Haggling, ct); // Regateo
             unitPrice = unitPrice * (100 - discount) / 100;
             var buyer = await EnsureCharacterAccountAsync(c, tx, request.CharacterId, ct);
             var seller = await AccountIdByCodeAsync(c, tx, request.NpcCode, ct);
@@ -204,7 +206,8 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             {
                 var baseAmount = share + (i == 0 ? totalPay - share * participants.Count : 0);
                 var negotiation = (await LoadProgressAsync(c, tx, participants[i], ct)).NegotiationLevel;
-                amounts.Add(ProgressionRules.WithNegotiationBonus(baseAmount, negotiation));
+                var collector = (int)await SkillAsync(c, tx, participants[i], Distrito.Shared.Progression.SkillTree.Collector, ct); // Cobrador
+                amounts.Add(ProgressionRules.WithNegotiationBonus(baseAmount, negotiation) * (100 + collector) / 100);
             }
             // Territorio: quien es de la cuadrilla que controla la zona de entrega cobra +5 %.
             var zone = TerritoryRules.ZoneOfNpc(template.DestinationNpc);
@@ -754,6 +757,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         var events = UpcomingEvents(TimeSpan.FromHours(24));
         var pacts = await LoadPactsAsync(c, tx, characterId, ct);
         var faction = await FactionOfCrewAsync(c, tx, await CrewOfCharacterAsync(c, tx, characterId, ct), ct);
-        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory, events, pacts, faction);
+        var skills = await SkillRanksAsync(c, tx, characterId, ct);
+        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory, events, pacts, faction, skills);
     }
 }

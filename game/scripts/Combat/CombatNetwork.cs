@@ -232,7 +232,7 @@ public partial class CombatNetwork : Node
             return;
         }
 
-        ApplyDamage(attacker, target, CombatRules.PunchDamage);
+        ApplyDamage(attacker, target, CombatRules.PunchDamage + (int)Skill(attacker.PeerId, Distrito.Shared.Progression.SkillTree.IronFists)); // Puños de hierro
     }
 
     // ---------- Daño, herido y muerte (Player Death System) ----------
@@ -255,7 +255,7 @@ public partial class CombatNetwork : Node
             return;
 
         target.Downed = true;
-        _bleedUntil[target.PeerId] = _clock + CombatRules.BleedSeconds;
+        _bleedUntil[target.PeerId] = _clock + CombatRules.BleedSeconds + Skill(target.PeerId, Distrito.Shared.Progression.SkillTree.ColdBlood); // Sangre fría
         GD.Print($"[DISTRITO] COMBAT_KO {attacker.DisplayName} dejó herido a {target.DisplayName}");
         SendMessage(attacker.PeerId, $"Dejaste herido a {target.DisplayName}.");
         SendMessage(target.PeerId, $"{attacker.DisplayName} te dejó herido. Si en {CombatRules.BleedSeconds:0} s no te levanta un compañero, morís.");
@@ -363,7 +363,7 @@ public partial class CombatNetwork : Node
         if (_network.GetPlayer(peer) is not { } player)
             return;
         _bleedUntil.Remove(peer);
-        player.Health = CombatRules.MaxHealth;
+        player.Health = MaxHealthOf(peer);
         player.Downed = false;
         player.Dead = false;
     }
@@ -374,7 +374,7 @@ public partial class CombatNetwork : Node
             return;
         player.Velocity = Vector3.Zero;
         player.GlobalPosition = RespawnPoint?.Invoke(peer) ?? player.SpawnPoint; // con sede, se reaparece adentro
-        player.Health = CombatRules.MaxHealth;
+        player.Health = MaxHealthOf(peer);
         player.Downed = false;
         player.Dead = false;
         SendMessage(peer, "Volviste. Cuidate.");

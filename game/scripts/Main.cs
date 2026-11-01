@@ -18,7 +18,7 @@ namespace Distrito.Game;
 public partial class Main : Node3D
 {
     private const string ControlsHelp =
-        "WASD: moverse   Shift: correr   Clic: piña/disparar   1-4: arma   Mouse: cámara   Espacio: saltar   E: hablar   G: subir/bajar del vehículo   I: inventario   C: cuadrilla   J: tablero   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
+        "WASD: moverse   Shift: correr   Clic: piña/disparar   1-4: arma   Mouse: cámara   Espacio: saltar   E: hablar   G: subir/bajar del vehículo   I: inventario   C: cuadrilla   J: tablero   K: habilidades   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
 
     private GameNetwork _network = null!;
     private EconomyNetwork _economy = null!;
@@ -36,6 +36,8 @@ public partial class Main : Node3D
     private BaseNetwork _bases = null!;
     private CrewBoardPanel? _boardPanel;
     private Distrito.Game.Casino.CasinoNetwork _casino = null!;
+    private Distrito.Game.Player.SkillNetwork _skills = null!;
+    private Distrito.Game.Player.SkillTreePanel? _skillPanel;
     private Distrito.Game.Casino.CasinoPanel? _casinoPanel;
     private Distrito.Game.Admin.AdminPanel? _adminPanel;
     private Distrito.Game.Map.MapNetwork _map = null!;
@@ -114,6 +116,10 @@ public partial class Main : Node3D
         _pve = new Distrito.Game.Pve.PveNetwork { Name = "Pve" };
         AddChild(_pve);
         _pve.Initialize(_network, _economy, _combat);
+
+        _skills = new Distrito.Game.Player.SkillNetwork { Name = "Skills" };
+        AddChild(_skills);
+        _skills.Initialize(_network, _economy);
 
         _casino = new Distrito.Game.Casino.CasinoNetwork { Name = "Casino" };
         AddChild(_casino);
@@ -315,6 +321,10 @@ public partial class Main : Node3D
         layer.AddChild(UiAnchor.Wrap(_supplierPanel, UiAnchor.Center, UiAnchor.Center, name: "SupplierArea"));
         _supplierPanel.Initialize(_inventory);
         interaction.SupplierRequested += npc => _supplierPanel.Open(npc);
+
+        _skillPanel = new Distrito.Game.Player.SkillTreePanel { Name = "SkillTree" };
+        layer.AddChild(UiAnchor.Wrap(_skillPanel, UiAnchor.Center, UiAnchor.Center, name: "SkillTreeArea"));
+        _skillPanel.Initialize(_skills, _economy);
 
         _casinoPanel = new Distrito.Game.Casino.CasinoPanel { Name = "CasinoPanel" };
         layer.AddChild(UiAnchor.Wrap(_casinoPanel, UiAnchor.Center, UiAnchor.Center, name: "CasinoArea"));
@@ -585,7 +595,18 @@ public partial class Main : Node3D
             }),
             ("tablero", () => { _boardPanel?.Toggle(); _bases.Preview(); }),
             ("casino", () => { _boardPanel?.Toggle(); _casinoPanel?.Open(); _casinoPanel?.Preview(); }),
-            ("admin", () => { _casinoPanel?.Close(); _adminPanel?.Toggle(); _admin.Preview(); }),
+            ("habilidades", () =>
+            {
+                _casinoPanel?.Close();
+                if (_skillPanel is null)
+                    return;
+                _skillPanel.PreviewData = () => (8, new Dictionary<string, int>
+                {
+                    ["piel-dura"] = 2, ["pulso-firme"] = 1, ["regateo"] = 1, ["buen-vendedor"] = 1, ["puntual"] = 1,
+                });
+                _skillPanel.Toggle();
+            }),
+            ("admin", () => { _skillPanel?.Toggle(); if (_skillPanel is not null) _skillPanel.PreviewData = null; _adminPanel?.Toggle(); _admin.Preview(); }),
             ("opciones", () => { _adminPanel?.Toggle(); _pause?.Open(); }),
         ]);
     }
@@ -598,6 +619,7 @@ public partial class Main : Node3D
         if (_inventoryPanel is { IsOpen: true }) _inventoryPanel.Toggle();
         if (_adminPanel is { IsOpen: true }) _adminPanel.Toggle();
         if (_boardPanel is { IsOpen: true }) _boardPanel.Toggle();
+        if (_skillPanel is { IsOpen: true }) _skillPanel.Toggle();
         _supplierPanel?.Close();
         _vehicleShop?.Close();
         _casinoPanel?.Close();
@@ -637,6 +659,7 @@ public partial class Main : Node3D
             else if (_inventoryPanel is { IsOpen: true }) _inventoryPanel.Toggle();
             else if (_adminPanel is { IsOpen: true }) _adminPanel.Toggle();
             else if (_boardPanel is { IsOpen: true }) _boardPanel.Toggle();
+            else if (_skillPanel is { IsOpen: true }) _skillPanel.Toggle();
             else if (_mapPanel is { Visible: true }) _mapPanel.Toggle();
             else if (_pause.IsOpen) _pause.Close();
             else _pause.Open();
@@ -648,6 +671,8 @@ public partial class Main : Node3D
 
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.C } && _network.LocalPlayer is not null)
             _crewPanel?.Toggle();
+        if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.K } && _network.LocalPlayer is not null)
+            _skillPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.J } && _network.LocalPlayer is not null)
             _boardPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.F10 } && _network.LocalPlayer is not null)

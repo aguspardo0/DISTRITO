@@ -113,7 +113,8 @@ public sealed partial class EconomyService
 
             var (name, basePrice) = await LoadItemAsync(c, tx, r.ItemCode, ct);
             var unit = FamilyRules.SellPrice(basePrice, await MoodOfNpcAsync(c, tx, r.SupplierCode, ct));
-            var goods = SupplierRules.GoodsCents(unit, r.Quantity);
+            var goods = SupplierRules.GoodsCents(unit, r.Quantity)
+                        * (100 - (long)await SkillAsync(c, tx, r.CharacterId, Distrito.Shared.Progression.SkillTree.Contacts, ct)) / 100; // Contactos
             var fee = SupplierRules.IsShipped(r.Delivery) ? SupplierRules.DeliveryCents(goods) : 0;
             var total = goods + fee;
             if (await BalanceAsync(c, tx, buyer, ct) < total)
@@ -121,7 +122,8 @@ public sealed partial class EconomyService
 
             var current = CurrentCycle();
             var ahead = await UnitsInQueueAsync(c, tx, r.SupplierCode, current, ct);
-            var ready = current + SupplierRules.PrepCycles(r.Quantity, ahead);
+            var ready = current + Math.Max(1, SupplierRules.PrepCycles(r.Quantity, ahead)
+                        - (int)await SkillAsync(c, tx, r.CharacterId, Distrito.Shared.Progression.SkillTree.SupplierEye, ct)); // Ojo de proveedor
             var deliver = ready + (SupplierRules.IsShipped(r.Delivery) ? SupplierRules.DeliveryExtraCycles : 0);
             var id = Guid.CreateVersion7();
 

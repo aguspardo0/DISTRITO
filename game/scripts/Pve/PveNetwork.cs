@@ -267,7 +267,7 @@ public partial class PveNetwork : Node
         foreach (var peer in aimedBy)
         {
             var before = a.Threat.GetValueOrDefault(peer);
-            var progress = a.Threat[peer] = before + dt;
+            var progress = a.Threat[peer] = before + dt * (1 + (float)_combat.Skill(peer, Distrito.Shared.Progression.SkillTree.Intimidation) / 100); // Intimidación
             if ((int)progress != (int)before)
                 _combat.Notify(peer, $"Amenazando… {(int)progress}/{threatSeconds:0} s");
             if (progress >= threatSeconds)
@@ -415,7 +415,7 @@ public partial class PveNetwork : Node
                     continue;
                 }
                 var before = _shopThreat.GetValueOrDefault(key);
-                var progress = _shopThreat[key] = before + dt;
+                var progress = _shopThreat[key] = before + dt * (1 + (float)_combat.Skill(p.PeerId, Distrito.Shared.Progression.SkillTree.Intimidation) / 100);
                 if ((int)progress != (int)before)
                     _combat.Notify(p.PeerId, $"Asaltando la caja de {npc.Name}… {(int)progress}/{s.ThreatSeconds:0} s");
                 if (progress < s.ThreatSeconds || _network.Backend is not { } api || !_network.TryGetSession(p.PeerId, out var me))

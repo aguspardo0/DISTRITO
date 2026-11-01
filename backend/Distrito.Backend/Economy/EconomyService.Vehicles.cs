@@ -163,12 +163,13 @@ public sealed partial class EconomyService
             if (r.Load)
             {
                 var type = Vehicles.Find(v.Kind)!;
+                var capacity = type.CapacityKg * (100 + await SkillAsync(c, tx, r.CharacterId, Distrito.Shared.Progression.SkillTree.Stowage, ct)) / 100; // Estiba
                 var current = (await EntriesAtAsync(c, tx, v.Account, location, ct)).Sum(i => i.WeightKg);
                 await using var unit = new NpgsqlCommand("SELECT weight_kg::float8 FROM distrito.item_definitions WHERE code = @i", c, tx);
                 unit.Parameters.AddWithValue("i", r.ItemCode);
                 var add = (double)(await unit.ExecuteScalarAsync(ct))! * r.Quantity;
-                if (current + add > type.CapacityKg + 1e-9)
-                    throw new EconomyRejected("vehicle_full", $"No entra: la {type.Name.ToLowerInvariant()} lleva {current:0.#} kg de {type.CapacityKg:0}.");
+                if (current + add > capacity + 1e-9)
+                    throw new EconomyRejected("vehicle_full", $"No entra: la {type.Name.ToLowerInvariant()} lleva {current:0.#} kg de {capacity:0}.");
             }
             else
                 await EnsureFitsAsync(c, tx, me, r.ItemCode, r.Quantity, ct);

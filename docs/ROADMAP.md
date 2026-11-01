@@ -100,7 +100,7 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [x] Admin: prestigio de cuadrilla, tablero nuevo, adelantar ciclos, pedidos listos y sacar eventos PvE al instante
 - [x] Arreglo: la rueda del mouse ya no esconde el cursor dentro de las ventanas
 - [x] Venta a NPC: 60 % del precio, tope 20 unidades por hora por jugador
-- [ ] Árbol de habilidades con pantalla propia (siguiente)
+- [x] Árbol de habilidades (K): un punto por nivel desde el 2; ramas Calle, Negocios y Logística con 16 nodos en 3 escalones (nivel 1, 5 y 10). Ver `docs/HABILIDADES.md`
 
 ### Eventos PvE (pedido del equipo, 2026-11-01)
 - [x] Asaltos a NPC: camión de reparto de Moretti, cobrador de Valenti, contrabando en Los Muelles con guardias armados y caja de locales. Amenazar apuntando; botín real; −10 de reputación (y ánimo) con la familia asaltada. Ver `docs/ASALTOS.md` y `config/eventos-pve.json`

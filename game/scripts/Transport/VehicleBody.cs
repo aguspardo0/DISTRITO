@@ -16,6 +16,9 @@ public partial class VehicleBody : CharacterBody3D
     public string OwnerName { get; private set; } = "";
     public long DriverPeer { get; set; }
 
+    /// <summary>Multiplicador de velocidad del conductor (habilidad «Buen conductor»).</summary>
+    public float SpeedMultiplier { get; set; } = 1f;
+
     // Servidor: estado del manejo.
     public float Speed { get; private set; }
     private float _throttle, _steer;
@@ -134,7 +137,7 @@ public partial class VehicleBody : CharacterBody3D
         _clock += dt;
         if (DriverPeer == 0 || _clock - _lastInput > 0.5)
             ClearInput();
-        var max = Type.MaxSpeed;
+        var max = Type.MaxSpeed * SpeedMultiplier;
         if (_brake)
             Speed = Mathf.MoveToward(Speed, 0, Type.Acceleration * 3f * dt);
         else if (_throttle != 0)

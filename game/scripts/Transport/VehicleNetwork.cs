@@ -262,6 +262,7 @@ public partial class VehicleNetwork : Node
         if (v.DriverPeer != 0 || player.Downed || player.Vehicle.Length > 0)
             return;
         v.DriverPeer = peer;
+        v.SpeedMultiplier = 1f + (float)_combat.Skill(peer, Distrito.Shared.Progression.SkillTree.Driver) / 100; // Buen conductor
         player.Vehicle = v.Id.ToString();
         GD.Print($"[DISTRITO] VEHICLE_ENTER {player.DisplayName} → {v.Type.Name} de {v.OwnerName}");
         SendMessage(peer, $"Manejás la {v.Type.Name.ToLowerInvariant()}: W/S acelerar y frenar, A/D doblar, Espacio freno, G para bajar. "
@@ -353,8 +354,9 @@ public partial class VehicleNetwork : Node
             SendMessage(peer, "Acá no se puede robar: solo en zonas en disputa, eventos o Los Muelles.");
             return;
         }
-        _forcing[peer] = (id, _clock + Vehicles.ForceSeconds);
-        SendMessage(peer, $"Forzando la caja… quedate al lado {Vehicles.ForceSeconds:0} segundos.");
+        var seconds = Math.Max(1, Vehicles.ForceSeconds - _combat.Skill(peer, Distrito.Shared.Progression.SkillTree.Locksmith)); // Cerrajero
+        _forcing[peer] = (id, _clock + seconds);
+        SendMessage(peer, $"Forzando la caja… quedate al lado {seconds:0} segundos.");
     }
 
     private void ProcessForcing()

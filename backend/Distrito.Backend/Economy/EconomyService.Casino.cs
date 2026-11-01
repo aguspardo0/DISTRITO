@@ -18,6 +18,7 @@ public sealed partial class EconomyService
     {
         var rank = await RankOfCharacterAsync(c, tx, characterId, ct);
         var max = PrestigeRules.CasinoVip(rank) ? CasinoRules.VipMaxBetCents : CasinoRules.MaxBetCents;
+        max = Math.Max(max, (long)await SkillAsync(c, tx, characterId, Distrito.Shared.Progression.SkillTree.HighStakes, ct)); // Mesa alta
         if (stake < CasinoRules.MinBetCents || stake > max)
             throw new EconomyRejected("bet_limits", $"Las apuestas van de {EconomyCatalog.FormatMoney(CasinoRules.MinBetCents)} a {EconomyCatalog.FormatMoney(max)}"
                 + (max < CasinoRules.VipMaxBetCents ? " (la mesa VIP es para cuadrillas de rango 6)." : "."));
