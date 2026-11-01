@@ -59,7 +59,8 @@ public sealed record LaunchOptions(
     bool BotBusiness = false,
     string? BotContractCode = null,
     int? ExpectMapPlayers = null,
-    string? UiSnapshotDir = null)
+    string? UiSnapshotDir = null,
+    bool BotFight = false)
 {
     public static LaunchOptions Default { get; } = new(
         LaunchMode.Client,
@@ -109,6 +110,9 @@ public sealed record LaunchOptions(
                     break;
                 case "--bot-goto":
                     options = options with { Bot = true, BotGoto = ParsePoint(RequireValue(args, ref i)) };
+                    break;
+                case "--bot-fight":
+                    options = options with { Bot = true, BotFight = true };
                     break;
                 case "--ui-snapshot":
                     options = options with { UiSnapshotDir = RequireValue(args, ref i) };

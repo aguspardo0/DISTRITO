@@ -51,7 +51,7 @@ public partial class LocalPrediction : CharacterBody3D
     }
 
     /// <summary>La entrada que también se mandó al servidor.</summary>
-    public void SetInput(float x, float z, bool jump) => _input = MovementRules.Sanitize(new MovementInput(x, z, jump));
+    public void SetInput(float x, float z, bool jump, bool sprint = false) => _input = MovementRules.Sanitize(new MovementInput(x, z, jump, sprint));
 
     public override void _PhysicsProcess(double delta)
     {
@@ -82,7 +82,7 @@ public partial class LocalPrediction : CharacterBody3D
         }
 
         var moving = horizontal.LengthSquared() > 0.01f;
-        var tolerance = BaseTolerance + (moving ? MovementRules.WalkSpeed * LatencySeconds() : 0f);
+        var tolerance = BaseTolerance + (moving ? MovementRules.RunSpeed * LatencySeconds() : 0f);
         if (flatError > tolerance || !moving)
         {
             var rate = moving ? CorrectionRate : IdleCorrectionRate;

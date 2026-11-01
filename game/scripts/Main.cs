@@ -18,13 +18,14 @@ namespace Distrito.Game;
 public partial class Main : Node3D
 {
     private const string ControlsHelp =
-        "WASD: moverse   Mouse: cámara   Espacio: saltar   E: hablar   C: cuadrilla   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
+        "WASD: moverse   Shift: correr   Clic/F: piña   Mouse: cámara   Espacio: saltar   E: hablar   C: cuadrilla   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
 
     private GameNetwork _network = null!;
     private EconomyNetwork _economy = null!;
     private CrewNetwork _crews = null!;
     private CrewPanel? _crewPanel;
     private Distrito.Game.Map.MapNetwork _map = null!;
+    private Distrito.Game.Combat.CombatNetwork _combat = null!;
     private Distrito.Game.Map.MapPanel? _mapPanel;
     private PauseMenu? _pause;
     private NpcInteractionController? _interaction;
@@ -81,6 +82,10 @@ public partial class Main : Node3D
         _crews = new CrewNetwork { Name = "Crews" };
         AddChild(_crews);
         _crews.Initialize(_network);
+
+        _combat = new Distrito.Game.Combat.CombatNetwork { Name = "Combat" };
+        AddChild(_combat);
+        _combat.Initialize(_network, _economy);
 
         _map = new Distrito.Game.Map.MapNetwork { Name = "Map" };
         AddChild(_map);
@@ -192,6 +197,14 @@ public partial class Main : Node3D
                 test.ExpectBusiness(businessBot);
             }
 
+            if (Options.BotFight)
+            {
+                var fightBot = new FightBot { Name = "FightBot" };
+                AddChild(fightBot);
+                fightBot.Initialize(_network, _combat);
+                test.ExpectFight(fightBot);
+            }
+
             if (Options.BotContract)
             {
                 var contractBot = new ContractBot { Name = "ContractBot" };
@@ -251,6 +264,11 @@ public partial class Main : Node3D
         _pause = new PauseMenu { Name = "PauseMenu" };
         layer.AddChild(_pause);
         _pause.LeaveRequested += LeaveMatch;
+        _combat.MessageReceived += text =>
+        {
+            if (_hud is not null)
+                _hud.Text = $"{text}\n{ControlsHelp}";
+        };
         _crews.MessageReceived += text =>
         {
             if (_hud is not null)

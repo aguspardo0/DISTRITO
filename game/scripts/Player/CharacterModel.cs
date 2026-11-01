@@ -13,6 +13,21 @@ public partial class CharacterModel : Node3D
 {
     private Node3D _legL = null!, _legR = null!, _armL = null!, _armR = null!;
     private float _phase;
+    private float _punch;
+    private bool _downed;
+
+    /// <summary>Piña: el brazo derecho sale hacia adelante un instante.</summary>
+    public void Punch() => _punch = 0.3f;
+
+    /// <summary>Herido: el modelo queda tirado en el piso.</summary>
+    public void SetDowned(bool downed)
+    {
+        if (downed == _downed)
+            return;
+        _downed = downed;
+        Rotation = downed ? new Vector3(Mathf.DegToRad(-85f), 0, 0) : Vector3.Zero;
+        Position = downed ? new Vector3(0, 0.2f, 0.9f) : Vector3.Zero;
+    }
 
     public string LookCode { get; private set; } = "";
 
@@ -104,6 +119,11 @@ public partial class CharacterModel : Node3D
         _legR.Rotation = new Vector3(-swing, 0, 0);
         _armL.Rotation = new Vector3(-swing * 0.7f, 0, 0);
         _armR.Rotation = new Vector3(swing * 0.7f, 0, 0);
+        if (_punch > 0)
+        {
+            _punch -= delta;
+            _armR.Rotation = new Vector3(Mathf.DegToRad(95f) * Mathf.Sin(Mathf.Clamp(_punch / 0.3f, 0, 1) * Mathf.Pi), 0, 0);
+        }
         if (amount < 0.05f)
             _phase = 0;
     }

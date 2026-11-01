@@ -48,6 +48,25 @@ if grep -q NET_TEST_OK walls-b.log && echo "$pb" | awk -F, '{ x=$1; if (x<0) x=-
   note "Borde del barrio" "el bot no pudo salir del mapa: quedó en ${pb}"
 else error "Borde del barrio" "posición final ${pb:-?} ($(grep -h NET_TEST_ walls-b.log | tail -1 | cut -c1-200))"; fi
 
+# ---------- 1c. PvP a piñas (partida sin cuentas: vale todo salvo cerca de los locales) ----------
+PORT=7804
+"$GODOT" --headless --path game -- --server --port $PORT > fight-server.log 2>&1 &
+srv=$!
+sleep 4
+client fight-victim.log $PORT --bot-goto 3,-2 --test-seconds 30 --expect-players 2 & a=$!
+sleep 1
+client fight-attacker.log $PORT --bot-fight --test-seconds 30 --expect-players 2 & b=$!
+wait $a; wait $b
+kill $srv 2>/dev/null; wait $srv 2>/dev/null
+line=$(grep -h NET_TEST_ fight-attacker.log | tail -1)
+if grep -q NET_TEST_OK fight-attacker.log && grep -q COMBAT_KO fight-server.log; then
+  note "PvP a piñas" "$(grep COMBAT_KO fight-server.log | head -1 | sed 's/.*COMBAT_KO //') — ${line#*\] }"
+else
+  error "PvP a piñas" "${line:-sin resultado} $(grep -h 'bot-pelea' fight-attacker.log | tail -1)"
+fi
+line=$(grep -h NET_TEST_ fight-victim.log | tail -1)
+if grep -q NET_TEST_OK fight-victim.log; then note "PvP (herido)" "reapareció y siguió conectado — ${line#*\] }"; else error "PvP (herido)" "${line:-sin resultado}"; fi
+
 # ---------- 2. Red mala: latencia, variación y pérdida de paquetes ----------
 # netem sobre la interfaz local: 60 ms ± 20 ms por sentido (≈120 ms de ida y vuelta) y 3 % de pérdida.
 # Dos bots caminan; se exige que sigan conectados, se vean y que la predicción local converja con el servidor.

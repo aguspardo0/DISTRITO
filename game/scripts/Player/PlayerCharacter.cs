@@ -34,6 +34,14 @@ public partial class PlayerCharacter : CharacterBody3D
     [Export]
     public string Look { get; set; } = "";
 
+    /// <summary>Vida (0–100). La decide el servidor.</summary>
+    [Export]
+    public int Health { get; set; } = Distrito.Server.Core.Combat.CombatRules.MaxHealth;
+
+    /// <summary>Herido: no se mueve hasta reaparecer.</summary>
+    [Export]
+    public bool Downed { get; set; }
+
     private CharacterModel? _model;
     private Vector3 _lastVisualPosition;
 
@@ -78,6 +86,10 @@ public partial class PlayerCharacter : CharacterBody3D
     {
         var name = DisplayName.Length > 0 ? DisplayName : $"Jugador {PeerId}";
         var tag = CrewName.Length > 0 ? $"{name}\n«{CrewName}»" : name;
+        if (Downed)
+            tag += "\n(herido)";
+        else if (Health < Distrito.Server.Core.Combat.CombatRules.MaxHealth)
+            tag += $"\n♥ {Health}";
         if (tag == _shownTag)
             return;
         _shownTag = tag;
@@ -102,16 +114,16 @@ public partial class PlayerCharacter : CharacterBody3D
     }
 
     /// <summary>Lo llama el controlador local del dueño. Envía la intención al servidor.</summary>
-    public void SubmitLocalInput(float x, float z, bool jump)
+    public void SubmitLocalInput(float x, float z, bool jump, bool sprint = false)
     {
         if (Multiplayer.IsServer())
-            ApplyInput(x, z, jump); // modo anfitrión: el servidor es este mismo proceso
+            ApplyInput(x, z, jump, sprint); // modo anfitrión: el servidor es este mismo proceso
         else
-            RpcId(1, MethodName.ReceiveInput, x, z, jump);
+            RpcId(1, MethodName.ReceiveInput, x, z, jump, sprint);
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered)]
-    public void ReceiveInput(float x, float z, bool jump)
+    public void ReceiveInput(float x, float z, bool jump, bool sprint)
     {
         if (!Multiplayer.IsServer())
             return;
@@ -123,15 +135,25 @@ public partial class PlayerCharacter : CharacterBody3D
             return;
         }
 
-        ApplyInput(x, z, jump);
+        ApplyInput(x, z, jump, sprint);
     }
 
-    private void ApplyInput(float x, float z, bool jump) => _input.Update(new MovementInput(x, z, jump), _clock);
+    private void ApplyInput(float x, float z, bool jump, bool sprint) =>
+        _input.Update(Downed ? MovementInput.None : new MovementInput(x, z, jump, sprint), _clock);
+
+    /// <summary>Animación de piña (la manda el servidor a todos).</summary>
+    public void PlayPunch() => _model?.Punch();
 
     public override void _PhysicsProcess(double delta)
     {
         if (!Multiplayer.IsServer())
             return;
+        if (Downed)
+        {
+            Velocity = new Vector3(0, Velocity.Y - _gravity * (float)delta, 0);
+            MoveAndSlide();
+            return;
+        }
 
         _clock += delta;
         var input = _input.Current(_clock);
@@ -163,6 +185,7 @@ public partial class PlayerCharacter : CharacterBody3D
     {
         if (_model is null || delta <= 0)
             return;
+        _model.SetDowned(Downed);
         var now = _visual.GlobalPosition;
         var moved = new Vector2(now.X - _lastVisualPosition.X, now.Z - _lastVisualPosition.Z).Length();
         _lastVisualPosition = now;

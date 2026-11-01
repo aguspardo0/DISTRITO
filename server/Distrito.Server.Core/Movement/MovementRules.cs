@@ -3,7 +3,7 @@ using System.Numerics;
 namespace Distrito.Server.Core.Movement;
 
 /// <summary>Intención de movimiento enviada por un cliente. Dirección en el plano XZ del mundo.</summary>
-public readonly record struct MovementInput(float X, float Z, bool Jump)
+public readonly record struct MovementInput(float X, float Z, bool Jump, bool Sprint = false)
 {
     public static MovementInput None => default;
 }
@@ -15,6 +15,8 @@ public readonly record struct MovementInput(float X, float Z, bool Jump)
 public static class MovementRules
 {
     public const float WalkSpeed = 5.0f;
+    /// <summary>Correr (Shift).</summary>
+    public const float RunSpeed = 7.5f;
     public const float JumpVelocity = 4.5f;
 
     /// <summary>Si un jugador cae por debajo de esta altura, el servidor lo devuelve a su punto de aparición.</summary>
@@ -38,6 +40,9 @@ public static class MovementRules
     }
 
     /// <summary>Velocidad horizontal (X, Z) resultante de una entrada ya saneada.</summary>
-    public static Vector2 HorizontalVelocity(MovementInput sanitized) =>
-        new(sanitized.X * WalkSpeed, sanitized.Z * WalkSpeed);
+    public static Vector2 HorizontalVelocity(MovementInput sanitized)
+    {
+        var speed = sanitized.Sprint ? RunSpeed : WalkSpeed;
+        return new(sanitized.X * speed, sanitized.Z * speed);
+    }
 }

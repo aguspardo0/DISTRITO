@@ -81,6 +81,9 @@ public partial class GameNetwork : Node
 
     public int PlayerCount => _players.GetChildCount();
 
+    /// <summary>Todos los personajes presentes en la escena.</summary>
+    public IEnumerable<PlayerCharacter> AllPlayers => _players.GetChildren().OfType<PlayerCharacter>();
+
     public PlayerCharacter? LocalPlayer =>
         _players.GetNodeOrNull<PlayerCharacter>(Multiplayer.GetUniqueId().ToString());
 

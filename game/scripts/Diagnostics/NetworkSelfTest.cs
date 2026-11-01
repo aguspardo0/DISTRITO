@@ -44,6 +44,11 @@ public partial class NetworkSelfTest : Node
     private int _maxMapMarkers; // el máximo visto: al final otro bot puede haber cerrado un instante antes
     private int? _expectMapPlayers;
 
+    private FightBot? _fightBot;
+
+    /// <summary>Si se asigna, la prueba exige que el bot deje herido al otro jugador.</summary>
+    public void ExpectFight(FightBot bot) => _fightBot = bot;
+
     /// <summary>Si se asigna, la prueba exige que el mapa muestre esta cantidad de jugadores al terminar.</summary>
     public void ExpectMapPlayers(Distrito.Game.Map.MapNetwork map, int count) => (_map, _expectMapPlayers) = (map, count);
 
@@ -105,7 +110,7 @@ public partial class NetworkSelfTest : Node
             ? FlatDistance(predicted.GlobalPosition, local.GlobalPosition)
             : null;
         var rttInfo = _rttSamples == 0 ? "" : $" ping_ms_prom={_rttSum / _rttSamples:0} ping_ms_max={_rttMax:0}";
-        var contractInfo = rttInfo + (_map is null ? "" : $" en_mapa_max={_maxMapMarkers}") + $" visibles_al_final={visibleNow} altura_max={_maxHeight:0.0}"
+        var contractInfo = rttInfo + (_map is null ? "" : $" en_mapa_max={_maxMapMarkers}") + (_fightBot is null ? "" : $" pinas={_fightBot.Hits} herido={_fightBot.Completed}") + $" visibles_al_final={visibleNow} altura_max={_maxHeight:0.0}"
             + (predictionError is null ? "" : $" prediccion_error={predictionError:0.00}m") + (_contractBot is null
             ? ""
             : $" contrato={_contractBot.Template.Code}:{_contractBot.StepName} saldo={_contractBot.StartBalance}->{_contractBot.FinalBalance} reputacion_caruso={_contractBot.ReputationCaruso}")
@@ -133,6 +138,7 @@ public partial class NetworkSelfTest : Node
             _maxHeight > MaxHeight ? $"el personaje quedó flotando a {_maxHeight:0.0} m" :
             predictionError > MaxPredictionError ? $"la predicción local quedó a {predictionError:0.00}m del servidor" :
             _expectVisibleAtEnd is { } v && visibleNow != v ? $"al final ve {visibleNow} jugadores y se esperaban {v}" :
+            _fightBot is { Completed: false } ? $"la pelea no terminó (piñas confirmadas: {_fightBot.Hits})" :
             _expectMapPlayers is { } mp && _maxMapMarkers != mp ? $"el mapa mostró como mucho {_maxMapMarkers} jugadores y se esperaban {mp}" :
             _businessBot is { Completed: false } ? $"el negocio no cerró el ciclo (quedó en {_businessBot.StepName})" :
             _businessBot is not null && _businessBot.FinalBalance != expectedBusinessBalance

@@ -48,6 +48,9 @@ public static class Endpoints
         internalApi.MapPost("/crews/leave", (LeaveCrewRequest r, CrewService s, CancellationToken ct) => s.LeaveAsync(r, ct));
         internalApi.MapPost("/economy/business/license", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.BuyLicenseAsync(r, ct));
         internalApi.MapPost("/economy/business/restock", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.RestockAsync(r, ct));
+        internalApi.MapGet("/combat/state", (EconomyService e, CancellationToken ct) => e.CombatStateAsync(ct));
+        internalApi.MapPost("/combat/knockout", (KnockoutRequest r, EconomyService e, CancellationToken ct) => e.KnockoutAsync(r, ct));
+        internalApi.MapPost("/combat/pickup", (PickupRequest r, EconomyService e, CancellationToken ct) => e.PickupAsync(r, ct));
         internalApi.MapPost("/economy/pact", (PactRequest r, EconomyService e, CancellationToken ct) => e.SignPactAsync(r, ct));
         internalApi.MapPost("/economy/business/hire", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.SetEmployeeAsync(r, hire: true, ct));
         internalApi.MapPost("/economy/business/fire", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.SetEmployeeAsync(r, hire: false, ct));

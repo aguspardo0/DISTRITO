@@ -101,6 +101,15 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<CrewActionResult>> CastCrewVoteAsync(string serverKey, CrewVoteCastRequest request, CancellationToken ct = default) =>
         SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/vote/cast", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<CombatStateView>> GetCombatStateAsync(string serverKey, CancellationToken ct = default) =>
+        SendAsync<CombatStateView>(HttpMethod.Get, "internal/combat/state", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<DropView>> KnockoutAsync(string serverKey, KnockoutRequest request, CancellationToken ct = default) =>
+        SendAsync<DropView>(HttpMethod.Post, "internal/combat/knockout", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> PickupAsync(string serverKey, PickupRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/combat/pickup", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<EconomyActionResult>> SignPactAsync(string serverKey, PactRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/economy/pact", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

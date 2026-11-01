@@ -10,6 +10,9 @@ namespace Distrito.Game.Player;
 public partial class LocalPlayerController : Node
 {
     private static float MouseSensitivity => Distrito.Game.UI.GameSettings.MouseSensitivity;
+
+    /// <summary>El jugador quiere pegar (clic izquierdo o F). Lo atiende CombatNetwork.</summary>
+    public static event Action? Punch;
     private const float MinPitch = -1.2f;
     private const float MaxPitch = 0.3f;
     private const float CameraDistance = 4.5f;
@@ -71,9 +74,17 @@ public partial class LocalPlayerController : Node
             var pitch = Mathf.Clamp(_pitch.Rotation.X - motion.Relative.Y * MouseSensitivity, MinPitch, MaxPitch);
             _pitch.Rotation = new Vector3(pitch, 0, 0);
         }
+        else if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } && Input.MouseMode == Input.MouseModeEnum.Captured)
+        {
+            Punch?.Invoke(); // clic con el mouse capturado = piña
+        }
         else if (@event is InputEventMouseButton { Pressed: true } && !IsHeadless)
         {
             Input.MouseMode = Input.MouseModeEnum.Captured;
+        }
+        else if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.F } && Input.MouseMode == Input.MouseModeEnum.Captured)
+        {
+            Punch?.Invoke();
         }
     }
 
@@ -85,8 +96,11 @@ public partial class LocalPlayerController : Node
     public override void _PhysicsProcess(double delta)
     {
         var (direction, jump) = UseBot ? BotInput(delta) : KeyboardInput();
-        _player.SubmitLocalInput(direction.X, direction.Y, jump);
-        _prediction?.SetInput(direction.X, direction.Y, jump);
+        var sprint = !UseBot && Input.MouseMode == Input.MouseModeEnum.Captured && Input.IsPhysicalKeyPressed(Key.Shift);
+        if (_player.Downed)
+            (direction, jump, sprint) = (Vector2.Zero, false, false);
+        _player.SubmitLocalInput(direction.X, direction.Y, jump, sprint);
+        _prediction?.SetInput(direction.X, direction.Y, jump, sprint);
     }
 
     private (Vector2 Direction, bool Jump) KeyboardInput()

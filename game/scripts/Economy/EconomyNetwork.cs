@@ -176,6 +176,13 @@ public partial class EconomyNetwork : Node
         return companions;
     }
 
+    /// <summary>Servidor: vuelve a mandarle su economía a un jugador (después de perder o levantar mercadería).</summary>
+    public void RefreshPeer(long peer)
+    {
+        if (_network.TryGetSession(peer, out var session))
+            _ = PushSnapshotAsync(peer, session.CharacterId);
+    }
+
     private async Task PushSnapshotAsync(long peer, Guid characterId)
     {
         if (_network.Backend is not { } backend)
