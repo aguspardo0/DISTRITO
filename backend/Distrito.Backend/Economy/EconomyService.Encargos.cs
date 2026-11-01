@@ -22,16 +22,66 @@ public sealed partial class EconomyService
 
     private sealed record EncargoRow(Guid Id, string Kind, string Giver, string Family, string Title, string? Item, int Quantity,
         string? Target, int Progress, int Goal, int Stage, long Reward, int Xp, int Reputation, bool Daily,
-        DateTimeOffset AcceptedAt, DateTimeOffset ExpiresAt, DateTimeOffset? FastUntil);
+        DateTimeOffset AcceptedAt, DateTimeOffset ExpiresAt, DateTimeOffset? FastUntil, string? Story = null, int? StoryStep = null);
+
+    /// <summary>Historias terminadas (las familias cuyo capítulo 4 está cumplido).</summary>
+    private static async Task<List<string>> StoriesDoneAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, CancellationToken ct)
+    {
+        var list = new List<string>();
+        await using var cmd = new NpgsqlCommand("""
+            SELECT DISTINCT story FROM distrito.character_encargos WHERE character_id = @c AND story IS NOT NULL AND story_step = 3 AND status = 'cumplido'
+            """, c, tx);
+        cmd.Parameters.AddWithValue("c", characterId);
+        await using var r = await cmd.ExecuteReaderAsync(ct);
+        while (await r.ReadAsync(ct)) list.Add(r.GetString(0));
+        return list;
+    }
+
+    private static async Task<bool> StoryDoneAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, string family, CancellationToken ct) =>
+        (await StoriesDoneAsync(c, tx, characterId, ct)).Contains(family);
+
+    /// <summary>
+    /// El próximo capítulo de cada historia que se puede ofrecer: solo con 50 de reputación (el capo recibe), sin otro
+    /// capítulo de esa historia en curso y en orden. Devuelve el borrador con su id estable (cambia por intento).
+    /// </summary>
+    private static async Task<List<EncargoGenerator.Draft>> StoryOffersAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId,
+        Func<string, int> reputation, CancellationToken ct)
+    {
+        var rows = new List<(string Story, int Step, string Status)>();
+        await using (var cmd = new NpgsqlCommand("""
+            SELECT story, story_step, status FROM distrito.character_encargos WHERE character_id = @c AND story IS NOT NULL
+            """, c, tx))
+        {
+            cmd.Parameters.AddWithValue("c", characterId);
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct)) rows.Add((r.GetString(0), r.GetInt32(1), r.GetString(2)));
+        }
+        var offers = new List<EncargoGenerator.Draft>();
+        foreach (var story in FamilyStories.All)
+        {
+            if (!FamilyPeople.CanMeetBoss(reputation(story.Family)))
+                continue;
+            var mine = rows.Where(x => x.Story == story.Family).ToList();
+            if (mine.Any(x => x.Status == EncargoStatus.Active))
+                continue;
+            var next = mine.Where(x => x.Status == EncargoStatus.Done).Select(x => x.Step + 1).DefaultIfEmpty(0).Max();
+            if (next >= story.Steps.Count)
+                continue;
+            var attempt = mine.Count(x => x.Step == next);
+            offers.Add(FamilyStories.ToDraft(FamilyStories.OfferId(characterId, story.Family, next, attempt), story.Family, next));
+        }
+        return offers;
+    }
 
     /// <summary>Encargos para la foto económica: los tomados, los ofrecidos este turno y el del día (si no se tomaron).</summary>
-    private async Task<List<EncargoView>> LoadEncargosAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, int level, CancellationToken ct)
+    private async Task<List<EncargoView>> LoadEncargosAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, int level, CancellationToken ct,
+        List<ReputationView>? reputation = null, List<string>? stories = null)
     {
         var now = clock.GetUtcNow();
         var list = new List<EncargoView>();
         await using (var cmd = new NpgsqlCommand("""
             SELECT id, kind, giver_npc, family, title, detail, item_code, quantity, target_npc, progress, target, stage,
-                   reward_cents, xp, reputation, status, daily, expires_at, fast_until
+                   reward_cents, xp, reputation, status, daily, expires_at, fast_until, story IS NOT NULL
               FROM distrito.character_encargos WHERE character_id = @c AND status = 'activo' ORDER BY accepted_at
             """, c, tx))
         {
@@ -44,7 +94,7 @@ public sealed partial class EconomyService
                 list.Add(new EncargoView(r.GetGuid(0), kind, r.GetString(2), r.GetString(3), r.GetString(4), r.GetString(5),
                     r.IsDBNull(6) ? null : r.GetString(6), r.GetInt32(7), r.IsDBNull(8) ? null : r.GetString(8), r.GetInt32(9),
                     r.GetInt32(10), r.GetInt32(11), r.GetInt64(12), r.GetInt32(13), r.GetInt32(14), r.GetString(15), r.GetBoolean(16),
-                    expires, kind == EncargoKinds.Contrarreloj ? expires : null, r.IsDBNull(18) ? null : r.GetFieldValue<DateTimeOffset>(18)));
+                    expires, kind == EncargoKinds.Contrarreloj ? expires : null, r.IsDBNull(18) ? null : r.GetFieldValue<DateTimeOffset>(18), r.GetBoolean(19)));
             }
         }
         var slot = EncargoRules.SlotOf(now);
@@ -60,6 +110,9 @@ public sealed partial class EconomyService
         list.AddRange(drafts.Where(d => !taken.Contains(d.Id)).Select(d => EncargoGenerator.ToOffer(d, EncargoRules.SlotEnd(slot))));
         if (!taken.Contains(daily.Id))
             list.Add(EncargoGenerator.ToOffer(daily, EncargoRules.DayEnd(now)));
+        if (reputation is not null)
+            list.AddRange((await StoryOffersAsync(c, tx, characterId, f => reputation.FirstOrDefault(x => x.FamilyCode == f)?.Value ?? 0, ct))
+                .Select(d => EncargoGenerator.ToOffer(d, EncargoRules.DayEnd(now), story: true)));
         return list;
     }
 
@@ -67,7 +120,7 @@ public sealed partial class EconomyService
     {
         await using var cmd = new NpgsqlCommand("""
             SELECT id, kind, giver_npc, family, title, item_code, quantity, target_npc, progress, target, stage, reward_cents, xp,
-                   reputation, daily, accepted_at, expires_at, fast_until
+                   reputation, daily, accepted_at, expires_at, fast_until, story, story_step
               FROM distrito.character_encargos WHERE id = @id AND character_id = @c AND status = 'activo' FOR UPDATE
             """, c, tx);
         cmd.Parameters.AddWithValue("id", id);
@@ -78,7 +131,7 @@ public sealed partial class EconomyService
         return new EncargoRow(r.GetGuid(0), r.GetString(1), r.GetString(2), r.GetString(3), r.GetString(4), r.IsDBNull(5) ? null : r.GetString(5),
             r.GetInt32(6), r.IsDBNull(7) ? null : r.GetString(7), r.GetInt32(8), r.GetInt32(9), r.GetInt32(10), r.GetInt64(11), r.GetInt32(12),
             r.GetInt32(13), r.GetBoolean(14), r.GetFieldValue<DateTimeOffset>(15), r.GetFieldValue<DateTimeOffset>(16),
-            r.IsDBNull(17) ? null : r.GetFieldValue<DateTimeOffset>(17));
+            r.IsDBNull(17) ? null : r.GetFieldValue<DateTimeOffset>(17), r.IsDBNull(18) ? null : r.GetString(18), r.IsDBNull(19) ? null : r.GetInt32(19));
     }
 
     /// <summary>
@@ -202,19 +255,26 @@ public sealed partial class EconomyService
     {
         var now = clock.GetUtcNow();
         var level = (await LoadProgressAsync(c, tx, r.CharacterId, ct)).Level;
-        var drafts = EncargoGenerator.Generate(r.CharacterId, EncargoRules.SlotOf(now), level).Append(EncargoGenerator.Daily(r.CharacterId, EncargoRules.DayOf(now), level));
-        var d = drafts.FirstOrDefault(x => x.Id == r.EncargoId) ?? throw new EconomyRejected("not_offered", "Ese encargo ya no se ofrece (se renuevan cada 2 horas).");
+        var drafts = EncargoGenerator.Generate(r.CharacterId, EncargoRules.SlotOf(now), level).Append(EncargoGenerator.Daily(r.CharacterId, EncargoRules.DayOf(now), level)).ToList();
+        var reps = new Dictionary<string, int>();
+        foreach (var family in FamilyStories.All.Select(x => x.Family))
+            reps[family] = await ReputationOfAsync(c, tx, r.CharacterId, family, ct);
+        var storyDrafts = await StoryOffersAsync(c, tx, r.CharacterId, f => reps.GetValueOrDefault(f), ct);
+        var d = drafts.Concat(storyDrafts).FirstOrDefault(x => x.Id == r.EncargoId)
+            ?? throw new EconomyRejected("not_offered", "Ese encargo ya no se ofrece (se renuevan cada 2 horas).");
+        var storyFamily = storyDrafts.Contains(d) ? d.Family : null;
+        int? storyStep = storyFamily is null ? null : FamilyStories.Of(storyFamily).Steps.ToList().FindIndex(s => s.Title == d.Title);
         if (d.GiverNpc != r.NpcCode)
             throw new EconomyRejected("wrong_npc", $"Ese encargo lo da {NameOfNpc(d.GiverNpc)}.");
         if (await ExistsAsync(c, tx, "SELECT 1 FROM distrito.character_encargos WHERE id = @k::uuid", d.Id.ToString(), ct))
             throw new EconomyRejected("taken", "Ese encargo ya lo tomaste.");
-        await using (var count = new NpgsqlCommand("SELECT count(*) FROM distrito.character_encargos WHERE character_id = @c AND status = 'activo'", c, tx))
+        await using (var count = new NpgsqlCommand("SELECT count(*) FROM distrito.character_encargos WHERE character_id = @c AND status = 'activo' AND story IS NULL", c, tx))
         {
             count.Parameters.AddWithValue("c", r.CharacterId);
-            if ((long)(await count.ExecuteScalarAsync(ct) ?? 0L) >= EncargoRules.MaxActive)
+            if (storyFamily is null && (long)(await count.ExecuteScalarAsync(ct) ?? 0L) >= EncargoRules.MaxActive)
                 throw new EconomyRejected("too_many", $"Ya tenés {EncargoRules.MaxActive} encargos en curso. Terminá o abandoná uno (libreta, L).");
         }
-        var expires = d.Daily ? EncargoRules.DayEnd(now) : now + EncargoRules.ActiveFor;
+        var expires = d.Daily ? EncargoRules.DayEnd(now) : now + (storyFamily is null ? EncargoRules.ActiveFor : FamilyStories.ActiveFor);
         DateTimeOffset? fast = null;
         if (d.TimeLimitSeconds > 0)
         {
@@ -223,8 +283,8 @@ public sealed partial class EconomyService
         }
         await using (var insert = new NpgsqlCommand("""
             INSERT INTO distrito.character_encargos (id, character_id, kind, giver_npc, family, title, detail, item_code, quantity, target_npc,
-                target, reward_cents, xp, reputation, daily, status, accepted_at, expires_at, fast_until)
-            VALUES (@id, @c, @kind, @giver, @family, @title, @detail, @item, @q, @target, @goal, @reward, @xp, @rep, @daily, 'activo', @now, @exp, @fast)
+                target, reward_cents, xp, reputation, daily, status, accepted_at, expires_at, fast_until, story, story_step)
+            VALUES (@id, @c, @kind, @giver, @family, @title, @detail, @item, @q, @target, @goal, @reward, @xp, @rep, @daily, 'activo', @now, @exp, @fast, @story, @step)
             """, c, tx))
         {
             insert.Parameters.AddWithValue("id", d.Id);
@@ -245,6 +305,8 @@ public sealed partial class EconomyService
             insert.Parameters.AddWithValue("now", now);
             insert.Parameters.AddWithValue("exp", expires);
             insert.Parameters.AddWithValue("fast", (object?)fast ?? DBNull.Value);
+            insert.Parameters.AddWithValue("story", (object?)storyFamily ?? DBNull.Value);
+            insert.Parameters.AddWithValue("step", (object?)storyStep ?? DBNull.Value);
             await insert.ExecuteNonQueryAsync(ct);
         }
         var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "encargo", $"Encargo tomado: {d.Title}", ct);
@@ -257,6 +319,8 @@ public sealed partial class EconomyService
         var view = new EncargoView(d.Id, d.Kind, d.GiverNpc, d.Family, d.Title, d.Detail, d.ItemCode, d.Quantity, d.TargetNpc, 0, d.Target, 0,
             d.RewardCents, d.Xp, d.Reputation, EncargoStatus.Active, d.Daily, expires);
         var limit = d.TimeLimitSeconds > 0 ? $" Tenés {d.TimeLimitSeconds / 60} minutos." : "";
+        if (storyFamily is not null && storyStep == 0)
+            return $"{FamilyStories.Of(storyFamily).Intro}\n\nAhora: {view.StepText(NameOfNpc)}";
         return $"Encargo tomado: {d.Title}.{limit}\nAhora: {view.StepText(NameOfNpc)}";
     }
 
@@ -400,6 +464,13 @@ public sealed partial class EconomyService
                    + $"+{row.Xp} de experiencia y +{row.Reputation} de reputación con los {family}.";
         if (after > before)
             text += $"\n¡Subiste a nivel {after}!";
+        if (row.Story is { } story && row.StoryStep is { } step)
+        {
+            var tale = FamilyStories.Of(story);
+            text += $"\n{tale.Steps[step].Closing}";
+            if (step == tale.Steps.Count - 1)
+                text += $"\n\n{tale.Ending}\nHistoria terminada: «{tale.Name}». Premio: {tale.Perk}.";
+        }
         var rep = await ReputationOfAsync(c, tx, characterId, row.Family, ct);
         if (rep >= FamilyPeople.BossReputation && rep - row.Reputation < FamilyPeople.BossReputation)
             text += $"\n{NameOfNpc(FamilyPeople.BossOf(row.Family))} quiere conocerte. Te espera en el cuartel.";

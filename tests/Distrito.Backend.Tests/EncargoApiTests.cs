@@ -181,4 +181,55 @@ public class EncargoApiTests
         }
         Assert.Empty((await api.GetEconomyAsync(Key, me)).Value!.ActiveEncargos);
     }
+
+    [Fact]
+    public async Task Historia_de_los_Moretti_con_el_capo_y_su_premio()
+    {
+        var user = TestBackend.UniqueUser("hi");
+        await using var factory = TestBackend.Create(settings: new Dictionary<string, string> { ["Admin:Accounts"] = user });
+        var api = TestBackend.Api(factory);
+        var me = await Player(api, user, level: 5);
+
+        // Sin reputación el capo no ofrece nada.
+        Assert.DoesNotContain((await api.GetEconomyAsync(Key, me)).Value!.OfferedEncargos, e => e.Story);
+        Assert.True((await api.AdminToolAsync(Key, new AdminToolRequest(me, "reputacion", FamilyPeople.BossReputation, Req()))).Value!.Ok);
+        var offers = (await api.GetEconomyAsync(Key, me)).Value!.OfferedEncargos.Where(e => e.Story).ToList();
+        Assert.Equal(3, offers.Count); // un primer capítulo por familia
+        var first = offers.Single(e => e.Family == EconomyCatalog.Moretti);
+        Assert.Equal(EconomyCatalog.MorettiBossNpc, first.GiverNpc);
+        Assert.Equal(FamilyStories.Moretti.Steps[0].Title, first.Title);
+
+        // Capítulo 1: vigilar el taller de los Caruso y volver con el capo.
+        var taken = (await Act(api, me, first.Id, "aceptar", EconomyCatalog.MorettiBossNpc)).Value!;
+        Assert.True(taken.Ok, taken.Message);
+        Assert.Contains("Desde hace un mes", taken.Message); // la introducción de la historia
+        for (var i = 0; i < 4; i++)
+            await api.EncargoProgressAsync(Key, new EncargoProgressRequest(me, EncargoKinds.Vigilar, 1, Req(), EconomyCatalog.WorkshopNpc));
+        var done = (await Act(api, me, first.Id, "paso", EconomyCatalog.MorettiBossNpc)).Value!;
+        Assert.True(done.Ok, done.Message);
+        Assert.Contains("Esos sucios", done.Message);
+        var next = done.Snapshot.OfferedEncargos.Single(e => e.Story && e.Family == EconomyCatalog.Moretti);
+        Assert.Equal(FamilyStories.Moretti.Steps[1].Title, next.Title);
+
+        // Los capítulos 2 a 4 cumplidos: la historia termina y el Almacén cobra 5 % menos.
+        await using (var db = NpgsqlDataSource.Create(TestBackend.ConnectionString))
+            for (var step = 1; step <= 3; step++)
+            {
+                await using var insert = db.CreateCommand("""
+                    INSERT INTO distrito.character_encargos (id, character_id, kind, giver_npc, family, title, detail, target, reward_cents, xp, reputation,
+                        status, accepted_at, expires_at, story, story_step)
+                    VALUES (gen_random_uuid(), @c, 'entrega', 'npc:don-moretti', 'moretti', 'x', 'x', 1, 0, 0, 0, 'cumplido', now(), now(), 'moretti', @s)
+                    """);
+                insert.Parameters.AddWithValue("c", me);
+                insert.Parameters.AddWithValue("s", step);
+                await insert.ExecuteNonQueryAsync();
+            }
+        var after = (await api.GetEconomyAsync(Key, me)).Value!;
+        Assert.True(after.StoryDone(EconomyCatalog.Moretti));
+        Assert.DoesNotContain(after.OfferedEncargos, e => e.Story && e.Family == EconomyCatalog.Moretti);
+        var bought = (await api.BuyAsync(Key, new BuyItemRequest(me, EconomyCatalog.DepositNpc, EconomyCatalog.CoffeeBagItem, 1, Req()))).Value!;
+        Assert.True(bought.Ok, bought.Message);
+        var expected = EconomyCatalog.CoffeeBagPriceCents * (100 - FamilyStories.MorettiDiscountPercent) / 100;
+        Assert.Equal(after.BalanceCents - expected, bought.Snapshot.BalanceCents);
+    }
 }

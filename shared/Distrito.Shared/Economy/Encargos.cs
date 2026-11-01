@@ -78,7 +78,7 @@ public sealed record EncargoView(
     Guid Id, string Kind, string GiverNpc, string Family, string Title, string Detail,
     string? ItemCode, int Quantity, string? TargetNpc, int Progress, int Target, int Stage,
     long RewardCents, int Xp, int Reputation, string Status, bool Daily,
-    DateTimeOffset ExpiresAt, DateTimeOffset? Deadline = null, DateTimeOffset? FastUntil = null)
+    DateTimeOffset ExpiresAt, DateTimeOffset? Deadline = null, DateTimeOffset? FastUntil = null, bool Story = false)
 {
     public bool IsActive => Status == EncargoStatus.Active;
     public bool IsOffer => Status == EncargoStatus.Offered;
@@ -370,7 +370,7 @@ public static class EncargoGenerator
     private static string Cap(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
 
     /// <summary>De borrador a vista (para mostrarlo como oferta).</summary>
-    public static EncargoView ToOffer(Draft d, DateTimeOffset expiresAt) =>
+    public static EncargoView ToOffer(Draft d, DateTimeOffset expiresAt, bool story = false) =>
         new(d.Id, d.Kind, d.GiverNpc, d.Family, d.Title, d.Detail, d.ItemCode, d.Quantity, d.TargetNpc, 0, d.Target, 0,
-            d.RewardCents, d.Xp, d.Reputation, EncargoStatus.Offered, d.Daily, expiresAt);
+            d.RewardCents, d.Xp, d.Reputation, EncargoStatus.Offered, d.Daily, expiresAt, Story: story);
 }

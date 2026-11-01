@@ -134,6 +134,8 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                 _ => 0,
             };
             discount += (int)await SkillAsync(c, tx, request.CharacterId, Distrito.Shared.Progression.SkillTree.Haggling, ct); // Regateo
+            if (request.NpcCode == EconomyCatalog.DepositNpc && await StoryDoneAsync(c, tx, request.CharacterId, EconomyCatalog.Moretti, ct))
+                discount += FamilyStories.MorettiDiscountPercent; // premio de la historia de los Moretti
             unitPrice = unitPrice * (100 - discount) / 100;
             var buyer = await EnsureCharacterAccountAsync(c, tx, request.CharacterId, ct);
             var seller = await AccountIdByCodeAsync(c, tx, request.NpcCode, ct);
@@ -760,7 +762,8 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         var pacts = await LoadPactsAsync(c, tx, characterId, ct);
         var faction = await FactionOfCrewAsync(c, tx, await CrewOfCharacterAsync(c, tx, characterId, ct), ct);
         var skills = await SkillRanksAsync(c, tx, characterId, ct);
-        var encargos = await LoadEncargosAsync(c, tx, characterId, progress.Level, ct);
-        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory, events, pacts, faction, skills, encargos);
+        var stories = await StoriesDoneAsync(c, tx, characterId, ct);
+        var encargos = await LoadEncargosAsync(c, tx, characterId, progress.Level, ct, reputation, stories);
+        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory, events, pacts, faction, skills, encargos, stories);
     }
 }

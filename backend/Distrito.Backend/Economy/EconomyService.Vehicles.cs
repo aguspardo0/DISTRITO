@@ -89,12 +89,15 @@ public sealed partial class EconomyService
                 ownerName = (string)(await name.ExecuteScalarAsync(ct))!;
             }
             await LockAccountsAsync(c, tx, ct, payer, seller);
-            if (await BalanceAsync(c, tx, payer, ct) < type.PriceCents)
+            // Premio de la historia de los Caruso: 10 % menos en el taller (para quien compra, aunque sea con la caja).
+            var price = await StoryDoneAsync(c, tx, r.CharacterId, EconomyCatalog.Caruso, ct)
+                ? type.PriceCents * (100 - FamilyStories.CarusoVehicleDiscountPercent) / 100 : type.PriceCents;
+            if (await BalanceAsync(c, tx, payer, ct) < price)
                 throw new EconomyRejected("insufficient_funds", r.ForCrew
-                    ? $"La caja no llega: la {type.Name.ToLowerInvariant()} cuesta {EconomyCatalog.FormatMoney(type.PriceCents)}."
-                    : $"No te alcanza: la {type.Name.ToLowerInvariant()} cuesta {EconomyCatalog.FormatMoney(type.PriceCents)}.");
+                    ? $"La caja no llega: la {type.Name.ToLowerInvariant()} cuesta {EconomyCatalog.FormatMoney(price)}."
+                    : $"No te alcanza: la {type.Name.ToLowerInvariant()} cuesta {EconomyCatalog.FormatMoney(price)}.");
             var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "vehicle_purchase", $"Compra de {type.Name} ({ownerName})", ct);
-            await TransferMoneyAsync(c, tx, txId, from: payer, to: seller, type.PriceCents, ct);
+            await TransferMoneyAsync(c, tx, txId, from: payer, to: seller, price, ct);
             var id = Guid.CreateVersion7();
             await using (var insert = new NpgsqlCommand("""
                 INSERT INTO distrito.vehicles (id, kind, owner_character_id, owner_crew_id, account_id, x, y, z, yaw)

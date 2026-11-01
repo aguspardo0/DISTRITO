@@ -57,8 +57,12 @@ public sealed record EconomySnapshot(
     List<FamilyPactView>? Pacts = null,
     Guid? FactionId = null,
     Dictionary<string, int>? Skills = null,
-    List<EncargoView>? Encargos = null)
+    List<EncargoView>? Encargos = null,
+    List<string>? Stories = null)
 {
+    /// <summary>¿Terminó la historia de esa familia? (da su premio único).</summary>
+    public bool StoryDone(string family) => Stories?.Contains(family) ?? false;
+
     /// <summary>Encargos en curso (máximo 2).</summary>
     public IEnumerable<EncargoView> ActiveEncargos => Encargos?.Where(e => e.IsActive) ?? [];
 

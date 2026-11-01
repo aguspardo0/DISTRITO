@@ -89,4 +89,26 @@ public class EncargoRulesTests
         Assert.Equal(d.GiverNpc, (active with { Stage = 1 }).NextNpc);
         Assert.Contains("Volvé", (active with { Stage = 1 }).StepText(c => c));
     }
+
+    [Fact]
+    public void Cada_historia_tiene_cuatro_capitulos_150_pesos_y_800_de_experiencia()
+    {
+        Assert.Equal(3, FamilyStories.All.Count);
+        foreach (var story in FamilyStories.All)
+        {
+            Assert.Equal(4, story.Steps.Count);
+            Assert.Equal(15_000, story.Steps.Sum(s => s.RewardCents));
+            Assert.Equal(800, story.Steps.Sum(s => s.Xp));
+            Assert.Equal(story.Steps.Count, story.Steps.Select(s => s.Title).Distinct().Count());
+            foreach (var (step, i) in story.Steps.Select((s, i) => (s, i)))
+            {
+                var d = FamilyStories.ToDraft(Guid.NewGuid(), story.Family, i);
+                Assert.Equal(FamilyPeople.BossOf(story.Family), d.GiverNpc); // los da y los cobra el capo
+                // Siempre contra los rivales: nunca se le cobra, vigila o asalta a la propia familia.
+                if (step.Target is { } target && step.Kind is EncargoKinds.Cobro or EncargoKinds.Vigilar or EncargoKinds.Asalto)
+                    Assert.NotEqual(story.Family, step.Kind == EncargoKinds.Asalto ? EncargoRules.VictimFamily(target) : FamilyRules.FamilyOfNpc(target));
+            }
+        }
+        Assert.NotEqual(FamilyStories.OfferId(Someone, "moretti", 0, 0), FamilyStories.OfferId(Someone, "moretti", 0, 1));
+    }
 }

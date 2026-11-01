@@ -216,7 +216,7 @@ public partial class EncargoPanel : PanelContainer
         card.AddThemeStyleboxOverride("panel", EncargoLook.Panel(e.Daily ? 0.8f : 0.5f, border));
         var box = new VBoxContainer();
         card.AddChild(box);
-        var head = $"{(e.Daily ? "★ " : "")}{e.Title}";
+        var head = $"{(e.Story ? "◆ Historia — " : e.Daily ? "★ " : "")}{e.Title}";
         box.AddChild(EncargoLook.Text(head, e.Daily ? EncargoLook.Gold : EncargoLook.FamilyColor(e.Family).Lightened(0.3f), 420, 15));
         box.AddChild(EncargoLook.Text(e.Detail, null, 420));
         box.AddChild(EncargoLook.Text($"{EncargoKinds.Label(e.Kind)} · lo da {EncargoLook.Where(e.GiverNpc)}", EncargoLook.Muted, 420));

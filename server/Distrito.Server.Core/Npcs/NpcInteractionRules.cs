@@ -165,6 +165,16 @@ public static class NpcInteractionRules
                 + $"ganate el respeto de la familia: hablá con {people}.»\n\n"
                 + $"Reputación con la familia: {rep} (el jefe recibe desde {FamilyPeople.BossReputation}).", new List<NpcOption>());
         }
+        // La historia de la familia: cómo va (los capítulos se ofrecen abajo, como cualquier encargo).
+        var tale = FamilyStories.Of(family);
+        var chapter = s.Encargos?.FirstOrDefault(e => e.Story && e.Family == family);
+        var storyLine = s.StoryDone(family)
+            ? $"\n\n«{tale.Name}» — terminada. Tu premio: {tale.Perk}."
+            : chapter is { IsActive: true }
+                ? $"\n\n«{tale.Name}»: {chapter.Title}. {chapter.StepText(DisplayName)}"
+                : chapter is { IsOffer: true } && chapter.Title == tale.Steps[0].Title
+                    ? $"\n\n{tale.Intro}"
+                    : "";
         var standing = rep switch
         {
             >= 100 => "Sos de los nuestros. Acá se te respeta.",
@@ -181,7 +191,7 @@ public static class NpcInteractionRules
             _ => "Esto es Talleres Caruso: acá se trabaja con las manos y se cobra lo que se trabaja. "
                 + "Los Moretti te sonríen mientras te venden caro y los Valenti te sacan la plata con una lapicera.",
         };
-        return ($"{greeting}\n\n{standing} (Reputación con la familia: {rep}.)", new List<NpcOption>());
+        return ($"{greeting}\n\n{standing} (Reputación con la familia: {rep}.){storyLine}", new List<NpcOption>());
     }
 
     /// <summary>
@@ -211,12 +221,12 @@ public static class NpcInteractionRules
         var offers = s.OfferedEncargos.Where(e => e.GiverNpc == npcCode).ToList();
         if (offers.Count == 0)
             return;
-        var full = s.ActiveEncargos.Count() >= EncargoRules.MaxActive;
+        var full = s.ActiveEncargos.Count(e => !e.Story) >= EncargoRules.MaxActive;
         text += "\n\nTrabajo:";
         foreach (var e in offers)
         {
             text += $"\n• {e.Title}: {e.Detail}";
-            if (!full)
+            if (!full || e.Story) // los capítulos de las historias no cuentan para el límite
                 options.Add(new NpcOption($"encargo:aceptar:{e.Id}",
                     $"Tomar «{e.Title}» — {EconomyCatalog.FormatMoney(e.RewardCents)}, +{e.Xp} XP, +{e.Reputation} de reputación"));
         }

@@ -17,7 +17,8 @@ public sealed partial class EconomyService
     private async Task<(Guid Me, Guid House, long Max)> CasinoSetupAsync(NpgsqlConnection c, NpgsqlTransaction tx, Guid characterId, long stake, long maxPayout, CancellationToken ct)
     {
         var rank = await RankOfCharacterAsync(c, tx, characterId, ct);
-        var max = PrestigeRules.CasinoVip(rank) ? CasinoRules.VipMaxBetCents : CasinoRules.MaxBetCents;
+        var vip = PrestigeRules.CasinoVip(rank) || await StoryDoneAsync(c, tx, characterId, EconomyCatalog.Valenti, ct); // o la historia de los Valenti
+        var max = vip ? CasinoRules.VipMaxBetCents : CasinoRules.MaxBetCents;
         max = Math.Max(max, (long)await SkillAsync(c, tx, characterId, Distrito.Shared.Progression.SkillTree.HighStakes, ct)); // Mesa alta
         if (stake < CasinoRules.MinBetCents || stake > max)
             throw new EconomyRejected("bet_limits", $"Las apuestas van de {EconomyCatalog.FormatMoney(CasinoRules.MinBetCents)} a {EconomyCatalog.FormatMoney(max)}"

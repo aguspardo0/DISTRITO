@@ -76,6 +76,7 @@ public partial class VehicleShopPanel : PanelContainer
     {
         foreach (var child in _content.GetChildren()) child.QueueFree();
         var level = _snapshot()?.ProgressOrEmpty.Level ?? 1;
+        var friend = _snapshot()?.StoryDone(EconomyCatalog.Caruso) ?? false; // premio de la historia de los Caruso
         var info = new Label
         {
             Text = "Los maneja el dueño o cualquiera de su cuadrilla (G para subir y bajar). La carga queda adentro al bajarte; "
@@ -87,7 +88,10 @@ public partial class VehicleShopPanel : PanelContainer
         foreach (var type in Vehicles.All)
         {
             _content.AddChild(new HSeparator());
-            var name = new Label { Text = $"{type.Name} — {EconomyCatalog.FormatMoney(type.PriceCents)}" };
+            var price = friend ? type.PriceCents * (100 - FamilyStories.CarusoVehicleDiscountPercent) / 100 : type.PriceCents;
+            var name = new Label { Text = friend
+                ? $"{type.Name} — {EconomyCatalog.FormatMoney(price)} (precio de amigo; antes {EconomyCatalog.FormatMoney(type.PriceCents)})"
+                : $"{type.Name} — {EconomyCatalog.FormatMoney(price)}" };
             name.AddThemeFontSizeOverride("font_size", 16);
             name.AddThemeColorOverride("font_color", Gold);
             _content.AddChild(name);

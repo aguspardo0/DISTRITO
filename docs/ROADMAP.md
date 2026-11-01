@@ -95,9 +95,9 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 ### Ciudad y misiones con las familias (pedido del equipo, 2026-11-01)
 - [x] Ciudad ampliada: el Mercado (proveedores y comercios) en el centro y un barrio por familia (Moretti al oeste, Valenti al norte, Caruso al sur), separados y unidos solo por avenidas. Ver `docs/CIUDAD.md`
 - [x] La gente de cada familia en el mapa (dos por barrio); el capo recibe desde 50 de reputación
-- [ ] Encargos personales: 8 tipos, 4 cada 2 h y uno del día; libreta (L). Aprobado: $8 + $1,50 por nivel (tope $45), 60–150 XP, +2 a +5 de reputación
-- [ ] Seguimiento en pantalla, marcadores en el mapa y en el mundo, pantalla de recompensa
-- [ ] Historias de las tres familias (4 pasos; premios: 5 % en el almacén, 10 % en vehículos, mesa VIP)
+- [x] Encargos personales: 8 tipos, 4 cada 2 h y uno del día; libreta (L). Aprobado: $8 + $1,50 por nivel (tope $45), 60–150 XP, +2 a +5 de reputación. «Venta» se reemplazó por «recado». Ver `docs/ENCARGOS.md`
+- [x] Seguimiento en pantalla, marcadores en el mapa y en el mundo, aviso al cumplir
+- [x] Historias de las tres familias, las da el capo (4 capítulos; premios: 5 % en el Almacén, 10 % en vehículos, mesa VIP)
 - [ ] Operaciones de cuadrilla (una por día, 3 etapas; $120–250 a la caja, 60–120 de prestigio)
 
 ### Cuadrillas: sede, prestigio y misiones; casino (pedido del equipo, 2026-11-01)
