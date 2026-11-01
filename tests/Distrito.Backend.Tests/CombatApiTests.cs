@@ -49,6 +49,36 @@ public class CombatApiTests
     }
 
     [Fact]
+    public async Task El_bulto_sobrevive_al_reinicio_y_vence_segun_la_zona()
+    {
+        await using var factory = TestBackend.Create();
+        var api = TestBackend.Api(factory);
+        var victim = await NewCharacter(api);
+        var thief = await NewCharacter(api);
+        await api.BuyAsync(Key, new BuyItemRequest(victim, EconomyCatalog.DepositNpc, EconomyCatalog.CoffeeBagItem, 1, Guid.NewGuid().ToString()));
+
+        // Zona donde no se pierde mercadería: no queda nada tirado y el café sigue encima.
+        Assert.Empty((await api.KnockoutAsync(Key, new KnockoutRequest(victim, Guid.NewGuid(), Guid.NewGuid().ToString(), IncludeGoods: false))).Value!.Items);
+        Assert.Equal(1, (await api.GetEconomyAsync(Key, victim)).Value!.QuantityOf(EconomyCatalog.CoffeeBagItem));
+
+        var dropId = Guid.NewGuid();
+        await api.KnockoutAsync(Key, new KnockoutRequest(victim, dropId, Guid.NewGuid().ToString(), true, 4, 0, -7, Seconds: 60));
+        var listed = (await api.GetDropsAsync(Key)).Value!.Single(d => d.DropId == dropId);
+        Assert.Equal((4.0, -7.0), (listed.X, listed.Z));
+        Assert.Equal(1, listed.Items.Single().Quantity);
+
+        // Una hora después ya venció: no aparece y nadie lo levanta.
+        await using var later = TestBackend.Create(clock: new TestBackend.FixedClock(DateTimeOffset.UtcNow.AddHours(1)));
+        var laterApi = TestBackend.Api(later);
+        Assert.DoesNotContain((await laterApi.GetDropsAsync(Key)).Value!, d => d.DropId == dropId);
+        Assert.Equal("drop_expired", (await laterApi.PickupAsync(Key, new PickupRequest(thief, dropId, Guid.NewGuid().ToString()))).Value!.ErrorCode);
+
+        // Mientras no venza, se levanta una sola vez y deja de listarse.
+        Assert.True((await api.PickupAsync(Key, new PickupRequest(thief, dropId, Guid.NewGuid().ToString()))).Value!.Ok);
+        Assert.DoesNotContain((await api.GetDropsAsync(Key)).Value!, d => d.DropId == dropId);
+    }
+
+    [Fact]
     public async Task El_estado_de_combate_lista_zonas_en_disputa()
     {
         await using var factory = TestBackend.Create();
