@@ -95,6 +95,11 @@ public partial class VisualStock : Node3D
             shed.AddChild(Box(new Vector3(BayDepth, 0.02f, 0.08f), new Vector3(ShedX, 0.05f, BayZ(i) - 1.5f), new Color(0.75f, 0.68f, 0.45f)));
             _bays[i] = new Node3D { Name = $"Bay{i}", Position = new Vector3(ShedX, 0.05f, BayZ(i)) };
             shed.AddChild(_bays[i]);
+            // Una lamparita por bahía: luz cálida bajo el techo.
+            shed.AddChild(new OmniLight3D
+            {
+                Position = new Vector3(ShedX, 3.6f, BayZ(i)), LightColor = new Color(1f, 0.82f, 0.55f), LightEnergy = 1.4f, OmniRange = 5.5f,
+            });
         }
     }
 

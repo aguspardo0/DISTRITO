@@ -31,6 +31,7 @@ public partial class Main : Node3D
     private Distrito.Game.Transport.VehicleNetwork _vehicles = null!;
     private Distrito.Game.Transport.VehicleShopPanel? _vehicleShop;
     private Distrito.Game.World.VisualStock _stock = null!;
+    private Vector3 _previewNear;
     private Distrito.Game.Admin.AdminPanel? _adminPanel;
     private Distrito.Game.Map.MapNetwork _map = null!;
     private Distrito.Game.Combat.CombatNetwork _combat = null!;
@@ -517,7 +518,10 @@ public partial class Main : Node3D
             {
                 _supplierPanel?.Close();
                 if (_network.LocalPlayer is { } me)
+                {
+                    _previewNear = me.GlobalPosition;
                     _vehicles.Preview(me.GlobalPosition);
+                }
                 _vehicleShop?.Open();
             }),
             ("carga", () =>
@@ -532,7 +536,12 @@ public partial class Main : Node3D
                 _inventoryPanel?.Toggle();
                 _stock.Preview();
                 if (_network.LocalPlayer is { } me)
-                    me.GlobalPosition = new Vector3(-23f, 0.2f, 13f); // mirando el galpón de depósitos a lo largo
+                    me.GlobalPosition = new Vector3(-24.5f, 0.2f, -1f); // adentro del galpón, mirando las primeras bahías
+            }),
+            ("camiones", () =>
+            {
+                if (_network.LocalPlayer is { } me)
+                    me.GlobalPosition = _previewNear + new Vector3(0, 0, 1.5f); // los vehículos de ejemplo, con carga
             }),
             ("admin", () => { _adminPanel?.Toggle(); _admin.Preview(); }),
             ("opciones", () => { _adminPanel?.Toggle(); _pause?.Open(); }),
