@@ -2,6 +2,7 @@ using System.Text.Json;
 using Distrito.Game.Combat;
 using Distrito.Game.Economy;
 using Distrito.Game.Network;
+using Distrito.Server.Core.Npcs;
 using Distrito.Shared.Api;
 using Distrito.Shared.Economy;
 using Godot;
@@ -29,6 +30,9 @@ public partial class InventoryNetwork : Node
     public event Action? InventoryReceived;
     public event Action<string>? MessageReceived;
     public InventoryView? Last { get; private set; }
+    public WarehouseView? Warehouse { get; private set; }
+    /// <summary>¿Está parado en el lugar del depósito? (lo decide el servidor)</summary>
+    public bool AtWarehouse { get; private set; }
     public IReadOnlyList<NearbyPlayer> Nearby { get; private set; } = [];
 
     public void Initialize(GameNetwork network, EconomyNetwork economy, CombatNetwork combat)
@@ -49,6 +53,13 @@ public partial class InventoryNetwork : Node
             new("bolsa-cafe", "Bolsa de café", "Café en grano. Con esto el puesto de café prepara lo que vende.", ItemKinds.RawMaterial, "alimentos", 2, 5, 8, "legal", 300),
         ], null, null);
         Nearby = [new NearbyPlayer(0, "Sal Moretti")];
+        Warehouse = new WarehouseView(Guid.Empty, "Los del Puerto", true, TerritoryRules.Office, "La Oficina",
+        [
+            new("caja-repuestos", "Caja de repuestos", "Repuestos para autos y camiones.", ItemKinds.Goods, "vehiculos-repuestos", 6, 12, 30, "legal", 800),
+            new("escopeta", "Escopeta", "Escopeta de dos caños.", ItemKinds.Weapon, "armas", 1, 3.5, 6, "illegal", 7000),
+        ], 300, null, 0, new WarehousePermissions(true, true, true, true), true, true, true, true,
+        [new(DateTimeOffset.UtcNow, "Sal Moretti", "Caja de repuestos", 6, true)], 2000, 100);
+        AtWarehouse = true;
         InventoryReceived?.Invoke();
     }
 
@@ -57,6 +68,10 @@ public partial class InventoryNetwork : Node
     public void Request() => Send(MethodName.ServerInventory);
     public void Give(long targetPeer, string itemCode, int quantity) => Send(MethodName.ServerGive, targetPeer, itemCode, quantity);
     public void Drop(string itemCode, int quantity) => Send(MethodName.ServerDrop, itemCode, quantity);
+    public void OpenWarehouse() => Send(MethodName.ServerWarehouseOpen);
+    public void MoveWarehouse(string itemCode, int quantity, bool deposit) => Send(MethodName.ServerWarehouseMove, itemCode, quantity, deposit);
+    public void SetWarehousePermissions(WarehousePermissions p) =>
+        Send(MethodName.ServerWarehousePerms, p.MemberCanView, p.MemberCanDeposit, p.MemberCanWithdraw, p.SecondCanWithdraw);
 
     private void Send(StringName method, params Variant[] args)
     {
@@ -87,7 +102,66 @@ public partial class InventoryNetwork : Node
             _ = GuardAsync(Multiplayer.GetRemoteSenderId(), peer => DropAsync(peer, itemCode ?? "", quantity));
     }
 
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerWarehouseOpen()
+    {
+        if (Multiplayer.IsServer())
+            _ = GuardAsync(Multiplayer.GetRemoteSenderId(), peer => WarehouseActionAsync(peer, needsPlace: true,
+                (api, me) => api.OpenWarehouseAsync(_network.ServerKey, new WarehouseOpenRequest(me, Guid.NewGuid().ToString()))));
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerWarehouseMove(string itemCode, int quantity, bool deposit)
+    {
+        if (Multiplayer.IsServer())
+            _ = GuardAsync(Multiplayer.GetRemoteSenderId(), async peer =>
+            {
+                await _combat.BeforeItemLeavesAsync(peer, deposit ? itemCode ?? "" : "");
+                await WarehouseActionAsync(peer, needsPlace: true,
+                    (api, me) => api.MoveWarehouseAsync(_network.ServerKey, new WarehouseMoveRequest(me, itemCode ?? "", quantity, deposit, Guid.NewGuid().ToString())));
+            });
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerWarehousePerms(bool memberView, bool memberDeposit, bool memberWithdraw, bool secondWithdraw)
+    {
+        if (Multiplayer.IsServer())
+            _ = GuardAsync(Multiplayer.GetRemoteSenderId(), peer => WarehouseActionAsync(peer, needsPlace: false,
+                (api, me) => api.SetWarehousePermissionsAsync(_network.ServerKey,
+                    new WarehousePermissionsRequest(me, new WarehousePermissions(memberView, memberDeposit, memberWithdraw, secondWithdraw), Guid.NewGuid().ToString()))));
+    }
+
     // ================= Servidor =================
+
+    /// <summary>¿El jugador está en el lugar del depósito (cerca de algún NPC de esa zona)?</summary>
+    private bool IsAtPlace(long peer, string place) =>
+        _network.GetPlayer(peer) is { } p && NpcInteractionRules.All.Any(n =>
+            TerritoryRules.ZoneOfNpc(n.Code) == place && NpcInteractionRules.InRange(new System.Numerics.Vector3(p.GlobalPosition.X, p.GlobalPosition.Y, p.GlobalPosition.Z), n));
+
+    private async Task WarehouseActionAsync(long peer, bool needsPlace,
+        Func<DistritoApiClient, Guid, Task<ApiResult<EconomyActionResult>>> action)
+    {
+        if (_network.Backend is not { } api || !_network.TryGetSession(peer, out var me))
+        {
+            SendMessage(peer, "El depósito necesita un servidor con cuentas.");
+            return;
+        }
+        if (needsPlace)
+        {
+            var place = (await api.GetWarehouseAsync(_network.ServerKey, me.CharacterId)).Value?.Place ?? TerritoryRules.Office;
+            if (!IsAtPlace(peer, place))
+            {
+                SendMessage(peer, $"El depósito está en {TerritoryRules.NameOf(place)}: andá hasta ahí.");
+                return;
+            }
+        }
+        var result = await action(api, me.CharacterId);
+        SendMessage(peer, result.IsSuccess ? result.Value!.Message : $"Hubo un problema: {result.Error!.Message}");
+        if (result is { IsSuccess: true, Value.Ok: true })
+            GD.Print($"[DISTRITO] WAREHOUSE {me.CharacterName}: {result.Value.Message}");
+        _economy.RefreshPeer(peer);
+        await SendInventoryAsync(peer);
+    }
 
     /// <summary>Un pedido por jugador a la vez (evita repetir por doble clic o pedidos en ráfaga).</summary>
     private async Task GuardAsync(long peer, Func<long, Task> action)
@@ -176,6 +250,8 @@ public partial class InventoryNetwork : Node
         var view = await api.GetInventoryAsync(_network.ServerKey, session.CharacterId);
         if (!view.IsSuccess || !Multiplayer.GetPeers().Contains((int)peer))
             return null;
+        var warehouse = (await api.GetWarehouseAsync(_network.ServerKey, session.CharacterId)).Value;
+        var atWarehouse = warehouse is not null && IsAtPlace(peer, warehouse.Place);
         var me = _network.GetPlayer(peer);
         var nearby = _network.AuthenticatedPlayers
             .Where(p => p.Peer != peer && me is not null && _network.GetPlayer(p.Peer) is { Dead: false } other
@@ -183,7 +259,8 @@ public partial class InventoryNetwork : Node
             .Select(p => new NearbyPlayer(p.Peer, p.Session.CharacterName))
             .ToList();
         RpcId(peer, MethodName.ReceiveInventory, JsonSerializer.Serialize(view.Value, Json),
-            nearby.Select(n => n.Peer).ToArray(), nearby.Select(n => n.Name).ToArray());
+            nearby.Select(n => n.Peer).ToArray(), nearby.Select(n => n.Name).ToArray(),
+            warehouse is null ? "" : JsonSerializer.Serialize(warehouse, Json), atWarehouse);
         return view.Value;
     }
 
@@ -196,12 +273,14 @@ public partial class InventoryNetwork : Node
     // ================= Servidor → cliente =================
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void ReceiveInventory(string viewJson, long[] nearbyPeers, string[] nearbyNames)
+    public void ReceiveInventory(string viewJson, long[] nearbyPeers, string[] nearbyNames, string warehouseJson, bool atWarehouse)
     {
         var view = JsonSerializer.Deserialize<InventoryView>(viewJson, Json);
         if (view is null)
             return;
         Last = view;
+        Warehouse = warehouseJson.Length == 0 ? null : JsonSerializer.Deserialize<WarehouseView>(warehouseJson, Json);
+        AtWarehouse = atWarehouse;
         Nearby = nearbyPeers.Zip(nearbyNames, (p, n) => new NearbyPlayer(p, n)).ToList();
         InventoryReceived?.Invoke();
     }

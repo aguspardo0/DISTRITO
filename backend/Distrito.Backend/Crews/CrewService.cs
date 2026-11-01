@@ -223,6 +223,7 @@ public sealed partial class CrewService(NpgsqlDataSource db, TimeProvider clock)
 
             if (await MemberCountAsync(c, tx, crew.Id, ct) == 0)
             {
+                await Distrito.Backend.Economy.EconomyService.EmptyWarehouseOnDisbandAsync(c, tx, crew.Id, r.CharacterId, ct);
                 await using var disband = new NpgsqlCommand("DELETE FROM distrito.crews WHERE id = @crew", c, tx);
                 disband.Parameters.AddWithValue("crew", crew.Id);
                 await disband.ExecuteNonQueryAsync(ct);

@@ -59,6 +59,11 @@ public static class Endpoints
         internalApi.MapPost("/combat/knockout", (KnockoutRequest r, EconomyService e, CancellationToken ct) => e.KnockoutAsync(r, ct));
         internalApi.MapPost("/combat/ammo", async (AmmoUseRequest r, EconomyService e, CancellationToken ct) => Results.Ok(await e.UseAmmoAsync(r, ct)));
         internalApi.MapGet("/inventory/{characterId:guid}", (Guid characterId, EconomyService e, CancellationToken ct) => e.InventoryAsync(characterId, ct));
+        internalApi.MapGet("/warehouse/{characterId:guid}", async (Guid characterId, EconomyService e, CancellationToken ct) =>
+            await e.WarehouseAsync(characterId, ct) is { } view ? Results.Ok(view) : Results.NoContent());
+        internalApi.MapPost("/warehouse/open", (WarehouseOpenRequest r, EconomyService e, CancellationToken ct) => e.OpenWarehouseAsync(r, ct));
+        internalApi.MapPost("/warehouse/move", (WarehouseMoveRequest r, EconomyService e, CancellationToken ct) => e.MoveWarehouseAsync(r, ct));
+        internalApi.MapPost("/warehouse/permissions", (WarehousePermissionsRequest r, EconomyService e, CancellationToken ct) => e.SetWarehousePermissionsAsync(r, ct));
         internalApi.MapPost("/inventory/give", (GiveItemRequest r, EconomyService e, CancellationToken ct) => e.GiveAsync(r, ct));
         internalApi.MapPost("/inventory/drop", (DropItemRequest r, EconomyService e, CancellationToken ct) => e.DropAsync(r, ct));
         internalApi.MapPost("/combat/pickup", (PickupRequest r, EconomyService e, CancellationToken ct) => e.PickupAsync(r, ct));

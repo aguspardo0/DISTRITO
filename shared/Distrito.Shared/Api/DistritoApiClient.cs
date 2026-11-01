@@ -119,6 +119,19 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<InventoryView>> GetInventoryAsync(string serverKey, Guid characterId, CancellationToken ct = default) =>
         SendAsync<InventoryView>(HttpMethod.Get, $"internal/inventory/{characterId}", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    /// <summary>Depósito de la cuadrilla del personaje; Value null si no está en ninguna.</summary>
+    public Task<ApiResult<WarehouseView>> GetWarehouseAsync(string serverKey, Guid characterId, CancellationToken ct = default) =>
+        SendAsync<WarehouseView>(HttpMethod.Get, $"internal/warehouse/{characterId}", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> OpenWarehouseAsync(string serverKey, WarehouseOpenRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/warehouse/open", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> MoveWarehouseAsync(string serverKey, WarehouseMoveRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/warehouse/move", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> SetWarehousePermissionsAsync(string serverKey, WarehousePermissionsRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/warehouse/permissions", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<EconomyActionResult>> GiveItemAsync(string serverKey, GiveItemRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/inventory/give", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

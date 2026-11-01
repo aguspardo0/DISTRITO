@@ -66,3 +66,34 @@ public sealed record DropItemRequest(Guid CharacterId, string ItemCode, int Quan
 
 /// <summary>Resultado de soltar algo: el estado del personaje y, si quedó en la calle, el bulto para mostrarlo.</summary>
 public sealed record DropItemResult(EconomyActionResult Result, DropView? Drop);
+
+/// <summary>Reglas del depósito de cuadrilla (config/inventario.json → "depositoCuadrilla").</summary>
+public sealed record WarehouseRules(string Place, long OpenCostCents, long RentCents, double? CapacityKg, double? CapacityL)
+{
+    /// <summary>Números aprobados por el equipo (2026-11-01).</summary>
+    public static WarehouseRules Default { get; } = new(TerritoryRules.Office, 2_000, 100, 300, null);
+}
+
+/// <summary>Permisos del depósito: el jefe siempre ve, deposita, retira y administra; el resto según esto.</summary>
+public sealed record WarehousePermissions(bool MemberCanView, bool MemberCanDeposit, bool MemberCanWithdraw, bool SecondCanWithdraw);
+
+/// <summary>Un movimiento del historial del depósito.</summary>
+public sealed record WarehouseMovement(DateTimeOffset At, string Who, string ItemName, int Quantity, bool Deposit);
+
+/// <summary>
+/// El depósito de la cuadrilla visto por un miembro. Exists=false: la cuadrilla todavía no lo abrió.
+/// Items e History solo vienen si el que pregunta puede ver.
+/// </summary>
+public sealed record WarehouseView(
+    Guid? Id, string CrewName, bool Exists, string Place, string PlaceName,
+    List<InventoryEntry> Items, double? CapacityKg, double? CapacityL, long DebtCents,
+    WarehousePermissions Permissions, bool CanView, bool CanDeposit, bool CanWithdraw, bool CanAdmin,
+    List<WarehouseMovement> History, long OpenCostCents, long RentCents)
+{
+    public double WeightKg => Items.Sum(i => i.WeightKg);
+    public double VolumeL => Items.Sum(i => i.VolumeL);
+}
+
+public sealed record WarehouseOpenRequest(Guid CharacterId, string RequestId);
+public sealed record WarehouseMoveRequest(Guid CharacterId, string ItemCode, int Quantity, bool Deposit, string RequestId);
+public sealed record WarehousePermissionsRequest(Guid CharacterId, WarehousePermissions Permissions, string RequestId);
