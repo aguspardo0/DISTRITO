@@ -293,7 +293,7 @@ public partial class BaseNetwork : Node
         var end = DateTimeOffset.UtcNow.AddHours(2);
         Board = new CrewBoardView(true, "Los del Puerto", 420, 3, 600, 1, 0,
         [
-            new(Guid.NewGuid(), MissionKinds.Delivery, "Entrega: 6 cajones de bebidas a el Taller Caruso", "Conseguilas y llevalas.", "cajon-bebidas", "npc:taller-caruso", 6, 0, 3800, 19, "abierta", end, "caruso"),
+            new(Guid.NewGuid(), MissionKinds.Delivery, "Entrega: 6 cajones de bebidas a el Taller Caruso", "Conseguilas y llevalas.", "cajon-bebidas", "npc:taller-moreno", 6, 0, 3800, 19, "abierta", end, "caruso"),
             new(Guid.NewGuid(), MissionKinds.TruckJob, "Encargo de los Caruso: asaltar el camión de reparto de Moretti", "Cuando salga el camión…", null, null, 1, 0, 5200, 24, "abierta", end, "caruso"),
             new(Guid.NewGuid(), MissionKinds.Guard, "Vigilar la sede 4 minutos (con 2 de la cuadrilla)", "Estén adentro.", null, null, 8, 3, 3000, 14, "abierta", end, "valenti"),
             new(Guid.NewGuid(), MissionKinds.Gather, "Acopio: juntar 12 bolsas de café en el depósito", "Tenelas guardadas.", "bolsa-cafe", null, 12, 12, 4400, 20, "cumplida", end, "valenti"),

@@ -40,7 +40,7 @@
     ]
   },
   "cajaLocal": {
-    "locales": ["npc:taller-caruso", "npc:deposito-delgado"],
+    "locales": ["npc:taller-moreno", "npc:deposito-delgado"],
     "segundosAmenaza": 8,
     "centavosMinimo": 2000,
     "centavosMaximo": 4000,

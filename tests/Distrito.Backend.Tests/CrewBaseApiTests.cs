@@ -88,7 +88,7 @@ public class CrewBaseApiTests
         await using var db = NpgsqlDataSource.Create(TestBackend.ConnectionString);
         var mission = board.Missions.First();
         await using (var force = db.CreateCommand(
-            "UPDATE distrito.crew_missions SET kind = 'entrega', item_code = 'bolsa-cafe', npc_code = 'npc:taller-caruso', target = 3 WHERE id = @id"))
+            "UPDATE distrito.crew_missions SET kind = 'entrega', item_code = 'bolsa-cafe', npc_code = 'npc:taller-moreno', target = 3 WHERE id = @id"))
         {
             force.Parameters.AddWithValue("id", mission.Id);
             await force.ExecuteNonQueryAsync();

@@ -26,6 +26,8 @@ public class PveRulesTests
         Assert.Equal(60, rules.Contraband.GuardHealth);
         Assert.Equal(30, rules.ShopRobbery!.CooldownMinutes);
         Assert.Equal((2000L, 4000L), (rules.ShopRobbery.MinCents, rules.ShopRobbery.MaxCents));
+        // Los locales tienen que existir (código interno del NPC).
+        Assert.All(rules.ShopRobbery.Shops, code => Assert.NotNull(Distrito.Server.Core.Npcs.NpcInteractionRules.Find(code)));
     }
 
     [Fact]
