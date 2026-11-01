@@ -24,7 +24,8 @@ public sealed record CrewStatus(
     CrewPermissions? Permissions = null,
     CoalitionView? Coalition = null,
     List<CoalitionInviteView>? CoalitionInvites = null,
-    CrewVoteView? Vote = null)
+    CrewVoteView? Vote = null,
+    List<WarView>? Wars = null)
 {
     public CrewPermissions Rules => Permissions ?? CrewPermissions.Default;
     public bool CanWithdraw => MyRole is { } r && Rules.CanWithdraw(r);
@@ -111,6 +112,27 @@ public static class CrewVotes
     public static bool Passed(int yes, int members) => yes * 2 > members;
     /// <summary>Ya no puede llegar a la mayoría (los que faltan no alcanzan).</summary>
     public static bool CannotPass(int no, int members) => (members - no) * 2 <= members;
+}
+
+/// <summary>Guerra de la cuadrilla con otra (pendiente si todavía no empezó).</summary>
+public sealed record WarView(string OtherCrew, bool DeclaredByUs, DateTimeOffset StartsAt, DateTimeOffset EndsAt)
+{
+    public bool IsActive(DateTimeOffset now) => now >= StartsAt && now < EndsAt;
+}
+
+public sealed record DeclareWarRequest(Guid CharacterId, string TargetCrewName);
+
+/// <summary>
+/// Guerras (PvP regulado): el jefe declara la guerra a otra cuadrilla por nombre. Empieza a los 10 minutos (aviso) y dura
+/// 24 h; mientras dura, los integrantes de las dos pueden pelear en todo el barrio salvo las zonas seguras.
+/// Cada cuadrilla puede tener una sola guerra declarada por ella a la vez, y no puede volver a declararle a la misma
+/// cuadrilla hasta 24 h después de que termine.
+/// </summary>
+public static class WarRules
+{
+    public static readonly TimeSpan Warning = TimeSpan.FromMinutes(10);
+    public static readonly TimeSpan Duration = TimeSpan.FromHours(24);
+    public static readonly TimeSpan RedeclareCooldown = TimeSpan.FromHours(24);
 }
 
 /// <summary>Reglas de coaliciones (propuesta aprobada por el equipo, 2026-10-31).</summary>
@@ -221,6 +243,8 @@ public static partial class CrewRules
         "vote_passed" => $"Se aprobó: {e.Detail}",
         "vote_failed" => $"No se aprobó: {e.Detail}",
         "pact_signed" => $"{e.Who} firmó un acuerdo con {e.Detail}",
+        "war_declared" => $"{e.Who} le declaró la guerra a {e.Detail}",
+        "war_received" => $"{e.Detail} nos declaró la guerra",
         _ => $"{e.Kind} {e.Who} {e.Detail}".Trim(),
     };
 

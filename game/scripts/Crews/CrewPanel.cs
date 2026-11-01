@@ -135,6 +135,24 @@ public partial class CrewPanel : PanelContainer
             }
         }
 
+        // Guerras.
+        foreach (var war in status.Wars ?? [])
+        {
+            var when = war.IsActive(DateTimeOffset.UtcNow)
+                ? $"EN GUERRA hasta {war.EndsAt.ToLocalTime():dd/MM HH:mm}: se pelea en todo el barrio salvo cerca de los locales"
+                : $"empieza {war.StartsAt.ToLocalTime():HH:mm}";
+            _content.AddChild(new Label { Text = $"Guerra con «{war.OtherCrew}» ({(war.DeclaredByUs ? "la declaramos" : "nos la declararon")}): {when}.",
+                AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(310, 0) });
+        }
+        if (status.IsLeader)
+        {
+            var row = new HBoxContainer();
+            var target = new LineEdit { PlaceholderText = "Cuadrilla enemiga", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            row.AddChild(target);
+            row.AddChild(MakeButton("Declarar guerra", () => _crews.DeclareWar(target.Text.Trim())));
+            _content.AddChild(row);
+        }
+
         // Votación.
         if (status.Vote is { } vote)
         {

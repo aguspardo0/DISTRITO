@@ -1,7 +1,11 @@
 namespace Distrito.Shared.Economy;
 
 /// <summary>Estado de PvP del barrio para el servidor de juego.</summary>
-public sealed record CombatStateView(List<string> DisputedZones, List<string> EventZones);
+/// <summary>Estado de PvP del barrio para el servidor de juego. WarMembers: personaje → cuadrilla, de las que están en guerra.</summary>
+public sealed record CombatStateView(List<string> DisputedZones, List<string> EventZones,
+    List<WarPair>? Wars = null, Dictionary<Guid, Guid>? WarMembers = null);
+
+public sealed record WarPair(Guid CrewA, Guid CrewB);
 
 /// <summary>Un personaje quedó herido: su mercadería pasa al suelo como el bulto DropId.</summary>
 public sealed record KnockoutRequest(Guid VictimId, Guid DropId, string RequestId);

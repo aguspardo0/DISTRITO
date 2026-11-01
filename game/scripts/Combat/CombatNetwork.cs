@@ -29,6 +29,8 @@ public partial class CombatNetwork : Node
     private readonly Dictionary<Guid, Node3D> _dropVisuals = new();
     private readonly HashSet<Guid> _pickingUp = new();
     private CombatState _state = CombatState.None;
+    private List<WarPair> _wars = [];
+    private Dictionary<Guid, Guid> _warMembers = new();
     private double _clock, _nextState, _nextLevels, _nextPickupCheck;
 
     /// <summary>Cliente: mensajes para el HUD.</summary>
@@ -99,7 +101,11 @@ public partial class CombatNetwork : Node
     {
         var result = await backend.GetCombatStateAsync(_network.ServerKey);
         if (result.IsSuccess)
+        {
             _state = new CombatState(result.Value!.DisputedZones.ToHashSet(), result.Value.EventZones.ToHashSet());
+            _wars = result.Value.Wars ?? [];
+            _warMembers = result.Value.WarMembers ?? new();
+        }
     }
 
     private async Task RefreshLevelsAsync(Distrito.Shared.Api.DistritoApiClient backend)
@@ -121,6 +127,16 @@ public partial class CombatNetwork : Node
 
     private static System.Numerics.Vector3 N(Vector3 v) => new(v.X, v.Y, v.Z);
 
+    /// <summary>¿Las cuadrillas de los dos están en guerra ahora?</summary>
+    private bool AtWar(long a, long b)
+    {
+        if (!_network.TryGetSession(a, out var sa) || !_network.TryGetSession(b, out var sb))
+            return false;
+        if (!_warMembers.TryGetValue(sa.CharacterId, out var crewA) || !_warMembers.TryGetValue(sb.CharacterId, out var crewB))
+            return false;
+        return _wars.Any(w => (w.CrewA == crewA && w.CrewB == crewB) || (w.CrewA == crewB && w.CrewB == crewA));
+    }
+
     private void HandlePunch(long peer)
     {
         if (_network.GetPlayer(peer) is not { Downed: false } attacker)
@@ -137,7 +153,8 @@ public partial class CombatNetwork : Node
         if (target is null)
             return;
 
-        if (CombatRules.WhyNot(N(attacker.GlobalPosition), N(target.GlobalPosition), LevelOf(peer), LevelOf(target.PeerId), _state) is { } reason)
+        if (CombatRules.WhyNot(N(attacker.GlobalPosition), N(target.GlobalPosition), LevelOf(peer), LevelOf(target.PeerId), _state,
+                AtWar(peer, target.PeerId)) is { } reason)
         {
             if (!_lastRefusal.TryGetValue(peer, out var said) || _clock - said > 3)
             {

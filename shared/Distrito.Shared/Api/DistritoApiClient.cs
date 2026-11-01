@@ -101,6 +101,9 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<CrewActionResult>> CastCrewVoteAsync(string serverKey, CrewVoteCastRequest request, CancellationToken ct = default) =>
         SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/vote/cast", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<CrewActionResult>> DeclareWarAsync(string serverKey, DeclareWarRequest request, CancellationToken ct = default) =>
+        SendAsync<CrewActionResult>(HttpMethod.Post, "internal/crews/war", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<CombatStateView>> GetCombatStateAsync(string serverKey, CancellationToken ct = default) =>
         SendAsync<CombatStateView>(HttpMethod.Get, "internal/combat/state", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
