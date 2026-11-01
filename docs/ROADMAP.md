@@ -88,6 +88,10 @@ Estado detallado en `docs/AUDIT.md`. Los 7 objetivos están implementados y prob
 - [ ] Documento PvP, etapas siguientes: sistema general de actividades PvP, visibilidad de objetivos en el mapa por actividad, integración con inventario e historial de pérdidas, ganchos de consecuencias, interfaz de actividad
 - [ ] Prueba manual del equipo de la Etapa E
 
+### Mapa y herramientas
+- [x] Los Muelles: zona libre al este del barrio (PvP y robos siempre; se configura en `config/zonas.json`), con galpones, cajones y muelle
+- [x] Panel de administración (F10) para pruebas: plata, objetos, nivel, ir a lugares y curarse; solo cuentas de `config/admins.json` o `Admin__Accounts`
+
 ### Inventario, objetos y logística (documento del equipo, 2026-10-31)
 Base: el libro central de objetos que ya existía (item_stacks + item_movements); no se reemplaza. Ver `docs/INVENTARIO.md`.
 - [x] Etapa 1 — clases de objeto (armas, munición, herramientas, mercancías, materias primas, productos, documentos, equipamiento, misión) con descripción y propiedades opcionales; ventana de inventario (I) con peso y volumen
@@ -95,7 +99,7 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
 - [x] Etapa 3 — depósito de la cuadrilla en La Oficina (aprobado: $20 de la caja, $1 por ciclo mientras haya algo guardado, 300 kg); permisos del jefe (ver, guardar, retirar); con alquiler adeudado no se retira; si la cuadrilla se disuelve, lo guardado pasa al último miembro
 - [x] Etapa 4 — historial: personal (qué entró y salió, cuánto, cuándo y por qué) y del depósito (quién guardó o retiró qué)
 - [x] Etapa 5 — pedidos por mayor al Almacén Moretti (aprobado: precio de mostrador, 10 % menos desde 20, mín. 5, 1 ciclo cada 10 unidades, 50 por ciclo en cola; retiro gratis o envío al depósito +10 % mín. $1 y 1 ciclo más; cancelar con reintegro mientras se prepara)
-- [ ] Etapa 6 — vehículos con carga
+- [x] Etapa 6 — vehículos (aprobado: camioneta de reparto $120, nivel 3, 400 kg; camión de carga $350, nivel 6, 1500 kg) en el Taller Caruso, propios o de cuadrilla; manejo arcade simulado en el servidor (G subir/bajar); carga desde el inventario; la carga queda adentro al bajarse y se puede forzar (5 s) donde la zona permite robos; el vehículo no se roba; persiste dónde quedó
 - [ ] Etapa 7 — existencias visibles en el mundo (cajas, barriles, estanterías)
 - [ ] Etapa 8 — integración con negocios, contratos y economía
 

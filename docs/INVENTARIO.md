@@ -54,3 +54,14 @@
   después de listo. Si al llegar el depósito ya no existe o no entra, se devuelve el envío y queda para retirar.
 - Se puede cancelar con reintegro completo mientras se prepara. Pedir y retirar se hacen en el mostrador (lo valida el servidor).
 - Para sumar un proveedor o un producto: agregarlo a `SupplierRules.Catalog` (y su stock en la ubicación del proveedor).
+
+## Vehículos (etapa 6)
+- Se compran en el **Taller Caruso** (E → «Vehículos»): camioneta de reparto $120 (nivel 3, 400 kg, ~47 km/h) y camión de
+  carga $350 (nivel 6, 1500 kg, ~32 km/h). Propios, o el jefe los compra para la cuadrilla con la caja (`shared/.../Vehicles.cs`).
+- Los maneja el dueño o cualquiera de su cuadrilla: **G** para subir y bajar, W/S acelerar y frenar, A/D doblar, Espacio freno.
+  El servidor simula el manejo; adentro no se pega ni se dispara y no te pueden pegar (por ahora).
+- La carga vive en el libro central (`vehiculo:<id>` de la cuenta dueña), con capacidad en kg. Se carga y descarga desde la
+  pestaña **Vehículo** del inventario estando al lado o manejando.
+- Al bajarse o si el conductor queda herido, el vehículo queda estacionado con la carga. Uno ajeno puede **forzar la caja**
+  (5 segundos al lado) solo donde la zona permite robos (disputa, eventos, Los Muelles): la carga cae a la calle en un bulto.
+- Persiste dónde quedó estacionado. Si una cuadrilla se disuelve, sus vehículos y la carga pasan al último miembro.

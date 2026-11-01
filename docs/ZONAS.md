@@ -16,3 +16,7 @@ y el servidor lo toma solo en unos minutos. Si hay un error, la corrida dice cu�
 | robos / persecuciones / vehiculos / actividades | preparados para actividades futuras |
 | perderMercaderiaAlMorir | si la mercadería que llevás queda tirada al morir (las armas siempre) |
 | segundosBulto | cuánto tarda en desaparecer lo que queda tirado (10 a 86400) |
+
+## Los Muelles (zona libre)
+`los-muelles` es la parte este del mapa (x > 30). No es territorio en disputa ni tiene locales (no hay zona segura):
+en `config/zonas.json` tiene `pvp`, `robos` y `persecuciones` en true. El nivel mínimo para pelear (3) sigue valiendo.
