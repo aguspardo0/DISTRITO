@@ -36,6 +36,7 @@ public sealed class GrowthKind
     [JsonPropertyName("capacidadBase")] public int BaseCapacity { get; set; } = 3;
     [JsonPropertyName("capacidadPorNivel")] public int CapacityPerLevel { get; set; } = 2;
     [JsonPropertyName("calidadPorNivel")] public double QualityPerLevel { get; set; } = 0.25;
+    [JsonPropertyName("precioPorNivelDeCalidad")] public double FairPricePerQuality { get; set; } = 0.1;
     [JsonPropertyName("atraccionPorNivel")] public double AttractionPerLevel { get; set; } = 0.2;
     [JsonPropertyName("costoCapacidad")] public long CapacityCost { get; set; }
     [JsonPropertyName("costoCalidad")] public long QualityCost { get; set; }
@@ -118,9 +119,9 @@ public static class BusinessGrowth
         return k.BaseCapacity + k.CapacityPerLevel * s.Capacity + (s.HasHelper ? k.CapacityPerLevel : 0) + s.AdminBonus;
     }
 
-    /// <summary>Lo que la gente considera justo pagar: más calidad, más precio sin espantar.</summary>
+    /// <summary>Lo que la gente considera justo pagar: más calidad, más precio sin espantar (10 % por nivel).</summary>
     public static long FairPriceCents(GrowthConfig cfg, GrowthState s) =>
-        (long)Math.Round(EconomyCatalog.BusinessTypes[s.Kind].SalePriceCents * QualityOf(cfg, s));
+        (long)Math.Round(EconomyCatalog.BusinessTypes[s.Kind].SalePriceCents * (1 + KindOf(cfg, s.Kind).FairPricePerQuality * s.Quality) / 10.0) * 10;
 
     public static double Fairness(GrowthConfig cfg, GrowthState s) => FairPriceCents(cfg, s) / (double)Math.Max(1, s.PriceCents);
 
@@ -168,10 +169,9 @@ public static class BusinessGrowth
     {
         var names = KindOf(cfg, s.Kind).Categories;
         var total = s.TotalLevels;
-        var i = total < 3 ? 0 : total < 7 ? 1 : total < 12 ? 2 : 3;
-        i = Math.Min(i, names.Length - 1);
-        var stars = total >= 12 ? (total - 12) / 6 : 0;
-        return stars > 0 ? $"{names[i]} {new string('★', Math.Min(stars, 5))}{(stars > 5 ? $" ×{stars}" : "")}" : names[i];
+        var i = Math.Min(total < 4 ? 0 : total < 12 ? 1 : total < 24 ? 2 : 3, names.Length - 1);
+        var stars = total >= 24 ? (total - 24) / 12 : 0; // después de la última categoría, una estrella cada 12 mejoras
+        return stars switch { 0 => names[i], <= 5 => $"{names[i]} {new string('★', stars)}", _ => $"{names[i]} ★×{stars}" };
     }
 
     public static int FameLevel(GrowthConfig cfg, double fame)
@@ -281,7 +281,8 @@ public static class BusinessGrowth
     {
         var f = cfg.Fame;
         var gain = served * f.PerCustomer * QualityOf(cfg, s) * Math.Min(1.5, Fairness(cfg, s));
-        var loss = lostNoStock * f.LostNoStock + lostQueue * f.LostQueue + s.Fame * (open ? f.Decay : f.DecayClosed);
+        // Cerrado, la fama solo se olvida (de a poco): no se cobra cada cliente que se fue.
+        var loss = open ? lostNoStock * f.LostNoStock + lostQueue * f.LostQueue + s.Fame * f.Decay : s.Fame * f.DecayClosed;
         return Math.Max(0, s.Fame + gain - loss);
     }
 
