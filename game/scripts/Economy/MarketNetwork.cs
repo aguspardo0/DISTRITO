@@ -62,11 +62,11 @@ public partial class MarketNetwork : Node3D
 
     private static readonly Dictionary<string, Vector3> SignOffsets = new()
     {
-        [EconomyCatalog.DepositNpc] = new(1.5f, 0, 0.6f),
-        [EconomyCatalog.WorkshopNpc] = new(-1.5f, 0, 0.8f),
-        [EconomyCatalog.CoffeeCornerNpc] = new(1.4f, 0, 0),
-        [EconomyCatalog.JazzClubNpc] = new(-1.4f, 0, 0.4f),
-        [MarketInfoRules.KioskNpc] = new(0, 0, -0.9f),
+        [EconomyCatalog.DepositNpc] = new(2.3f, 0, 1.2f),
+        [EconomyCatalog.WorkshopNpc] = new(-2.3f, 0, 1.2f),
+        [EconomyCatalog.CoffeeCornerNpc] = new(2.3f, 0, 0),
+        [EconomyCatalog.JazzClubNpc] = new(-2.3f, 0, 0.6f),
+        [MarketInfoRules.KioskNpc] = new(2.4f, 0, 0.4f),
     };
 
     private void ShowBoards()
@@ -83,19 +83,21 @@ public partial class MarketNetwork : Node3D
                 AddChild(stand);
                 // Caballete de madera con la pizarra negra arriba (el texto se ve siempre de frente).
                 var wood = new StandardMaterial3D { AlbedoColor = new Color(0.36f, 0.25f, 0.15f) };
-                foreach (var x in new[] { -0.35f, 0.35f })
-                    stand.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.06f, 1.5f, 0.06f) }, MaterialOverride = wood, Position = new Vector3(x, 0.75f, 0) });
+                foreach (var x in new[] { -0.7f, 0.7f })
+                    stand.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.07f, 1.95f, 0.07f) }, MaterialOverride = wood, Position = new Vector3(x, 0.97f, 0.05f) });
+                // La pizarra mira hacia donde llega la gente (el centro del Mercado); el texto se ve siempre de frente.
+                stand.Rotation = new Vector3(0, Mathf.Atan2(-at.X, -at.Z), 0);
                 stand.AddChild(new MeshInstance3D
                 {
-                    Mesh = new BoxMesh { Size = new Vector3(0.9f, 0.6f, 0.05f) },
-                    MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.1f, 0.12f, 0.11f) }, Position = new Vector3(0, 1.25f, 0),
+                    Mesh = new BoxMesh { Size = new Vector3(1.7f, 1.55f, 0.05f) },
+                    MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.1f, 0.12f, 0.11f) }, Position = new Vector3(0, 1.12f, 0),
                 });
                 sign = new Label3D
                 {
-                    Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, FontSize = 30, OutlineSize = 10, PixelSize = 0.0065f,
-                    Modulate = new Color(0.95f, 0.94f, 0.88f), OutlineModulate = new Color(0.08f, 0.1f, 0.09f),
-                    Width = 420, AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                    VerticalAlignment = VerticalAlignment.Bottom, Position = new Vector3(0, 1.65f, 0),
+                    Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, FontSize = 28, OutlineSize = 6, PixelSize = 0.0055f,
+                    Modulate = new Color(0.96f, 0.95f, 0.89f), OutlineModulate = new Color(0.08f, 0.1f, 0.09f),
+                    Width = 300, AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                    VerticalAlignment = VerticalAlignment.Top, Position = new Vector3(0, 1.85f, 0.06f),
                 };
                 stand.AddChild(sign);
                 _signs[board.NpcCode] = sign;

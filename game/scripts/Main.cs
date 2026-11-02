@@ -689,8 +689,8 @@ public partial class Main : Node3D
                 _market.Preview();
                 if (_network.LocalPlayer is { } me)
                 {
-                    me.GlobalPosition = new Vector3(-5f, 0.2f, 1.5f); // en la calle: el Almacén, su pizarra y el kiosco de diarios
-                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Atan2(6f, 7f));
+                    me.GlobalPosition = new Vector3(-9f, 0.2f, 0.5f); // en la calle: el Almacén y su pizarra, el kiosco de diarios más allá
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Atan2(4f, 6f));
                 }
             }),
             ("libreta-precios", () => { _marketPanel?.Open(MarketPanel.Notes); _market.Preview(); }),
