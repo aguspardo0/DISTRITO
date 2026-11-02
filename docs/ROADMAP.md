@@ -135,5 +135,9 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
 - [x] Tutorial de inicio: seis pasos (mapa, primera compra, las familias, primer encargo, la libreta, lo que viene), con luz y aro en el mapa sobre el destino; se guarda por personaje, los que ya tienen experiencia lo saltean y se puede saltar o repetir desde Esc. Sin premios (no toca la economía)
 - [ ] Interfaz y accesibilidad, rendimiento, seguridad y anti-exploit, telemetría, moderación, soporte, pruebas de regresión y operación
 
+## Próximo, aprobado por el equipo (2026-11-01), en este orden
+1. [ ] **Economía de mercado:** población por zona con presupuesto, demanda que se satura, precio de referencia, producción, transporte y NPC que trabajan. Primero el simulador con la cadena de prueba (tostadero → Almacén → dos puestos de café, con el camión) y el modo sombra; las reglas aprobadas no cambian hasta que el equipo lo apruebe con números. Informe de integración: documento «DISTRITO — Economía de mercado: auditoría e integración».
+2. [ ] **Vida autónoma de los NPC** (documento del equipo, 2026-11-01): habitantes con identidad, rutinas, necesidades, decisiones deterministas, relaciones y reacciones, simulados por niveles (cerca, intermedio, lejos), usando la economía de mercado sin duplicarla. Empieza con una auditoría y un ecosistema de prueba de 30 NPC.
+
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.
