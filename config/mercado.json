@@ -8,6 +8,7 @@
   "ciclosDeReserva": 48,
   "velocidadPrecio": 0.5,
   "topeDiarioPrecio": 0.05,
+  "anclaPrecio": 0.5,
   "precioMinimoRelativo": 0.5,
   "precioMaximoRelativo": 2.0,
   "zonas": [

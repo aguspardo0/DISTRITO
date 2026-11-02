@@ -124,6 +124,7 @@ public sealed class MarketSimulation
         public double ShortageToday;
         public double IdleToday;
         public int ServedToday;
+        public long PaidToday;
     }
 
     public MarketSimulation(MarketConfig cfg, SimSupplier supplier, SimFactory factory, SimTruck truck, long startingBudgetPerHabitant = 500)
@@ -262,8 +263,8 @@ public sealed class MarketSimulation
                 var z = zones[zi];
                 var reference = z.Reference[product.Code];
                 var needPerCycle = MarketMath.Need(z.Config.Habitants, product.DailyConsumption, z.Config.PreferenceFor(product.Code)) / _cfg.CyclesPerDay;
-                var attractions = shops.Select(s => s.Stock > 0
-                    ? MarketMath.Attraction(reference, s.PriceCents, s.Quality, Distance(z.Config, s), _cfg) : 0).ToList();
+                // La gente va a su local de siempre aunque esté vacío: si no hay, eso es escasez (no cambia de local en el acto).
+                var attractions = shops.Select(s => MarketMath.Attraction(reference, s.PriceCents, s.Quality, Distance(z.Config, s), _cfg)).ToList();
                 var shares = MarketMath.Shares(attractions, _cfg.NoPurchaseWeight);
                 var shareSum = shares.Sum();
                 var averagePrice = shareSum > 0 ? shops.Select((s, i) => shares[i] * s.PriceCents).Sum() / shareSum : reference;
@@ -314,6 +315,7 @@ public sealed class MarketSimulation
                     var pay = take * s.PriceCents;
                     z.Budget -= pay;
                     z.ServedToday += take;
+                    z.PaidToday += pay;
                     s.Cash += pay;
                     s.RevenueToday += pay;
                     s.Stock -= take;
@@ -325,7 +327,8 @@ public sealed class MarketSimulation
 
     private void PayCosts()
     {
-        foreach (var s in Shops)
+        // Como en el juego: sin mercadería no hay alquiler ni empleado ese ciclo.
+        foreach (var s in Shops.Where(s => s.Stock > 0))
         {
             var rent = Math.Min(s.RentPerCycle, s.Cash);
             s.Cash -= rent;
@@ -349,12 +352,13 @@ public sealed class MarketSimulation
                 var before = z.Reference[product.Code];
                 // Sin locales a los que ir no hay señal de precio (sólo oportunidad).
                 if (z.WantedToday > 0)
-                    z.Reference[product.Code] = MarketMath.NextReferencePrice(before, product.BasePriceCents, z.ShortageToday, z.IdleToday, z.WantedToday, _cfg);
+                    z.Reference[product.Code] = MarketMath.NextReferencePrice(before, product.BasePriceCents, z.ShortageToday, z.IdleToday, z.WantedToday, _cfg,
+                        z.ServedToday > 0 ? z.PaidToday / (double)z.ServedToday : 0);
                 zoneDays.Add(new SimZoneDay(z.Config.Code, z.DemandToday, z.WantedToday, z.ServedToday, z.ShortageToday, z.IdleToday, before, z.Budget));
             }
         var shopDays = Shops.Select(s => new SimShopDay(s.Name, s.SoldToday, s.OfferedToday, s.Stock, s.RevenueToday, s.CostToday, s.RevenueToday - s.CostToday)).ToList();
         Days.Add(new SimDay(day + 1, zoneDays, shopDays, Supplier.Stock, Factory.Output, Factory.ProducedToday, Truck.LostToday, TotalMoney(), ExteriorCents));
-        foreach (var z in _zones.Values) { z.DemandToday = 0; z.WantedToday = 0; z.ShortageToday = 0; z.IdleToday = 0; z.ServedToday = 0; }
+        foreach (var z in _zones.Values) { z.DemandToday = 0; z.WantedToday = 0; z.ShortageToday = 0; z.IdleToday = 0; z.ServedToday = 0; z.PaidToday = 0; }
         foreach (var s in Shops) { s.SoldToday = 0; s.OfferedToday = 0; s.CostToday = 0; s.RevenueToday = 0; }
         Factory.ProducedToday = 0;
         Truck.LostToday = 0;

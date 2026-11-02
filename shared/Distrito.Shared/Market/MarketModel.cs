@@ -37,6 +37,7 @@ public sealed class MarketConfig
     [JsonPropertyName("ciclosDeReserva")] public int ReserveCycles { get; set; } = 48;
     [JsonPropertyName("velocidadPrecio")] public double PriceSpeed { get; set; } = 0.5;
     [JsonPropertyName("topeDiarioPrecio")] public double DailyPriceCap { get; set; } = 0.05;
+    [JsonPropertyName("anclaPrecio")] public double PriceAnchor { get; set; } = 0.5;
     [JsonPropertyName("precioMinimoRelativo")] public double MinPriceRatio { get; set; } = 0.5;
     [JsonPropertyName("precioMaximoRelativo")] public double MaxPriceRatio { get; set; } = 2.0;
     [JsonPropertyName("zonas")] public List<MarketZoneConfig> Zones { get; set; } = new();
@@ -102,10 +103,14 @@ public static class MarketMath
         return total <= 0 ? attractions.Select(_ => 0.0).ToArray() : attractions.Select(a => a / total).ToArray();
     }
 
-    /// <summary>5. Precio de referencia del día siguiente: sube con la demanda sin atender, baja con lo que no se vendió.</summary>
-    public static double NextReferencePrice(double current, double basePrice, double unmet, double unsold, double demand, MarketConfig cfg)
+    /// <summary>
+    /// 5. Precio de referencia del día siguiente: sube con la escasez, baja con la capacidad ociosa y se ancla al precio que
+    /// la gente realmente pagó ese día (sin ancla, un mercado parejo se desliza solo para un lado).
+    /// </summary>
+    public static double NextReferencePrice(double current, double basePrice, double unmet, double unsold, double demand, MarketConfig cfg, double averagePaid = 0)
     {
-        var change = 1 + cfg.PriceSpeed * (unmet - unsold) / Math.Max(demand, 1);
+        var anchor = averagePaid > 0 ? cfg.PriceAnchor * (averagePaid / current - 1) : 0;
+        var change = 1 + cfg.PriceSpeed * (unmet - unsold) / Math.Max(demand, 1) + anchor;
         change = Math.Clamp(change, 1 - cfg.DailyPriceCap, 1 + cfg.DailyPriceCap);
         return Math.Clamp(current * change, basePrice * cfg.MinPriceRatio, basePrice * cfg.MaxPriceRatio);
     }
