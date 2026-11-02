@@ -64,6 +64,12 @@ public partial class NpcInteractionController : Node
                 _dialog.Close();
                 CasinoRequested?.Invoke();
             }
+            else if (option is NpcInteractionRules.NewspaperOption or NpcInteractionRules.InformantOption or NpcInteractionRules.LedgerOption)
+            {
+                _dialog.Close();
+                MarketRequested?.Invoke(option == NpcInteractionRules.NewspaperOption ? MarketPanel.Paper
+                    : option == NpcInteractionRules.InformantOption ? MarketPanel.Report : MarketPanel.Ledger);
+            }
             else
                 _economy.Choose(npc, option);
         };
@@ -79,6 +85,9 @@ public partial class NpcInteractionController : Node
 
     /// <summary>El jugador entró al casino.</summary>
     public event Action? CasinoRequested;
+
+    /// <summary>Leer el diario, ver el informe de Nino o el libro de cuentas: se abre la ventana del mercado en esa hoja.</summary>
+    public event Action<string>? MarketRequested;
 
     private double _timerRefresh;
 

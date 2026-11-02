@@ -213,6 +213,18 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<DropView>> PveContrabandAsync(string serverKey, PveContrabandRequest request, CancellationToken ct = default) =>
         SendAsync<DropView>(HttpMethod.Post, "internal/pve/contraband", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<List<PriceBoardView>>> GetMarketBoardsAsync(string serverKey, CancellationToken ct = default) =>
+        SendAsync<List<PriceBoardView>>(HttpMethod.Get, "internal/market/boards", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<object>> LookAtBoardAsync(string serverKey, MarketLookRequest request, CancellationToken ct = default) =>
+        SendAsync<object>(HttpMethod.Post, "internal/market/look", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<MarketInfoView>> GetMarketInfoAsync(string serverKey, Guid characterId, CancellationToken ct = default) =>
+        SendAsync<MarketInfoView>(HttpMethod.Get, $"internal/market/info/{characterId}", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> BuyMarketInfoAsync(string serverKey, MarketBuyRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/market/buy", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<WorldStockView>> GetWorldStockAsync(string serverKey, CancellationToken ct = default) =>
         SendAsync<WorldStockView>(HttpMethod.Get, "internal/world/stock", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

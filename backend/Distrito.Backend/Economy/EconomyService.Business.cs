@@ -185,7 +185,21 @@ public sealed partial class EconomyService
         {
             var stock = await QuantityAsync(c, tx, account, type.ItemCode, location, ct);
             if (stock == 0)
-                break; // sin mercadería no hay ventas ni alquiler; se salta al final
+            {
+                // Sin mercadería no hay ventas ni alquiler (no se mueve plata), pero los clientes vinieron igual:
+                // queda anotado en el libro de cuentas cuántos se fueron sin comprar.
+                var closedNight = type.NightBonus && EconomyCatalog.IsNight(DateTimeOffset.FromUnixTimeSeconds(cycle * CycleSeconds)) ? 1 : 0;
+                var closedDemand = type.BaseDemand + closedNight + ProgressionRules.ExtraSalesPerCycle((await LoadProgressAsync(c, tx, owner, ct)).AdministrationLevel);
+                await using var closed = new NpgsqlCommand("""
+                    INSERT INTO distrito.business_cycles (business_id, cycle, units_sold, revenue_cents, rent_cents, wages_cents, units_wanted)
+                    VALUES (@b, @cycle, 0, 0, 0, 0, @w) ON CONFLICT DO NOTHING
+                    """, c, tx);
+                closed.Parameters.AddWithValue("b", businessId);
+                closed.Parameters.AddWithValue("cycle", cycle);
+                closed.Parameters.AddWithValue("w", closedDemand);
+                await closed.ExecuteNonQueryAsync(ct);
+                continue;
+            }
 
             // El empleado trabaja solo si hay caja para pagarle al empezar el ciclo; si no, ese ciclo no trabaja.
             var helperWorks = hasHelper && await BalanceAsync(c, tx, account, ct) >= type.EmployeeWageCents;
@@ -211,8 +225,8 @@ public sealed partial class EconomyService
                 notEnough: "Sin stock.", ct);
 
             await using var record = new NpgsqlCommand("""
-                INSERT INTO distrito.business_cycles (business_id, cycle, units_sold, revenue_cents, rent_cents, wages_cents, transaction_id)
-                VALUES (@b, @cycle, @u, @rev, @rent, @wages, @tx)
+                INSERT INTO distrito.business_cycles (business_id, cycle, units_sold, revenue_cents, rent_cents, wages_cents, transaction_id, units_wanted)
+                VALUES (@b, @cycle, @u, @rev, @rent, @wages, @tx, @wanted)
                 """, c, tx);
             record.Parameters.AddWithValue("b", businessId);
             record.Parameters.AddWithValue("cycle", cycle);
@@ -221,6 +235,7 @@ public sealed partial class EconomyService
             record.Parameters.AddWithValue("rent", rent);
             record.Parameters.AddWithValue("wages", wages);
             record.Parameters.AddWithValue("tx", txId);
+            record.Parameters.AddWithValue("wanted", demand);
             await record.ExecuteNonQueryAsync(ct);
             await GrantProgressAsync(c, tx, owner, ProgressionRules.XpPerSalesCycle, logistics: 0, negotiation: 0, administration: 1, ct);
             if (await CrewOfCharacterAsync(c, tx, owner, ct) is { } ownerCrew && TerritoryRules.ZoneOfNpc(type.SiteNpc) is { } businessZone)

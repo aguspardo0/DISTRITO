@@ -58,8 +58,13 @@ public sealed record EconomySnapshot(
     Guid? FactionId = null,
     Dictionary<string, int>? Skills = null,
     List<EncargoView>? Encargos = null,
-    List<string>? Stories = null)
+    List<string>? Stories = null,
+    bool NewspaperToday = false,
+    DateTimeOffset? InformantUntil = null)
 {
+    /// <summary>¿Le está pasando datos el informante? (pagó hace menos de una hora).</summary>
+    public bool HasInformant(DateTimeOffset now) => InformantUntil is { } until && until > now;
+
     /// <summary>¿Terminó la historia de esa familia? (da su premio único).</summary>
     public bool StoryDone(string family) => Stories?.Contains(family) ?? false;
 

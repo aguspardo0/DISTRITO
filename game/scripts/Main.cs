@@ -19,7 +19,7 @@ namespace Distrito.Game;
 public partial class Main : Node3D
 {
     private const string ControlsHelp =
-        "WASD: moverse   Shift: correr   Clic: piña/disparar   1-4: arma   Mouse: cámara   Espacio: saltar   E: hablar   G: subir/bajar del vehículo   I: inventario   C: cuadrilla   J: tablero   L: encargos   K: habilidades   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
+        "WASD: moverse   Shift: correr   Clic: piña/disparar   1-4: arma   Mouse: cámara   Espacio: saltar   E: hablar   G: subir/bajar del vehículo   I: inventario   C: cuadrilla   J: tablero   L: encargos   P: precios   K: habilidades   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
 
     private GameNetwork _network = null!;
     private EconomyNetwork _economy = null!;
@@ -38,6 +38,8 @@ public partial class Main : Node3D
     private CrewBoardPanel? _boardPanel;
     private EncargoNetwork _encargos = null!;
     private EncargoPanel? _encargoPanel;
+    private MarketNetwork _market = null!;
+    private MarketPanel? _marketPanel;
     private EncargoTracker? _encargoTracker;
     private EncargoMarkers? _encargoMarkers;
     private RewardBanner? _rewardBanner;
@@ -143,6 +145,10 @@ public partial class Main : Node3D
         AddChild(_encargos);
         _encargos.Initialize(_network, _economy, _pve);
 
+        _market = new MarketNetwork { Name = "Market" };
+        AddChild(_market);
+        _market.Initialize(_network);
+
         _vehicles = new Distrito.Game.Transport.VehicleNetwork { Name = "Vehicles" };
         AddChild(_vehicles);
         _vehicles.Initialize(_network, _economy, _combat);
@@ -192,6 +198,8 @@ public partial class Main : Node3D
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.CoffeeCorner, new Color(0.35f, 0.22f, 0.12f)));
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.JazzClub, new Color(0.2f, 0.15f, 0.35f)));
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.Casino, new Color(0.12f, 0.35f, 0.18f)));
+        npcs.AddChild(NpcActor.Create(NpcInteractionRules.Kiosk, new Color(0.5f, 0.44f, 0.3f)));
+        npcs.AddChild(NpcActor.Create(NpcInteractionRules.Informant, new Color(0.16f, 0.16f, 0.18f)));
         // Jefes de familia: traje oscuro con el color de su barrio.
         foreach (var (boss, barrio) in NpcInteractionRules.Bosses.Zip(Distrito.Server.Core.World.CityLayout.Barrios))
             npcs.AddChild(NpcActor.Create(boss, new Color(barrio.Accent.R, barrio.Accent.G, barrio.Accent.B).Darkened(0.45f)));
@@ -351,6 +359,11 @@ public partial class Main : Node3D
         layer.AddChild(UiAnchor.Wrap(_casinoPanel, UiAnchor.Center, UiAnchor.Center, name: "CasinoArea"));
         _casinoPanel.Initialize(_casino, () => _economy.LastSnapshot?.BalanceCents ?? 0);
         interaction.CasinoRequested += () => _casinoPanel.Open();
+
+        _marketPanel = new MarketPanel { Name = "MarketPanel" };
+        layer.AddChild(UiAnchor.Wrap(_marketPanel, UiAnchor.Center, UiAnchor.Center, name: "MarketArea"));
+        _marketPanel.Initialize(_market);
+        interaction.MarketRequested += tab => _marketPanel.Open(tab);
 
         _boardPanel = new CrewBoardPanel { Name = "CrewBoard" };
         layer.AddChild(UiAnchor.Wrap(_boardPanel, UiAnchor.Center, UiAnchor.Center, name: "CrewBoardArea"));
@@ -670,8 +683,23 @@ public partial class Main : Node3D
             }),
             ("tablero", () => { if (_rewardBanner is not null) _rewardBanner.Visible = false; _encargoPreview = null; _encargoTracker?.Refresh(); _encargoMarkers?.Refresh(); _boardPanel?.Toggle(); _bases.Preview(); }),
             ("casino", () => { _boardPanel?.Toggle(); _casinoPanel?.Open(); _casinoPanel?.Preview(); }),
+            ("pizarras", () =>
+            {
+                _casinoPanel?.Close();
+                _market.Preview();
+                if (_network.LocalPlayer is { } me)
+                {
+                    me.GlobalPosition = new Vector3(-3f, 0.2f, -1.5f); // en la calle: el Almacén, su pizarra y el kiosco
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(0);
+                }
+            }),
+            ("libreta-precios", () => { _marketPanel?.Open(MarketPanel.Notes); _market.Preview(); }),
+            ("diario", () => _marketPanel?.Open(MarketPanel.Paper)),
+            ("informante", () => _marketPanel?.Open(MarketPanel.Report)),
+            ("libro-cuentas", () => _marketPanel?.Open(MarketPanel.Ledger)),
             ("habilidades", () =>
             {
+                _marketPanel?.Close();
                 _casinoPanel?.Close();
                 if (_skillPanel is null)
                     return;
@@ -724,6 +752,7 @@ public partial class Main : Node3D
         if (_boardPanel is { IsOpen: true }) _boardPanel.Toggle();
         if (_skillPanel is { IsOpen: true }) _skillPanel.Toggle();
         if (_encargoPanel is { IsOpen: true }) _encargoPanel.Toggle();
+        _marketPanel?.Close();
         _supplierPanel?.Close();
         _vehicleShop?.Close();
         _casinoPanel?.Close();
@@ -765,6 +794,7 @@ public partial class Main : Node3D
             else if (_boardPanel is { IsOpen: true }) _boardPanel.Toggle();
             else if (_skillPanel is { IsOpen: true }) _skillPanel.Toggle();
             else if (_encargoPanel is { IsOpen: true }) _encargoPanel.Toggle();
+            else if (_marketPanel is { IsOpen: true }) _marketPanel.Close();
             else if (_mapPanel is { Visible: true }) _mapPanel.Toggle();
             else if (_pause.IsOpen) _pause.Close();
             else _pause.Open();
@@ -782,6 +812,8 @@ public partial class Main : Node3D
             _boardPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.L } && _network.LocalPlayer is not null)
             _encargoPanel?.Toggle();
+        if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.P } && _network.LocalPlayer is not null)
+            _marketPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.F10 } && _network.LocalPlayer is not null)
             _adminPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.I } && _network.LocalPlayer is not null)

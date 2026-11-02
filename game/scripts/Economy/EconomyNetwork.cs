@@ -139,6 +139,8 @@ public partial class EconomyNetwork : Node
                     new BusinessActionRequest(session.CharacterId, requestId, action.Code)),
                 NpcActionKind.FireHelper => await backend.BusinessActionAsync(_network.ServerKey, "fire",
                     new BusinessActionRequest(session.CharacterId, requestId, action.Code)),
+                NpcActionKind.MarketBuy => await backend.BuyMarketInfoAsync(_network.ServerKey,
+                    new MarketBuyRequest(session.CharacterId, action.Code, requestId)),
                 NpcActionKind.Encargo => await backend.EncargoActionAsync(_network.ServerKey,
                     new EncargoActionRequest(session.CharacterId, action.ContractId!.Value, action.Code, npc.Code, requestId,
                         Distrito.Game.Transport.VehicleNetwork.Near(new Vector3(npc.Position.X, npc.Position.Y, npc.Position.Z), EncargoRules.VehicleRadius))),

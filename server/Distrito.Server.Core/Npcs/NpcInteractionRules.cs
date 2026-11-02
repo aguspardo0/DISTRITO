@@ -7,7 +7,7 @@ public sealed record NpcOption(string Id, string Label);
 
 public sealed record NpcDialog(string NpcCode, string Title, string Text, IReadOnlyList<NpcOption> Options);
 
-public enum NpcActionKind { AcceptContract, Buy, Deliver, BuyLicense, Restock, Withdraw, HireHelper, FireHelper, SignPact, Sell, Encargo }
+public enum NpcActionKind { AcceptContract, Buy, Deliver, BuyLicense, Restock, Withdraw, HireHelper, FireHelper, SignPact, Sell, Encargo, MarketBuy }
 
 public sealed record NpcAction(NpcActionKind Kind, string Code, Guid? ContractId = null, int Quantity = 1);
 
@@ -33,6 +33,11 @@ public static class NpcInteractionRules
     /// <summary>Opción que no va al servidor: el cliente abre las mesas del casino.</summary>
     public const string CasinoOption = "ui:casino";
 
+    /// <summary>Opciones que no van al servidor: el cliente abre el diario, el informe de Nino o el libro de cuentas (tecla P).</summary>
+    public const string NewspaperOption = "ui:diario";
+    public const string InformantOption = "ui:informe";
+    public const string LedgerOption = "ui:libro";
+
     public static readonly NpcDefinition Deposit = new(EconomyCatalog.DepositNpc, "Almacén Moretti", new Vector3(-8.5f, 0, -8.5f));
     public static readonly NpcDefinition Workshop = new(EconomyCatalog.WorkshopNpc, "Taller Caruso", new Vector3(10f, 0, 3f));
 
@@ -43,6 +48,12 @@ public static class NpcInteractionRules
 
     /// <summary>Casino «El Trébol» de la familia Valenti (aprobado 2026-11-01), en la puerta del local.</summary>
     public static readonly NpcDefinition Casino = new(CasinoRules.Npc, CasinoRules.Name, new Vector3(24f, 0, 15.6f));
+
+    /// <summary>Kiosco de diarios (2026-11-02): vende La Gaceta de Bellmont, en la vereda frente a la calle principal.</summary>
+    public static readonly NpcDefinition Kiosk = new(MarketInfoRules.KioskNpc, MarketInfoRules.KioskName, new Vector3(3f, 0, -5f));
+
+    /// <summary>Nino, el informante: en el callejón detrás de los galpones del Mercado.</summary>
+    public static readonly NpcDefinition Informant = new(MarketInfoRules.InformantNpc, MarketInfoRules.InformantName, new Vector3(20.5f, 0, -6.5f));
 
     // Jefes de familia: esperan en la plaza de su barrio, frente al cuartel.
     public static readonly NpcDefinition MorettiBoss = Boss(EconomyCatalog.MorettiBossNpc, World.CityLayout.Moretti);
@@ -64,7 +75,7 @@ public static class NpcInteractionRules
     /// <summary>Gaetano, el marinero de Los Muelles: entrega los paquetes de los encargos.</summary>
     public static readonly NpcDefinition DocksContact = new(EncargoRules.DocksContact, "Gaetano, el marinero", new Vector3(47f, 0, 3.4f));
 
-    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner, JazzClub, Casino, .. Bosses, .. FamilyContacts, DocksContact];
+    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner, JazzClub, Casino, Kiosk, Informant, .. Bosses, .. FamilyContacts, DocksContact];
 
     /// <summary>NPC del Mercado (proveedores y comercios), sin la gente de los barrios ni el marinero.</summary>
     public static readonly IReadOnlyList<NpcDefinition> Market = All.Except(Bosses).Except(FamilyContacts).Except([DocksContact]).ToList();
@@ -104,6 +115,8 @@ public static class NpcInteractionRules
                 "Un local vacío con escenario. Con licencia de la Oficina Valenti puede ser un club de jazz; las bebidas las vende el Almacén Moretti."),
             EconomyCatalog.MorettiBossNpc or EconomyCatalog.ValentiBossNpc or EconomyCatalog.CarusoBossNpc => BossDialog(npcCode, s),
             _ when FamilyPeople.Find(npcCode) is { } contact => ContactDialog(contact, s),
+            MarketInfoRules.KioskNpc => KioskDialog(s),
+            MarketInfoRules.InformantNpc => InformantDialog(s),
             EncargoRules.DocksContact => ("Un marinero viejo remienda una red. «Gaetano, para servirle. Acá llegan cosas que no figuran en ningún papel. "
                 + "Si alguien de las familias le dijo que pase, tengo algo para usted. Si no, yo no vi nada.»", new List<NpcOption>()),
             _ => ("…", new List<NpcOption>()),
@@ -119,6 +132,9 @@ public static class NpcInteractionRules
                     options.Add(new NpcOption($"sellall:{item.ItemCode}",
                         $"Vender {Math.Min(item.Quantity, NpcSaleRules.UnitsPerHour)} × {item.Name} (tope {NpcSaleRules.UnitsPerHour} por hora)"));
             }
+        // Libro de cuentas: el dueño lo ve en su local.
+        if (EconomyCatalog.BusinessTypes.Values.FirstOrDefault(t => t.SiteNpc == npc.Code) is { } site && s.BusinessOf(site.Code) is not null)
+            options.Add(new NpcOption(LedgerOption, "Ver el libro de cuentas (ventas, costos y clientes perdidos)"));
         if (SupplierRules.Catalog.ContainsKey(npc.Code))
             options.Add(new NpcOption(SupplierOrdersOption,
                 $"Pedidos por mayor (desde {SupplierRules.MinUnits}; {SupplierRules.VolumeDiscountPercent} % menos desde {SupplierRules.VolumeDiscountFrom})"));
@@ -263,6 +279,7 @@ public static class NpcInteractionRules
             "fire" => new NpcAction(NpcActionKind.FireHelper, parts[1]),
             "pact" => new NpcAction(NpcActionKind.SignPact, parts[1]),
             "sell1" => new NpcAction(NpcActionKind.Sell, parts[1], Quantity: 1),
+            "market" => new NpcAction(NpcActionKind.MarketBuy, parts[1]),
             "sellall" => new NpcAction(NpcActionKind.Sell, parts[1], Quantity: Math.Min(s.QuantityOf(parts[1]), NpcSaleRules.UnitsPerHour)),
             "encargo" when parts[1].Split(':') is [var step, var raw] && Guid.TryParse(raw, out var encargo) =>
                 new NpcAction(NpcActionKind.Encargo, step, encargo),
@@ -323,6 +340,46 @@ public static class NpcInteractionRules
     /// <summary>Pago de un contrato según el ánimo de quien paga.</summary>
     private static long Pay(EconomySnapshot s, ContractTemplate t) =>
         FamilyRules.FamilyOfNpc(t.Payer) is { } family ? FamilyRules.ContractPay(t.RewardCents, s.MoodOf(family)) : t.RewardCents;
+
+    private static (string, List<NpcOption>) KioskDialog(EconomySnapshot s)
+    {
+        var options = new List<NpcOption>();
+        string text;
+        if (s.NewspaperToday)
+        {
+            text = "El canillita dobla los diarios. «Ya tiene el de hoy, señor. Mañana a primera hora sale el nuevo.»";
+            options.Add(new NpcOption(NewspaperOption, $"Leer {MarketInfoRules.PaperName}"));
+        }
+        else
+        {
+            text = $"Un canillita grita los titulares. «¡{MarketInfoRules.PaperName}, diez centavos! Precios del Mercado, policiales y avisos. "
+                   + "¡Todo lo que pasó en Bellmont!»\n\nEl titular de hoy está en la pizarra del kiosco.";
+            options.Add(new NpcOption($"market:{MarketInfoRules.Newspaper}",
+                $"Comprar {MarketInfoRules.PaperName} ({EconomyCatalog.FormatMoney(MarketInfoRules.NewspaperPriceCents)})"));
+        }
+        return (text, options);
+    }
+
+    private static (string, List<NpcOption>) InformantDialog(EconomySnapshot s)
+    {
+        var options = new List<NpcOption>();
+        var now = DateTimeOffset.UtcNow;
+        string text;
+        if (s.HasInformant(now))
+        {
+            text = "Nino mira para los dos lados antes de hablar. «Lo que sé, lo sabés. Está todo en tu libreta (P).»";
+            options.Add(new NpcOption(InformantOption,
+                $"Ver lo que sabe Nino (hasta las {s.InformantUntil!.Value.ToOffset(TerritoryRules.ArgentinaOffset):HH:mm})"));
+        }
+        else
+        {
+            text = "Un tipo flaco, de sombrero, fuma apoyado en la pared. «Me dicen Nino. Sé quién tiene mercadería, quién no, "
+                   + "qué vende el Taller por la puerta de atrás y cuándo sale cada flete. Cinco dólares la hora, y yo no te vi.»";
+            options.Add(new NpcOption($"market:{MarketInfoRules.Informant}",
+                $"Pagarle a Nino ({EconomyCatalog.FormatMoney(MarketInfoRules.InformantPriceCents)} por una hora de información)"));
+        }
+        return (text, options);
+    }
 
     private static NpcOption CoffeeBagOption(EconomySnapshot s) =>
         new($"buy:{EconomyCatalog.CoffeeBagItem}", $"Comprar una bolsa de café ({EconomyCatalog.FormatMoney(Price(s, EconomyCatalog.DepositNpc, EconomyCatalog.CoffeeBagPriceCents))})");

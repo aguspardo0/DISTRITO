@@ -764,6 +764,9 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
         var skills = await SkillRanksAsync(c, tx, characterId, ct);
         var stories = await StoriesDoneAsync(c, tx, characterId, ct);
         var encargos = await LoadEncargosAsync(c, tx, characterId, progress.Level, ct, reputation, stories);
-        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory, events, pacts, faction, skills, encargos, stories);
+        var newspaper = await NewspaperOwnedAsync(c, tx, characterId, MarketInfoRules.DayOf(clock.GetUtcNow()), ct);
+        var informant = await InformantUntilAsync(c, tx, characterId, ct);
+        return new EconomySnapshot(balance, inventory, active, completed, reputation, business, progress, businesses, families, territory, events, pacts, faction, skills, encargos, stories,
+            newspaper, informant);
     }
 }
