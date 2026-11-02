@@ -283,7 +283,9 @@ public static class BusinessGrowth
         var f = cfg.Fame;
         var gain = served * f.PerCustomer * QualityOf(cfg, s) * Math.Min(1.5, Fairness(cfg, s));
         // Cerrado, la fama solo se olvida (de a poco): no se cobra cada cliente que se fue.
-        var loss = open ? lostNoStock * f.LostNoStock + lostQueue * f.LostQueue + s.Fame * f.Decay : s.Fame * f.DecayClosed;
+        // Una cola larga molesta, pero no hunde al local: cuenta como mucho el doble de lo que se atiende por ciclo.
+        var queue = Math.Min(lostQueue, 2.0 * CapacityOf(cfg, s));
+        var loss = open ? lostNoStock * f.LostNoStock + queue * f.LostQueue + s.Fame * f.Decay : s.Fame * f.DecayClosed;
         return Math.Max(0, s.Fame + gain - loss);
     }
 
