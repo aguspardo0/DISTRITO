@@ -269,7 +269,8 @@ public static class BusinessGrowth
             local += need * Pull(me, distance) / total;
         }
         var price = PriceEffect(cfg, me);
-        var visitors = me.Fame * cfg.Fame.VisitorsPerFame * price * Math.Sqrt(QualityOf(cfg, me)) * AttractionOf(cfg, me) * moment;
+        // Los que vienen por la fama: crecen sin techo, pero cada punto de fama trae menos que el anterior (curva logarítmica).
+        var visitors = 200 * Math.Log2(1 + me.Fame / 200) * cfg.Fame.VisitorsPerFame * price * Math.Sqrt(QualityOf(cfg, me)) * AttractionOf(cfg, me) * moment;
         return new GrowthDemand(local, visitors, price, evt);
     }
 
