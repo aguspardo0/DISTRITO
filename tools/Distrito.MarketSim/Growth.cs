@@ -8,7 +8,7 @@ using Distrito.Shared.Economy;
 /// </summary>
 public static class GrowthSim
 {
-    private sealed class Owner
+    private sealed class Shop
     {
         public required string Name;
         public required GrowthState State;
@@ -45,7 +45,7 @@ public static class GrowthSim
         return md.ToString();
     }
 
-    private static Owner Owner(GrowthConfig cfg, string name, string kind, string[]? plan = null) => new()
+    private static Shop Owner(GrowthConfig cfg, string name, string kind, string[]? plan = null) => new()
     {
         Name = name,
         State = new GrowthState(Guid.NewGuid(), kind, 0, EconomyCatalog.BusinessTypes[kind].SalePriceCents, 0, 0, 0),
@@ -53,7 +53,7 @@ public static class GrowthSim
         Plan = plan ?? [BusinessGrowth.Capacity, BusinessGrowth.Quality, BusinessGrowth.Attraction],
     };
 
-    private static string Scenario(GrowthConfig cfg, string title, int days, List<Owner> owners)
+    private static string Scenario(GrowthConfig cfg, string title, int days, List<Shop> owners)
     {
         var sb = new StringBuilder($"## {title}\n\n| Día | Local | Fama | Nivel | Quisieron | Atendidos | Se fueron | Ganancia | Invertido | Caja | Cap/Cal/Atr | Categoría | Precio | Crítico |\n");
         sb.Append(string.Concat(Enumerable.Repeat("| --- ", 14))).Append("|\n");
@@ -111,7 +111,7 @@ public static class GrowthSim
     }
 
     /// <summary>Compra mejoras siguiendo el plan mientras le alcance (sin tocar la reserva) y cobra el precio justo.</summary>
-    private static void Invest(GrowthConfig cfg, Owner o)
+    private static void Invest(GrowthConfig cfg, Shop o)
     {
         for (var guard = 0; guard < 20; guard++)
         {
