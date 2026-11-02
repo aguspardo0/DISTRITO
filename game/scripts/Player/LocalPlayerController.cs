@@ -57,7 +57,8 @@ public partial class LocalPlayerController : Node
 
         _yaw = new Node3D { Name = "CameraYaw" };
         _pitch = new Node3D { Name = "CameraPitch", Rotation = new Vector3(-0.35f, 0, 0) };
-        var arm = new SpringArm3D { Name = "SpringArm", SpringLength = CameraDistance };
+        // La cámara choca con una esfera y deja margen: en los interiores y contra edificios no se mete en la pared.
+        var arm = new SpringArm3D { Name = "SpringArm", SpringLength = CameraDistance, Margin = 0.25f, Shape = new SphereShape3D { Radius = 0.25f } };
         arm.AddExcludedObject(_player.GetRid());
         var camera = new Camera3D { Name = "Camera" };
 
