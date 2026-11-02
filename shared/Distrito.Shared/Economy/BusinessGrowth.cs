@@ -15,7 +15,7 @@ public sealed class GrowthFame
     [JsonPropertyName("olvidoPorCiclo")] public double Decay { get; set; } = 0.0008;
     [JsonPropertyName("olvidoCerrado")] public double DecayClosed { get; set; } = 0.003;
     [JsonPropertyName("visitantesPorFama")] public double VisitorsPerFame { get; set; } = 0.004;
-    [JsonPropertyName("niveles")] public double[] Levels { get; set; } = [0, 100, 400, 1200, 3000];
+    [JsonPropertyName("niveles")] public double[] Levels { get; set; } = [0, 150, 600, 2000, 6000];
     [JsonPropertyName("critico")] public double Critic { get; set; } = 60;
 }
 

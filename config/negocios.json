@@ -15,7 +15,7 @@
     "olvidoPorCiclo": 0.0004,
     "olvidoCerrado": 0.001,
     "visitantesPorFama": 0.004,
-    "niveles": [0, 100, 400, 1200, 3000],
+    "niveles": [0, 150, 600, 2000, 6000],
     "critico": 60
   },
   "zonas": [
@@ -29,9 +29,9 @@
     "puesto-cafe": {
       "x": -3, "z": 8,
       "consumoDiario": 0.3,
-      "capacidadBase": 3, "capacidadPorNivel": 2,
+      "capacidadBase": 3, "capacidadPorNivel": 1,
       "calidadPorNivel": 0.25, "precioPorNivelDeCalidad": 0.1, "atraccionPorNivel": 0.2,
-      "costoCapacidad": 40000, "costoCalidad": 60000, "costoAtraccion": 30000, "crecimientoCosto": 1.65,
+      "costoCapacidad": 120000, "costoCalidad": 180000, "costoAtraccion": 90000, "crecimientoCosto": 1.6,
       "alquilerPorNivel": 0.15,
       "picoDesde": 7, "picoHasta": 12, "factorPico": 1.4,
       "evento": "Mañana de feria", "eventoDesde": 8, "eventoHasta": 17, "eventoCiclos": 12, "eventoFactor": 2.5,
@@ -43,9 +43,9 @@
     "club-jazz": {
       "x": 8, "z": -7,
       "consumoDiario": 0.12,
-      "capacidadBase": 3, "capacidadPorNivel": 2,
+      "capacidadBase": 3, "capacidadPorNivel": 1,
       "calidadPorNivel": 0.25, "precioPorNivelDeCalidad": 0.1, "atraccionPorNivel": 0.2,
-      "costoCapacidad": 80000, "costoCalidad": 120000, "costoAtraccion": 60000, "crecimientoCosto": 1.65,
+      "costoCapacidad": 200000, "costoCalidad": 300000, "costoAtraccion": 150000, "crecimientoCosto": 1.6,
       "alquilerPorNivel": 0.15,
       "picoDesde": 20, "picoHasta": 4, "factorPico": 2.0,
       "evento": "Noche de fiesta", "eventoDesde": 21, "eventoHasta": 1, "eventoCiclos": 18, "eventoFactor": 2.5,
