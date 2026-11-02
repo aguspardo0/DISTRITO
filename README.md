@@ -1,6 +1,6 @@
 # DISTRITO
 
-MMORPG 3D persistente de sociedad, economía y organizaciones, ambientado en Estados Unidos en los años 30.
+MMORPG 3D persistente de sociedad, economía y organizaciones, ambientado en Estados Unidos a principios de los años 50 (Bellmont, 1952).
 
 > Estado: **prototipo con cuentas** — jugadores se conectan, caminan por un barrio de prueba y (con servidor de cuentas) su personaje se guarda. Ver [`docs/ROADMAP.md`](docs/ROADMAP.md).
 

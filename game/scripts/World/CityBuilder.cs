@@ -64,26 +64,41 @@ public static class CityBuilder
             Visual(node, $"Cornice{i}", new Vector3(plan.Width + 0.4f, 0.35f, plan.Depth + 0.4f), new Vector3(plan.X, building.Height + 0.17f, plan.Z), color.Darkened(0.35f));
             if (building.Headquarters)
                 DecorateHeadquarters(node, b, building, accent);
+            else
+                DecorateRoof(node, b, building, i);
         }
 
         BuildLandmark(node, b, accent);
 
-        // Faroles: poste y farol cálido; luz real cada dos (alcanza para la noche y no pesa).
+        // Alumbrado eléctrico de los 50: poste alto, brazo hacia la calle y luminaria de luz blanca; luz real cada dos.
         var lamp = 0;
-        foreach (var spot in CityLayout.LampsOf(b))
+        // Lado a lo ancho del barrio (en floats: CityLayout usa System.Numerics y esto es Godot).
+        float sideX = -b.Inward.Y, sideZ = b.Inward.X;
+        foreach (var p in CityLayout.LampsOf(b))
         {
+            var spot = new Vector2(p.X, p.Y);
+            var v = (p.X - b.Entrance.X) * sideX + (p.Y - b.Entrance.Y) * sideZ;
+            var arm = new Vector2(sideX, sideZ) * -Mathf.Sign(v); // hacia el eje del barrio (bulevar y plaza)
+            var head = spot + arm * 1.3f;
             node.AddChild(new MeshInstance3D
             {
-                Name = $"LampPost{lamp}", Mesh = new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.09f, Height = 3.4f },
-                MaterialOverride = Material(new Color(0.08f, 0.08f, 0.08f)), Position = new Vector3(spot.X, 1.7f, spot.Y),
+                Name = $"LampPost{lamp}", Mesh = new CylinderMesh { TopRadius = 0.05f, BottomRadius = 0.09f, Height = 4.6f },
+                MaterialOverride = Material(new Color(0.22f, 0.24f, 0.24f)), Position = new Vector3(spot.X, 2.3f, spot.Y),
             });
             node.AddChild(new MeshInstance3D
             {
-                Name = $"Lamp{lamp}", Mesh = new SphereMesh { Radius = 0.22f, Height = 0.44f },
-                MaterialOverride = Glow(new Color(1f, 0.82f, 0.5f), 2.2f), Position = new Vector3(spot.X, 3.5f, spot.Y),
+                Name = $"LampArm{lamp}", Mesh = new BoxMesh { Size = new Vector3(0.07f, 0.07f, 1.4f) },
+                MaterialOverride = Material(new Color(0.22f, 0.24f, 0.24f)),
+                Position = new Vector3((spot.X + head.X) / 2, 4.55f, (spot.Y + head.Y) / 2), Rotation = new Vector3(0, Mathf.Atan2(arm.X, arm.Y), 0),
+            });
+            node.AddChild(new MeshInstance3D
+            {
+                Name = $"Lamp{lamp}", Mesh = new BoxMesh { Size = new Vector3(0.35f, 0.12f, 0.55f) },
+                MaterialOverride = Glow(new Color(0.92f, 0.95f, 1f), 2.4f),
+                Position = new Vector3(head.X, 4.5f, head.Y), Rotation = new Vector3(0, Mathf.Atan2(arm.X, arm.Y), 0),
             });
             if (lamp % 2 == 0)
-                node.AddChild(new OmniLight3D { Position = new Vector3(spot.X, 3.3f, spot.Y), LightColor = new Color(1f, 0.8f, 0.5f), LightEnergy = 1.4f, OmniRange = 11f });
+                node.AddChild(new OmniLight3D { Position = new Vector3(head.X, 4.2f, head.Y), LightColor = new Color(0.9f, 0.93f, 1f), LightEnergy = 1.5f, OmniRange = 12f });
             lamp++;
         }
 
@@ -113,6 +128,55 @@ public static class CityBuilder
             Name = $"Signpost_{area.Code}", Text = $"→ {area.Name}\n{b.Boss}",
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, FontSize = 48, OutlineSize = 10, PixelSize = 0.009f,
             Modulate = accent.Lightened(0.3f), Position = new Vector3(sign.X, 3.6f, sign.Y),
+        });
+    }
+
+    private static readonly string[][] NeonWords =
+    [
+        ["BAR", "PIZZERIA", "HOTEL", "BILLARES", "CAFÉ"],   // Moretti
+        ["BANCO", "CLUB", "HOTEL", "CINE", "JOYERÍA"],      // Valenti
+        ["DINER", "GARAGE", "TALLER", "BAR", "BOWLING"],    // Caruso
+    ];
+
+    private static readonly Color[] NeonColors =
+        [new(1f, 0.25f, 0.45f), new(0.3f, 0.9f, 1f), new(1f, 0.35f, 0.2f), new(0.45f, 1f, 0.5f), new(1f, 0.8f, 0.3f)];
+
+    /// <summary>
+    /// Techos de 1952: antenas de televisión en uno de cada tres edificios y un cartel de neón en uno de cada cuatro,
+    /// mirando hacia la entrada del barrio. Solo decorado (sin colisión), determinista por edificio.
+    /// </summary>
+    private static void DecorateRoof(Node3D node, BarrioPlan b, CityBuilding building, int index)
+    {
+        var plan = building.Plan;
+        var top = building.Height + 0.35f;
+        if (index % 3 == 0)
+        {
+            var at = new Vector3(plan.X + plan.Width * 0.25f, top, plan.Z - plan.Depth * 0.2f);
+            var metal = Material(new Color(0.55f, 0.56f, 0.58f));
+            node.AddChild(new MeshInstance3D { Name = $"Antenna{index}", Mesh = new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.03f, Height = 2.2f }, MaterialOverride = metal, Position = at + new Vector3(0, 1.1f, 0) });
+            for (var k = 0; k < 3; k++)
+                node.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(1.4f - k * 0.35f, 0.03f, 0.03f) }, MaterialOverride = metal, Position = at + new Vector3(0, 1.4f + k * 0.35f, 0), Rotation = new Vector3(0, 0.6f, 0) });
+        }
+        if (index % 4 != 1)
+            return;
+        var family = b.Family switch { Distrito.Shared.Economy.EconomyCatalog.Moretti => 0, Distrito.Shared.Economy.EconomyCatalog.Valenti => 1, _ => 2 };
+        var words = NeonWords[family];
+        var word = words[index / 4 % words.Length];
+        var color = NeonColors[(index / 4 + family) % NeonColors.Length];
+        var facing = Mathf.Atan2(-b.Inward.X, -b.Inward.Y);
+        var front = b.Inward.X != 0 ? plan.Width / 2 : plan.Depth / 2;
+        var posX = plan.X - b.Inward.X * (front - 0.6f);
+        var posZ = plan.Z - b.Inward.Y * (front - 0.6f);
+        var sign = new Node3D { Name = $"Neon{index}", Position = new Vector3(posX, top, posZ), Rotation = new Vector3(0, facing, 0) };
+        node.AddChild(sign);
+        var width = 0.75f * word.Length + 0.8f;
+        Visual(sign, "Frame", new Vector3(width, 1.5f, 0.12f), new Vector3(0, 1.2f, -0.1f), new Color(0.1f, 0.1f, 0.11f));
+        foreach (var x in new[] { -width * 0.35f, width * 0.35f })
+            Visual(sign, $"Leg{x}", new Vector3(0.08f, 0.6f, 0.08f), new Vector3(x, 0.2f, -0.1f), new Color(0.15f, 0.15f, 0.16f));
+        sign.AddChild(new Label3D
+        {
+            Text = word, FontSize = 120, OutlineSize = 18, PixelSize = 0.01f, Modulate = color, OutlineModulate = color.Darkened(0.6f),
+            Shaded = false, Position = new Vector3(0, 1.2f, 0),
         });
     }
 

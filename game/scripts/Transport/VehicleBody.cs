@@ -56,51 +56,85 @@ public partial class VehicleBody : CharacterBody3D
         return body;
     }
 
-    /// <summary>Modelo procedural de época: chasis, cabina, caja de carga, guardabarros y ruedas.</summary>
+    /// <summary>
+    /// Modelo procedural de principios de los 50 (Bellmont, 1952): guardabarros redondeados, dos tonos (techo crema),
+    /// parrilla ancha de barras cromadas, paragolpes cromados, faros redondos en los guardabarros y cubiertas de banda blanca.
+    /// La caja de carga sigue abierta (la carga se ve) con piso de madera.
+    /// </summary>
     private static Node3D BuildModel(VehicleType type)
     {
         var model = new Node3D { Name = "Model" };
         var truck = type.Code == Vehicles.Truck.Code;
-        var paint = new StandardMaterial3D { AlbedoColor = truck ? new Color(0.22f, 0.27f, 0.22f) : new Color(0.32f, 0.12f, 0.1f), Roughness = 0.6f };
+        var paint = new StandardMaterial3D { AlbedoColor = truck ? new Color(0.2f, 0.32f, 0.26f) : new Color(0.28f, 0.56f, 0.55f), Roughness = 0.35f, Metallic = 0.15f };
+        var cream = new StandardMaterial3D { AlbedoColor = new Color(0.9f, 0.86f, 0.74f), Roughness = 0.35f };
         var dark = new StandardMaterial3D { AlbedoColor = new Color(0.08f, 0.08f, 0.08f) };
+        var tire = new StandardMaterial3D { AlbedoColor = new Color(0.05f, 0.05f, 0.05f), Roughness = 0.9f };
+        var whitewall = new StandardMaterial3D { AlbedoColor = new Color(0.92f, 0.91f, 0.88f) };
         var wood = new StandardMaterial3D { AlbedoColor = new Color(0.42f, 0.3f, 0.18f) };
-        var chrome = new StandardMaterial3D { AlbedoColor = new Color(0.75f, 0.72f, 0.65f), Metallic = 0.8f, Roughness = 0.3f };
-        var glass = new StandardMaterial3D { AlbedoColor = new Color(0.25f, 0.3f, 0.33f) };
+        var chrome = new StandardMaterial3D { AlbedoColor = new Color(0.82f, 0.82f, 0.8f), Metallic = 0.9f, Roughness = 0.2f };
+        var glass = new StandardMaterial3D { AlbedoColor = new Color(0.25f, 0.32f, 0.36f), Metallic = 0.3f, Roughness = 0.1f };
+        var lens = new StandardMaterial3D { AlbedoColor = new Color(1f, 0.95f, 0.8f), EmissionEnabled = true, Emission = new Color(1f, 0.92f, 0.7f), EmissionEnergyMultiplier = 0.6f };
         float l = type.Length, w = type.Width, h = type.Height;
-        void Box(Vector3 size, Vector3 at, Material mat) =>
-            model.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = size }, MaterialOverride = mat, Position = at });
+        MeshInstance3D Add(Mesh mesh, Vector3 at, Material mat, Vector3? rotation = null, Vector3? scale = null)
+        {
+            var mi = new MeshInstance3D { Mesh = mesh, MaterialOverride = mat, Position = at, Rotation = rotation ?? Vector3.Zero, Scale = scale ?? Vector3.One };
+            model.AddChild(mi);
+            return mi;
+        }
+        void Box(Vector3 size, Vector3 at, Material mat) => Add(new BoxMesh { Size = size }, at, mat);
+        var alongZ = new Vector3(Mathf.Pi / 2, 0, 0);
+        var alongX = new Vector3(0, 0, Mathf.Pi / 2);
 
-        Box(new Vector3(w * 0.9f, 0.2f, l * 0.95f), new Vector3(0, 0.55f, 0), dark);                        // chasis
-        Box(new Vector3(w * 0.7f, h * 0.28f, l * 0.28f), new Vector3(0, 0.85f, -l * 0.33f), paint);        // capó
-        Box(new Vector3(w * 0.25f, h * 0.22f, 0.08f), new Vector3(0, 0.85f, -l * 0.48f), chrome);          // parrilla
-        Box(new Vector3(w * 0.92f, h * 0.45f, l * 0.22f), new Vector3(0, 1.2f, -l * 0.1f), paint);         // cabina
-        Box(new Vector3(w * 0.8f, h * 0.18f, 0.05f), new Vector3(0, 1.35f, -l * 0.215f), glass);           // parabrisas
-        // Caja de carga abierta (la carga se ve): baranda baja en la camioneta, estacas altas en el camión.
+        Box(new Vector3(w * 0.86f, 0.2f, l * 0.95f), new Vector3(0, 0.55f, 0), dark);                                  // chasis
+        // Capó largo y redondeado adelante.
+        Box(new Vector3(w * 0.62f, h * 0.24f, l * 0.26f), new Vector3(0, 0.88f, -l * 0.32f), paint);
+        Add(new CapsuleMesh { Radius = h * 0.12f, Height = w * 0.62f }, new Vector3(0, 0.88f, -l * 0.45f), paint, alongX);
+        // Parrilla ancha: tres barras cromadas horizontales.
+        for (var i = 0; i < 3; i++)
+            Box(new Vector3(w * 0.56f, 0.05f, 0.06f), new Vector3(0, 0.74f + i * 0.09f, -l * 0.48f - 0.04f), chrome);
+        // Cabina con techo crema redondeado y parabrisas partido.
+        Box(new Vector3(w * 0.9f, h * 0.36f, l * 0.22f), new Vector3(0, 1.12f, -l * 0.1f), paint);
+        Add(new CapsuleMesh { Radius = l * 0.11f, Height = w * 0.9f }, new Vector3(0, 1.4f, -l * 0.1f), cream, alongX, new Vector3(0.6f, 1, 1));
+        foreach (var x in new[] { -w * 0.21f, w * 0.21f })
+            Box(new Vector3(w * 0.38f, h * 0.16f, 0.05f), new Vector3(x, 1.38f, -l * 0.215f), glass);
+        foreach (var side in new[] { -1f, 1f })
+            Box(new Vector3(0.05f, h * 0.15f, l * 0.13f), new Vector3(side * w * 0.452f, 1.37f, -l * 0.1f), glass);   // ventanillas
+
+        // Caja de carga abierta: piso de madera, laterales pintados (camioneta) o estacas altas (camión).
         var (bedStart, bedEnd) = BedSpan(type);
         var bedLength = bedEnd - bedStart;
         var bedCenter = (bedStart + bedEnd) / 2;
-        var rail = truck ? 0.9f : 0.35f;
+        var rail = truck ? 0.9f : 0.42f;
+        var sideMat = truck ? wood : paint;
         Box(new Vector3(w * 0.95f, 0.08f, bedLength), new Vector3(0, 0.72f, bedCenter), wood);
-        Box(new Vector3(0.08f, rail, bedLength), new Vector3(w * 0.45f, 0.76f + rail / 2, bedCenter), wood);
-        Box(new Vector3(0.08f, rail, bedLength), new Vector3(-w * 0.45f, 0.76f + rail / 2, bedCenter), wood);
-        Box(new Vector3(w * 0.95f, rail, 0.08f), new Vector3(0, 0.76f + rail / 2, bedEnd), wood);
+        Box(new Vector3(0.08f, rail, bedLength), new Vector3(w * 0.45f, 0.76f + rail / 2, bedCenter), sideMat);
+        Box(new Vector3(0.08f, rail, bedLength), new Vector3(-w * 0.45f, 0.76f + rail / 2, bedCenter), sideMat);
+        Box(new Vector3(w * 0.95f, rail, 0.08f), new Vector3(0, 0.76f + rail / 2, bedEnd), sideMat);
         if (truck)
             for (var i = 0; i <= 4; i++)
                 foreach (var side in new[] { -1f, 1f })
                     Box(new Vector3(0.1f, rail + 0.25f, 0.1f), new Vector3(side * w * 0.46f, 0.76f + (rail + 0.25f) / 2, bedStart + bedLength * i / 4f), dark);
+
+        // Ruedas con banda blanca y taza cromada, bajo guardabarros redondeados.
         foreach (var side in new[] { -1f, 1f })
             foreach (var z in new[] { -l * 0.32f, l * 0.3f })
             {
-                model.AddChild(new MeshInstance3D
-                {
-                    Mesh = new CylinderMesh { TopRadius = 0.36f, BottomRadius = 0.36f, Height = 0.25f },
-                    MaterialOverride = dark, Position = new Vector3(side * w * 0.45f, 0.36f, z),
-                    Rotation = new Vector3(0, 0, Mathf.Pi / 2),
-                });
-                Box(new Vector3(0.3f, 0.12f, 0.9f), new Vector3(side * w * 0.45f, 0.78f, z), paint);     // guardabarros
+                var x = side * w * 0.45f;
+                Add(new CylinderMesh { TopRadius = 0.36f, BottomRadius = 0.36f, Height = 0.25f }, new Vector3(x, 0.36f, z), tire, alongX);
+                Add(new CylinderMesh { TopRadius = 0.27f, BottomRadius = 0.27f, Height = 0.02f }, new Vector3(x + side * 0.125f, 0.36f, z), whitewall, alongX);
+                Add(new CylinderMesh { TopRadius = 0.15f, BottomRadius = 0.15f, Height = 0.03f }, new Vector3(x + side * 0.135f, 0.36f, z), chrome, alongX);
+                Add(new CapsuleMesh { Radius = 0.26f, Height = 1.15f }, new Vector3(x, 0.74f, z), paint, alongZ, new Vector3(1.05f, 1f, 0.7f));
             }
-        Box(new Vector3(0.18f, 0.18f, 0.06f), new Vector3(w * 0.3f, 0.95f, -l * 0.49f), chrome);          // faros
-        Box(new Vector3(0.18f, 0.18f, 0.06f), new Vector3(-w * 0.3f, 0.95f, -l * 0.49f), chrome);
+        // Faros redondos en los guardabarros delanteros.
+        foreach (var side in new[] { -1f, 1f })
+        {
+            var at = new Vector3(side * w * 0.45f, 0.86f, -l * 0.32f - 0.56f);
+            Add(new CylinderMesh { TopRadius = 0.12f, BottomRadius = 0.12f, Height = 0.06f }, at, chrome, alongZ);
+            Add(new CylinderMesh { TopRadius = 0.09f, BottomRadius = 0.09f, Height = 0.02f }, at + new Vector3(0, 0, -0.035f), lens, alongZ);
+        }
+        // Paragolpes cromados.
+        Box(new Vector3(w * 1.0f, 0.12f, 0.12f), new Vector3(0, 0.58f, -l * 0.5f), chrome);
+        Box(new Vector3(w * 0.98f, 0.1f, 0.1f), new Vector3(0, 0.58f, l * 0.49f), chrome);
         return model;
     }
 

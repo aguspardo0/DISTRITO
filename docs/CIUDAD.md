@@ -17,7 +17,7 @@ ladrillo · «Ladrillo, familia y palabra»   │ Avenida Sur
 - Los barrios miden 100 × 100 m y solo se tocan con su avenida (de 30 m), que sale del Mercado. Los barrios no se tocan
   entre sí. La ciudad entera ocupa unos 244 × 320 m.
 - Cada barrio tiene una cuadrícula de 3 × 3 manzanas con calles de 14 m. En el eje central están el bulevar de entrada
-  (con arco, cartel y faroles), la plaza (fuente de los Moretti, obelisco de los Valenti, monumento al trabajo de los
+  (con arco, cartel y alumbrado eléctrico; en los techos, antenas de televisión y carteles de neón de 1952), la plaza (fuente de los Moretti, obelisco de los Valenti, monumento al trabajo de los
   Caruso) y, al fondo, el cuartel de la familia (estandartes, nombre, guardaespaldas). Las otras manzanas se generan
   con una semilla fija por familia: son iguales en todos los equipos.
 

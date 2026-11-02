@@ -37,7 +37,7 @@ Deuda conocida del prototipo: sin predicción del lado del cliente (con latencia
 - [x] Decisión sobre el host del servidor (Vultr São Paulo)
 
 ## Etapa 4 — Alinear con el documento de diseño (en curso)
-- [x] Bellmont 1934; NPCs de las familias Moretti y Caruso
+- [x] Bellmont (época actualizada a 1952 el 2026-11-02, decisión del equipo); NPCs de las familias Moretti y Caruso
 - [x] Reputación por familia (0–1000) con historial auditable
 - [x] Predicción de movimiento del jugador local
 - [x] Dirección de arte v0.1 (`docs/Design/ART_DIRECTION.md`)
