@@ -41,6 +41,7 @@ public partial class Main : Node3D
     private EncargoTracker? _encargoTracker;
     private EncargoMarkers? _encargoMarkers;
     private RewardBanner? _rewardBanner;
+    private TutorialGuide? _tutorial;
     /// <summary>Encargos de ejemplo para las capturas de prueba.</summary>
     private EconomySnapshot? _encargoPreview;
     private Distrito.Game.Casino.CasinoNetwork _casino = null!;
@@ -370,6 +371,14 @@ public partial class Main : Node3D
         _rewardBanner = new RewardBanner { Name = "RewardBanner" };
         layer.AddChild(UiAnchor.Wrap(_rewardBanner, UiAnchor.Center, UiAnchor.Start, top: 150, name: "RewardBannerArea"));
         _economy.DialogReceived += dialog => _rewardBanner.ShowIfCompleted(dialog.Text);
+        // Tutorial de inicio: arriba a la izquierda, debajo de los avisos; marca a dónde ir como los encargos.
+        _tutorial = new TutorialGuide { Name = "Tutorial" };
+        layer.AddChild(UiAnchor.Wrap(_tutorial, UiAnchor.Start, UiAnchor.Start, left: 12, top: 96, name: "TutorialArea"));
+        _tutorial.Initialize(() => _economy.LastSnapshot, () => _network.LocalCharacterId,
+            () => _mapPanel is { Visible: true }, () => _encargoPanel is { IsOpen: true });
+        _encargoMarkers.Extra = () => _tutorial.Targets;
+        _mapPanel.ExtraTargets = () => _tutorial.Targets;
+        _tutorial.TargetsChanged += () => _encargoMarkers.Refresh();
         _encargos.MessageReceived += text =>
         {
             if (_hud is not null)
@@ -391,6 +400,8 @@ public partial class Main : Node3D
         _pause = new PauseMenu { Name = "PauseMenu" };
         layer.AddChild(_pause);
         _pause.LeaveRequested += LeaveMatch;
+        _pause.TutorialSkipRequested += () => _tutorial?.Skip();
+        _pause.TutorialRestartRequested += () => _tutorial?.Restart();
         // Arma en la mano: mira en el centro y balas abajo a la derecha.
         var crosshair = new Label { Text = "+", HorizontalAlignment = HorizontalAlignment.Center, Visible = false };
         crosshair.AddThemeFontSizeOverride("font_size", 26);
@@ -638,9 +649,15 @@ public partial class Main : Node3D
             ("barrio-moretti", () => ShowBarrio(Distrito.Server.Core.World.CityLayout.Moretti)),
             ("barrio-valenti", () => ShowBarrio(Distrito.Server.Core.World.CityLayout.Valenti)),
             ("barrio-caruso", () => ShowBarrio(Distrito.Server.Core.World.CityLayout.Caruso)),
+            ("tutorial", () =>
+            {
+                _tutorial?.Preview(1); // «Tu primera compra», con la luz sobre el Almacén
+                _encargoMarkers?.Refresh();
+            }),
             ("encargos", () =>
             {
                 // Dos encargos en curso (uno con premio por rapidez) y las ofertas del turno, con seguimiento y marcadores.
+                _tutorial?.Skip();
                 _encargoPreview = EncargoPreview();
                 _encargoTracker?.Refresh();
                 _encargoMarkers?.Refresh();

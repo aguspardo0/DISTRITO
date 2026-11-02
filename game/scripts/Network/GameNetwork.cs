@@ -37,6 +37,9 @@ public partial class GameNetwork : Node
     private Node3D _players = null!;
     private BotSettings _bot = BotSettings.Off;
     private ClientCredentials _credentials = ClientCredentials.Guest;
+
+    /// <summary>Personaje con el que entró este cliente (null si es invitado).</summary>
+    public Guid? LocalCharacterId => _credentials.IsGuest ? null : _credentials.CharacterId;
     private bool _hasLocalPlayer;
 
     // Reconexión automática (cliente)

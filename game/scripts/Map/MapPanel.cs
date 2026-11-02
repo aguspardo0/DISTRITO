@@ -27,6 +27,9 @@ public partial class MapPanel : Control
     /// <summary>Ánimo de las familias para mostrar al pie del mapa (lo trae la economía del jugador).</summary>
     public Func<Distrito.Shared.Economy.EconomySnapshot?>? Economy { get; set; }
 
+    /// <summary>Destinos del tutorial (aros dorados).</summary>
+    public Func<IEnumerable<string>>? ExtraTargets { get; set; }
+
     public void Initialize(GameNetwork network, MapNetwork map)
     {
         _network = network;
@@ -142,6 +145,13 @@ public partial class MapPanel : Control
             if (_network.LocalPlayer is { } walker)
                 DrawDashedLine(ToMap(walker.VisualPosition.X, walker.VisualPosition.Z), at, color with { A = 0.8f }, 2, 6);
         }
+
+        foreach (var code in ExtraTargets?.Invoke() ?? [])
+            if (Distrito.Game.Economy.EncargoLook.PositionOf(code) is { } spot)
+            {
+                DrawArc(ToMap(spot.X, spot.Z), pulse, 0, Mathf.Tau, 28, Brass, 3);
+                DrawArc(ToMap(spot.X, spot.Z), pulse + 4, 0, Mathf.Tau, 28, Brass with { A = 0.35f }, 2);
+            }
 
         var me = Multiplayer.MultiplayerPeer is null ? 0 : Multiplayer.GetUniqueId();
         foreach (var m in _map.Markers.Where(m => m.Peer != me))

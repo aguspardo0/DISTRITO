@@ -13,6 +13,8 @@ public partial class PauseMenu : Control
     private HSlider _sensitivity = null!;
 
     public event Action? LeaveRequested;
+    public event Action? TutorialSkipRequested;
+    public event Action? TutorialRestartRequested;
     public bool IsOpen => Visible;
 
     public override void _Ready()
@@ -57,6 +59,10 @@ public partial class PauseMenu : Control
         box.AddChild(_sensitivity);
 
         box.AddChild(new HSeparator());
+        var tutorial = new HBoxContainer();
+        tutorial.AddChild(Button("Saltar el tutorial", () => { Close(); TutorialSkipRequested?.Invoke(); }));
+        tutorial.AddChild(Button("Ver el tutorial de nuevo", () => { Close(); TutorialRestartRequested?.Invoke(); }));
+        box.AddChild(tutorial);
         box.AddChild(Button("Salir de la partida (volver al menú)", () => { Close(); LeaveRequested?.Invoke(); }));
         box.AddChild(Button("Salir del juego", () => GetTree().Quit()));
     }

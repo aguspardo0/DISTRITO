@@ -301,10 +301,15 @@ public partial class EncargoMarkers : Node3D
         economy.EconomyChanged += _ => Refresh();
     }
 
+    /// <summary>Otros destinos a marcar (los del tutorial), en dorado.</summary>
+    public Func<IEnumerable<string>> Extra { get; set; } = () => [];
+
     public void Refresh()
     {
         var wanted = (_snapshot()?.ActiveEncargos ?? []).Where(e => e.NextNpc is not null)
-            .GroupBy(e => e.NextNpc!).ToDictionary(g => g.Key, g => g.First());
+            .GroupBy(e => e.NextNpc!).ToDictionary(g => g.Key, g => (EncargoView?)g.First());
+        foreach (var code in Extra())
+            wanted.TryAdd(code, null);
         foreach (var gone in _markers.Keys.Except(wanted.Keys).ToList())
         {
             _markers[gone].QueueFree();
@@ -314,7 +319,7 @@ public partial class EncargoMarkers : Node3D
         {
             if (_markers.ContainsKey(code) || EncargoLook.PositionOf(code) is not { } at)
                 continue;
-            var color = EncargoLook.FamilyColor(e.Family);
+            var color = e is null ? EncargoLook.Gold : EncargoLook.FamilyColor(e.Family);
             var marker = new Node3D { Name = $"Marker_{code.Replace(':', '_')}", Position = at };
             var glow = new StandardMaterial3D
             {

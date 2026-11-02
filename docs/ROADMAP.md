@@ -130,5 +130,10 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
 - [x] Copia cifrada fuera del servidor: cada 6 h, cifrada con age en el servidor, artefacto de GitHub por 30 días.
 - [ ] Cargar la llave pública del equipo en `deploy/backup-recipients.txt` (hasta entonces no se exporta).
 
+## Etapa F — Preparación de lanzamiento (en curso)
+- [x] Copias de seguridad automáticas y restauración (ver «Operación del servidor»)
+- [x] Tutorial de inicio: seis pasos (mapa, primera compra, las familias, primer encargo, la libreta, lo que viene), con luz y aro en el mapa sobre el destino; se guarda por personaje, los que ya tienen experiencia lo saltean y se puede saltar o repetir desde Esc. Sin premios (no toca la economía)
+- [ ] Interfaz y accesibilidad, rendimiento, seguridad y anti-exploit, telemetría, moderación, soporte, pruebas de regresión y operación
+
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.
