@@ -17,11 +17,11 @@ public static class MarketScenarios
     public static MarketSimulation BuildTestMarket(MarketConfig cfg)
     {
         var sim = new MarketSimulation(cfg,
-            new SimSupplier { Stock = 200, SellPriceCents = 300, Cash = 30_000 },
+            new SimSupplier { Stock = 200, SellPriceCents = 300, Cash = 300_000 }, // el Almacén es de los Moretti: tiene respaldo
             new SimFactory
             {
                 Zone = "barrio-caruso", MaxPerCycle = 8, Workers = 4, WagePerWorker = 50, Productivity = 2, Waste = 0.03,
-                Recipe = 1, Inputs = 200, Cash = 30_000, SellPriceCents = 200, InputPriceCents = 80, ReorderBelow = 100, ReorderAmount = 400,
+                Recipe = 1, Inputs = 200, Cash = 100_000, SellPriceCents = 200, InputPriceCents = 80, ReorderBelow = 100, ReorderAmount = 400,
                 ChainTarget = 400,
             },
             new SimTruck { Capacity = 40, TripCycles = 2, FeePerTrip = 300, MinLoad = 20, ShipWhenSupplierBelow = 300 });
