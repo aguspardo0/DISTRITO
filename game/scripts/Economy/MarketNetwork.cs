@@ -137,11 +137,12 @@ public partial class MarketNetwork : Node3D
         AddChild(crowd);
         _crowds[board.NpcCode] = crowd;
         var rng = new Random(board.NpcCode.GetHashCode());
+        // La cola mira hacia el centro del Mercado (de donde llega la gente), en semicírculo y en dos filas.
+        var toCenter = Mathf.Atan2(-npc.Position.Z, -npc.Position.X);
         for (var i = 0; i < count; i++)
         {
-            // En semicírculo frente al mostrador, en dos filas: la cola se ve crecer.
             var ring = i < 7 ? 1.9f : 3.0f;
-            var angle = Mathf.Pi * (0.15f + 0.7f * ((i % 7) + 0.5f) / 7f) + (i >= 7 ? 0.2f : 0);
+            var angle = toCenter + Mathf.Pi * 0.7f * (((i % 7) + 0.5f) / 7f - 0.5f) + (i >= 7 ? 0.2f : 0);
             var person = new Node3D { Position = new Vector3(Mathf.Cos(angle) * ring, 0, Mathf.Sin(angle) * ring), Rotation = new Vector3(0, -angle - Mathf.Pi / 2, 0) };
             var coat = new StandardMaterial3D { AlbedoColor = CoatColors[rng.Next(CoatColors.Length)] };
             var height = 1.5f + (float)rng.NextDouble() * 0.3f;
