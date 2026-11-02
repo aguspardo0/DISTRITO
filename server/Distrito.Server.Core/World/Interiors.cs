@@ -30,7 +30,7 @@ public sealed record InteriorPlan(
     public Vector2 InsideDoor => ToWorld(DoorX, Depth / 2);
 
     /// <summary>Dónde aparece quien entra (un paso adentro de la puerta).</summary>
-    public Vector2 EntryPoint => ToWorld(DoorX, Depth / 2 - 1.4f);
+    public Vector2 EntryPoint => ToWorld(DoorX, Depth / 2 - 2.2f);
 
     /// <summary>Dónde aparece quien sale (un paso afuera, en la vereda).</summary>
     public Vector2 ExitPoint => Door + Outward * 1.6f;
@@ -48,7 +48,7 @@ public static class InteriorLayout
     public const float BaseX = 3000f, BaseZ = 0f, Spacing = 300f;
 
     /// <summary>Distancia a la puerta para entrar o salir con E.</summary>
-    public const float DoorRange = 2.2f;
+    public const float DoorRange = 2.5f;
 
     public const string Wholesale = "mayorista", Retail = "minorista", Workshop = "taller", Office = "oficina", Bar = "bar";
 

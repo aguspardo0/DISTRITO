@@ -103,15 +103,14 @@ public static class InteriorBuilder
         Solid(room, "ParedFondo", new Vector3(w + 0.6f, h, 0.3f), new Vector3(0, h / 2, -d / 2 - 0.15f), wall);
         Solid(room, "ParedIzq", new Vector3(0.3f, h, d + 0.6f), new Vector3(-w / 2 - 0.15f, h / 2, 0), wall);
         Solid(room, "ParedDer", new Vector3(0.3f, h, d + 0.6f), new Vector3(w / 2 + 0.15f, h / 2, 0), wall);
-        // Pared de la puerta, partida alrededor del hueco.
         const float gap = 1.8f;
-        var leftWidth = w / 2 + plan.DoorX - gap / 2;
-        var rightWidth = w / 2 - plan.DoorX - gap / 2;
-        Solid(room, "ParedPuertaIzq", new Vector3(leftWidth + 0.3f, h, 0.3f), new Vector3(-w / 2 + leftWidth / 2 - 0.15f, h / 2, d / 2 + 0.15f), wall);
-        Solid(room, "ParedPuertaDer", new Vector3(rightWidth + 0.3f, h, 0.3f), new Vector3(w / 2 - rightWidth / 2 + 0.15f, h / 2, d / 2 + 0.15f), wall);
-        Box(room, new Vector3(gap, h - 2.4f, 0.3f), new Vector3(plan.DoorX, 2.4f + (h - 2.4f) / 2, d / 2 + 0.15f), wall);
-        // La puerta de salida: un rectángulo de luz de calle y el cartel.
-        Box(room, new Vector3(gap - 0.2f, 2.3f, 0.05f), new Vector3(plan.DoorX, 1.15f, d / 2 + 0.32f), Mat(new Color(0.95f, 0.9f, 0.75f), 1f, 0f, 1.2f));
+        // Pared de la puerta: entera (se entra y se sale con E, así la cámara nunca se escapa por el hueco), con la
+        // puerta vista desde adentro: madera, vidrio con la luz de la calle y el picaporte.
+        Solid(room, "ParedPuerta", new Vector3(w + 0.6f, h, 0.3f), new Vector3(0, h / 2, d / 2 + 0.15f), wall);
+        Box(room, new Vector3(gap + 0.3f, 2.6f, 0.08f), new Vector3(plan.DoorX, 1.3f, d / 2 - 0.02f), Mat(DarkWood));
+        Box(room, new Vector3(gap - 0.1f, 2.35f, 0.06f), new Vector3(plan.DoorX, 1.18f, d / 2 - 0.05f), Mat(new Color(0.34f, 0.22f, 0.12f)));
+        Box(room, new Vector3(gap * 0.55f, 0.9f, 0.03f), new Vector3(plan.DoorX, 1.6f, d / 2 - 0.09f), Mat(new Color(0.9f, 0.88f, 0.78f), 1f, 0f, 0.9f));
+        Box(room, new Vector3(0.12f, 0.05f, 0.05f), new Vector3(plan.DoorX + gap / 2 - 0.25f, 1.05f, d / 2 - 0.1f), Mat(Chrome, 0.2f, 0.9f));
         room.AddChild(new Label3D
         {
             Text = "SALIDA  [E]", FontSize = 40, OutlineSize = 8, PixelSize = 0.007f, Position = new Vector3(plan.DoorX, 2.65f, d / 2 - 0.05f),
@@ -163,12 +162,16 @@ public static class InteriorBuilder
         var key = $"checker|{a.ToHtml()}|{b.ToHtml()}";
         if (Cache.TryGetValue(key, out var cached))
             return cached;
-        var image = Image.CreateEmpty(2, 2, false, Image.Format.Rgb8);
-        image.SetPixel(0, 0, a); image.SetPixel(1, 1, a); image.SetPixel(1, 0, b); image.SetPixel(0, 1, b);
+        // 64×64 con mipmaps: de lejos no hace moiré. Cada textura tiene 2×2 baldosas de medio metro.
+        var image = Image.CreateEmpty(64, 64, false, Image.Format.Rgb8);
+        for (var y = 0; y < 64; y++)
+            for (var x = 0; x < 64; x++)
+                image.SetPixel(x, y, (x < 32) == (y < 32) ? a : b);
+        image.GenerateMipmaps();
         var m = new StandardMaterial3D
         {
-            AlbedoTexture = ImageTexture.CreateFromImage(image), TextureFilter = BaseMaterial3D.TextureFilterEnum.Nearest,
-            Uv1Scale = new Vector3(20, 20, 1), Roughness = 0.4f,
+            AlbedoTexture = ImageTexture.CreateFromImage(image), TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+            Uv1Scale = new Vector3(16, 10, 1), Roughness = 0.4f,
         };
         return Cache[key] = m;
     }
