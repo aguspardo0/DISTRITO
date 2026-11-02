@@ -10,7 +10,7 @@
   "topeDiarioPrecio": 0.05,
   "anclaPrecio": 0.5,
   "topeEfectoPrecio": 1.25,
-  "reservaEmpresasCentavos": 20000,
+  "reservaEmpresasCentavos": 60000,
   "precioMinimoRelativo": 0.5,
   "precioMaximoRelativo": 2.0,
   "zonas": [

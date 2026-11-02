@@ -39,7 +39,7 @@ public sealed class MarketConfig
     [JsonPropertyName("topeDiarioPrecio")] public double DailyPriceCap { get; set; } = 0.05;
     [JsonPropertyName("anclaPrecio")] public double PriceAnchor { get; set; } = 0.5;
     [JsonPropertyName("topeEfectoPrecio")] public double MaxPriceBoost { get; set; } = 1.25;
-    [JsonPropertyName("reservaEmpresasCentavos")] public long BusinessReserveCents { get; set; } = 20_000;
+    [JsonPropertyName("reservaEmpresasCentavos")] public long BusinessReserveCents { get; set; } = 60_000;
     [JsonPropertyName("precioMinimoRelativo")] public double MinPriceRatio { get; set; } = 0.5;
     [JsonPropertyName("precioMaximoRelativo")] public double MaxPriceRatio { get; set; } = 2.0;
     [JsonPropertyName("zonas")] public List<MarketZoneConfig> Zones { get; set; } = new();

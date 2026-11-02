@@ -191,7 +191,9 @@ public sealed class MarketSimulation
         // Insumos del puerto (la plata sale del sistema).
         if (f.Inputs < f.ReorderBelow && PortOpen(day))
         {
-            var buy = (int)Math.Min(f.ReorderAmount, f.Cash / Math.Max(1, f.InputPriceCents));
+            // Primero se guarda un día de sueldos: sin obreros pagos, los insumos no sirven.
+            var forInputs = Math.Max(0, f.Cash - (long)f.Workers * f.WagePerWorker * _cfg.ReserveCycles);
+            var buy = (int)Math.Min(f.ReorderAmount, forInputs / Math.Max(1, f.InputPriceCents));
             f.Cash -= buy * f.InputPriceCents;
             ExteriorCents += buy * f.InputPriceCents;
             f.Inputs += buy;
@@ -362,6 +364,10 @@ public sealed class MarketSimulation
         Truck.Cash -= Pay(Truck.Cash, Factory.Zone);
         Factory.Cash -= Pay(Factory.Cash, Factory.Zone);
         FamiliesCash -= Pay(FamiliesCash, "barrio-valenti"); // el alquiler lo cobra la Oficina Valenti
+        // Lo que ganan los dueños de los locales: en el juego vuelve cuando los jugadores gastan; acá se supone que lo
+        // gastan en el barrio del local.
+        foreach (var s in Shops)
+            s.Cash -= Pay(s.Cash, s.Zone);
     }
 
     private void CloseDay(int day)
