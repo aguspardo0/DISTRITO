@@ -153,25 +153,35 @@ public partial class PropsNetwork : Node3D
         return root;
     }
 
+    private static PropsNetwork? _server_instance;
+
     /// <summary>
-    /// Servidor: quien camina (o maneja) empuja los objetos con los que choca, según su velocidad. Sin empujar hacia abajo
-    /// y con tope, para que una botella no salga volando como una bala.
+    /// Servidor: quien camina (o maneja) empuja los objetos que tiene al lado, en la dirección en que se mueve y según su
+    /// velocidad. Los objetos no frenan al jugador (así la predicción local coincide con el servidor). Con tope, para que una
+    /// botella no salga volando como una bala.
     /// </summary>
-    public static void PushFromSlides(CharacterBody3D body, float speed, float strength)
+    public static void PushNearby(Vector3 from, Vector3 velocity, float radius, float strength)
     {
-        if (speed < 0.2f)
+        if (_server_instance is not { _server: true } net)
             return;
-        for (var i = 0; i < body.GetSlideCollisionCount(); i++)
+        var speed = new Vector2(velocity.X, velocity.Z).Length();
+        if (speed < 0.3f)
+            return;
+        foreach (var p in net._props)
         {
-            var hit = body.GetSlideCollision(i);
-            if (hit.GetCollider() is not RigidBody3D rb)
+            if (p.Body is not { } rb)
                 continue;
-            var push = -hit.GetNormal();
-            push.Y = 0;
-            if (push.LengthSquared() < 0.01f)
+            var offset = rb.GlobalPosition - from;
+            offset.Y = 0;
+            var reach = radius + Specs.GetValueOrDefault(p.Type, Specs["caja"]).Size.X / 2;
+            if (offset.LengthSquared() > reach * reach || rb.GlobalPosition.Y - from.Y > 1.8f)
                 continue;
-            var impulse = push.Normalized() * Mathf.Min(strength * (0.25f + speed * 0.12f), rb.Mass * speed * 1.2f);
-            rb.ApplyImpulse(impulse, hit.GetPosition() - rb.GlobalPosition + new Vector3(0, 0.1f, 0));
+            var direction = new Vector3(velocity.X, 0, velocity.Z).Normalized();
+            if (offset.Dot(direction) < 0)
+                continue; // solo lo que está adelante
+            var away = (direction * 0.7f + offset.Normalized() * 0.3f).Normalized();
+            var impulse = away * Mathf.Min(strength * (0.25f + speed * 0.12f), rb.Mass * speed * 1.2f);
+            rb.ApplyImpulse(impulse, new Vector3(0, 0.1f, 0));
         }
     }
 
@@ -186,6 +196,7 @@ public partial class PropsNetwork : Node3D
         {
             Spawn(Multiplayer.IsServer());
             _spawned = true;
+            if (_server) _server_instance = this;
         }
         else if (!online && _spawned)
         {
@@ -193,6 +204,7 @@ public partial class PropsNetwork : Node3D
             foreach (var p in _props) { p.Body = null; p.Visual = null; p.Target = p.Home; p.LastSent = p.Home; }
             _spawned = false;
             _server = false;
+            if (_server_instance == this) _server_instance = null;
         }
         _clock += delta;
         if (!_spawned)
