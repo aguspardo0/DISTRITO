@@ -51,6 +51,8 @@ public sealed class SimFactory
     public long InputPriceCents { get; init; }
     public int ReorderBelow { get; init; } = 50;
     public int ReorderAmount { get; init; } = 200;
+    /// <summary>Produce mientras lo hecho más lo que tiene el proveedor no pase de esto (produce a pedido, no para acumular).</summary>
+    public int ChainTarget { get; init; } = 400;
     internal double Pending;
     public int ProducedToday { get; internal set; }
 }
@@ -62,6 +64,8 @@ public sealed class SimTruck
     public int TripCycles { get; init; }
     public long FeePerTrip { get; init; }
     public int MinLoad { get; init; }
+    /// <summary>Sale solo si el proveedor tiene menos que esto (el proveedor pide cuando le hace falta).</summary>
+    public int ShipWhenSupplierBelow { get; init; } = 300;
     public long Cash { get; set; }
     public int Cargo { get; internal set; }
     public int Remaining { get; internal set; }
@@ -69,7 +73,15 @@ public sealed class SimTruck
 }
 
 /// <summary>Lo que pasó en un día, por zona y por local (para el informe y las pruebas).</summary>
-public sealed record SimZoneDay(string Zone, double Demand, int Served, double Unmet, double ReferencePrice, long BudgetCents);
+/// <summary>
+/// Un día de una zona. Demand = lo que la gente quiso comprar; Wanted = la parte que fue a los locales (el resto eligió no
+/// comprar: lejos o caro, «oportunidad»); Shortage = lo que fue a un local y no se pudo vender (sin stock o sin quién atienda);
+/// Idle = capacidad con mercadería que nadie usó. El precio de referencia se mueve con Shortage − Idle.
+/// </summary>
+public sealed record SimZoneDay(string Zone, double Demand, double Wanted, int Served, double Shortage, double Idle, double ReferencePrice, long BudgetCents)
+{
+    public double Opportunity => Math.Max(0, Demand - Wanted);
+}
 public sealed record SimShopDay(string Shop, int Sold, int Offered, int StockEnd, long Revenue, long Cost, long ProfitCents);
 public sealed record SimDay(int Day, List<SimZoneDay> Zones, List<SimShopDay> Shops, int SupplierStock, int FactoryOutput, int Produced,
     int LostInTransit, long TotalMoneyCents, long ExteriorCents);
@@ -108,6 +120,9 @@ public sealed class MarketSimulation
         public long Budget;
         public Dictionary<string, double> Reference = new();
         public double DemandToday;
+        public double WantedToday;
+        public double ShortageToday;
+        public double IdleToday;
         public int ServedToday;
     }
 
@@ -179,8 +194,9 @@ public sealed class MarketSimulation
             ExteriorCents += buy * f.InputPriceCents;
             f.Inputs += buy;
         }
-        // Obreros: los que la fábrica puede pagar trabajan; el sueldo va a la gente de su zona.
-        var paid = (int)Math.Min(f.Workers, f.Cash / Math.Max(1, f.WagePerWorker));
+        // Obreros: trabajan (y cobran) solo si la cadena necesita producción; el sueldo va a la gente de su zona.
+        var needed = f.Output + Supplier.Stock + Truck.Cargo < f.ChainTarget && f.Inputs > 0;
+        var paid = needed ? (int)Math.Min(f.Workers, f.Cash / Math.Max(1, f.WagePerWorker)) : 0;
         f.Cash -= paid * f.WagePerWorker;
         _zones[f.Zone].Budget += paid * f.WagePerWorker;
         f.Pending += MarketMath.Production(f.MaxPerCycle, f.Inputs, f.Recipe, paid, f.Productivity, f.Waste);
@@ -212,7 +228,7 @@ public sealed class MarketSimulation
                 t.Cargo = 0;
             }
         }
-        else if (f.Output >= t.MinLoad)
+        else if (f.Output >= t.MinLoad && Supplier.Stock < t.ShipWhenSupplierBelow)
         {
             t.Cargo = Math.Min(t.Capacity, f.Output);
             f.Output -= t.Cargo;
@@ -252,9 +268,13 @@ public sealed class MarketSimulation
                 var shareSum = shares.Sum();
                 var averagePrice = shareSum > 0 ? shops.Select((s, i) => shares[i] * s.PriceCents).Sum() / shareSum : reference;
                 var demand = MarketMath.Demand(needPerCycle, reference, averagePrice, z.Budget, _cfg.ReserveCycles, _cfg.Elasticity);
-                z.DemandToday += demand;
+                // Sin ningún local con mercadería, la necesidad igual cuenta (es una oportunidad), al precio de referencia.
+                z.DemandToday += shareSum > 0 ? demand : MarketMath.Demand(needPerCycle, reference, reference, z.Budget, _cfg.ReserveCycles, _cfg.Elasticity);
                 for (var si = 0; si < shops.Count; si++)
+                {
                     wanted[si, zi] = shares[si] * demand;
+                    z.WantedToday += wanted[si, zi];
+                }
             }
             for (var si = 0; si < shops.Count; si++)
             {
@@ -263,7 +283,13 @@ public sealed class MarketSimulation
                 s.OfferedToday += offered;
                 var total = 0.0;
                 for (var zi = 0; zi < zones.Count; zi++) total += wanted[si, zi];
-                if (offered == 0 || total <= 0) continue;
+                if (total <= 0) continue;
+                if (offered == 0)
+                {
+                    // Fueron a comprar y no había: escasez.
+                    for (var zi = 0; zi < zones.Count; zi++) zones[zi].ShortageToday += wanted[si, zi];
+                    continue;
+                }
                 s.Pending += Math.Min(total, offered);
                 var units = Math.Min((int)s.Pending, offered);
                 s.Pending -= units;
@@ -273,6 +299,13 @@ public sealed class MarketSimulation
                 var given = exact.Select(e => (int)Math.Floor(e)).ToArray();
                 foreach (var k in Enumerable.Range(0, zones.Count).OrderByDescending(j => exact[j] - given[j]).Take(units - given.Sum()).ToList())
                     given[k]++;
+                // Lo que se quiso y no se pudo atender cuenta como escasez; la capacidad con mercadería que sobró, como ociosa.
+                var idle = Math.Max(0, offered - total);
+                for (var zi = 0; zi < zones.Count; zi++)
+                {
+                    zones[zi].ShortageToday += Math.Max(0, wanted[si, zi] - units * wanted[si, zi] / total);
+                    zones[zi].IdleToday += idle * wanted[si, zi] / total;
+                }
                 for (var zi = 0; zi < zones.Count; zi++)
                 {
                     var z = zones[zi];
@@ -313,15 +346,15 @@ public sealed class MarketSimulation
         foreach (var product in _cfg.Products)
             foreach (var z in _zones.Values)
             {
-                var unmet = Math.Max(0, z.DemandToday - z.ServedToday);
-                var unsold = Shops.Where(s => s.Zone == z.Config.Code && s.Product == product.Code).Sum(s => Math.Max(0, s.OfferedToday - s.SoldToday)) / (double)_cfg.CyclesPerDay;
                 var before = z.Reference[product.Code];
-                z.Reference[product.Code] = MarketMath.NextReferencePrice(before, product.BasePriceCents, unmet, unsold, z.DemandToday, _cfg);
-                zoneDays.Add(new SimZoneDay(z.Config.Code, z.DemandToday, z.ServedToday, unmet, before, z.Budget));
+                // Sin locales a los que ir no hay señal de precio (sólo oportunidad).
+                if (z.WantedToday > 0)
+                    z.Reference[product.Code] = MarketMath.NextReferencePrice(before, product.BasePriceCents, z.ShortageToday, z.IdleToday, z.WantedToday, _cfg);
+                zoneDays.Add(new SimZoneDay(z.Config.Code, z.DemandToday, z.WantedToday, z.ServedToday, z.ShortageToday, z.IdleToday, before, z.Budget));
             }
         var shopDays = Shops.Select(s => new SimShopDay(s.Name, s.SoldToday, s.OfferedToday, s.Stock, s.RevenueToday, s.CostToday, s.RevenueToday - s.CostToday)).ToList();
         Days.Add(new SimDay(day + 1, zoneDays, shopDays, Supplier.Stock, Factory.Output, Factory.ProducedToday, Truck.LostToday, TotalMoney(), ExteriorCents));
-        foreach (var z in _zones.Values) { z.DemandToday = 0; z.ServedToday = 0; }
+        foreach (var z in _zones.Values) { z.DemandToday = 0; z.WantedToday = 0; z.ShortageToday = 0; z.IdleToday = 0; z.ServedToday = 0; }
         foreach (var s in Shops) { s.SoldToday = 0; s.OfferedToday = 0; s.CostToday = 0; s.RevenueToday = 0; }
         Factory.ProducedToday = 0;
         Truck.LostToday = 0;

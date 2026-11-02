@@ -27,20 +27,20 @@ foreach (var scenario in MarketScenarios.All)
     var ok = sim.ConservedTotal() == conserved;
     failed |= !ok;
     md.Append($"## {scenario.Name}\n\n{scenario.Forced}. Plata conservada: {(ok ? "sí" : "NO")}.\n\n");
-    md.Append("| Día | Demanda | Atendida | Precio ref. Mercado | Ref. Moretti | Stock Almacén | Producido | Perdido |");
+    md.Append("| Día | Demanda | A los locales | Atendida | Escasez | Ociosa | Precio ref. Mercado | Ref. Caruso | Stock Almacén | Producido | Perdido |");
     foreach (var s in sim.Shops) md.Append($" {s.Name} vend. | {s.Name} ganancia |");
-    md.Append('\n').Append(string.Concat(Enumerable.Repeat("| --- ", 8 + 2 * sim.Shops.Count))).Append("|\n");
-    var csv = new StringBuilder("dia,zona,demanda,atendida,sin_atender,precio_ref,presupuesto\n");
+    md.Append('\n').Append(string.Concat(Enumerable.Repeat("| --- ", 11 + 2 * sim.Shops.Count))).Append("|\n");
+    var csv = new StringBuilder("dia,zona,demanda,a_los_locales,atendida,escasez,ociosa,oportunidad,precio_ref,presupuesto\n");
     var shopsCsv = new StringBuilder("dia,local,vendidas,ofrecidas,stock_final,ingresos,costos,ganancia\n");
     foreach (var d in sim.Days)
     {
         var market = d.Zones.First(z => z.Zone == "el-mercado");
-        var moretti = d.Zones.First(z => z.Zone == "barrio-moretti");
-        md.Append($"| {d.Day} | {d.Zones.Sum(z => z.Demand).ToString("0", inv)} | {d.Zones.Sum(z => z.Served)} | {Money((long)market.ReferencePrice)} | {Money((long)moretti.ReferencePrice)} | {d.SupplierStock} | {d.Produced} | {d.LostInTransit} |");
+        var caruso = d.Zones.First(z => z.Zone == "barrio-caruso");
+        md.Append($"| {d.Day} | {d.Zones.Sum(z => z.Demand).ToString("0", inv)} | {d.Zones.Sum(z => z.Wanted).ToString("0", inv)} | {d.Zones.Sum(z => z.Served)} | {d.Zones.Sum(z => z.Shortage).ToString("0", inv)} | {d.Zones.Sum(z => z.Idle).ToString("0", inv)} | {Money((long)market.ReferencePrice)} | {Money((long)caruso.ReferencePrice)} | {d.SupplierStock} | {d.Produced} | {d.LostInTransit} |");
         foreach (var s in d.Shops) md.Append($" {s.Sold} | {Money(s.ProfitCents)} |");
         md.Append('\n');
         foreach (var z in d.Zones)
-            csv.Append(string.Join(',', d.Day, z.Zone, z.Demand.ToString("0.0", inv), z.Served, z.Unmet.ToString("0.0", inv), Money((long)z.ReferencePrice), Money(z.BudgetCents))).Append('\n');
+            csv.Append(string.Join(',', d.Day, z.Zone, z.Demand.ToString("0.0", inv), z.Wanted.ToString("0.0", inv), z.Served, z.Shortage.ToString("0.0", inv), z.Idle.ToString("0.0", inv), z.Opportunity.ToString("0.0", inv), Money((long)z.ReferencePrice), Money(z.BudgetCents))).Append('\n');
         foreach (var s in d.Shops)
             shopsCsv.Append(string.Join(',', d.Day, s.Shop, s.Sold, s.Offered, s.StockEnd, Money(s.Revenue), Money(s.Cost), Money(s.ProfitCents))).Append('\n');
     }

@@ -11,13 +11,13 @@
   "precioMinimoRelativo": 0.5,
   "precioMaximoRelativo": 2.0,
   "zonas": [
-    { "codigo": "el-mercado", "habitantes": 300, "ingresoDiarioCentavos": 250, "x": 0, "z": 0, "preferencias": { "bolsa-cafe": 1.0 } },
-    { "codigo": "barrio-moretti", "habitantes": 450, "ingresoDiarioCentavos": 220, "x": -110, "z": 0, "preferencias": { "bolsa-cafe": 1.0 } },
-    { "codigo": "barrio-valenti", "habitantes": 250, "ingresoDiarioCentavos": 400, "x": 24.5, "z": -110, "preferencias": { "bolsa-cafe": 0.8 } },
-    { "codigo": "barrio-caruso", "habitantes": 550, "ingresoDiarioCentavos": 150, "x": 13, "z": 110, "preferencias": { "bolsa-cafe": 1.3 } },
-    { "codigo": "los-muelles", "habitantes": 150, "ingresoDiarioCentavos": 150, "x": 57, "z": 0, "preferencias": { "bolsa-cafe": 1.2 } }
+    { "codigo": "el-mercado", "habitantes": 300, "ingresoDiarioCentavos": 600, "x": 0, "z": 0, "preferencias": { "bolsa-cafe": 1.0 } },
+    { "codigo": "barrio-moretti", "habitantes": 450, "ingresoDiarioCentavos": 500, "x": -110, "z": 0, "preferencias": { "bolsa-cafe": 1.0 } },
+    { "codigo": "barrio-valenti", "habitantes": 250, "ingresoDiarioCentavos": 900, "x": 24.5, "z": -110, "preferencias": { "bolsa-cafe": 0.8 } },
+    { "codigo": "barrio-caruso", "habitantes": 550, "ingresoDiarioCentavos": 400, "x": 13, "z": 110, "preferencias": { "bolsa-cafe": 1.3 } },
+    { "codigo": "los-muelles", "habitantes": 150, "ingresoDiarioCentavos": 400, "x": 57, "z": 0, "preferencias": { "bolsa-cafe": 1.2 } }
   ],
   "productos": [
-    { "codigo": "bolsa-cafe", "consumoDiarioPorHabitante": 0.4, "precioBaseCentavos": 500 }
+    { "codigo": "bolsa-cafe", "consumoDiarioPorHabitante": 1.5, "precioBaseCentavos": 500 }
   ]
 }

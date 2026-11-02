@@ -20,10 +20,11 @@ public static class MarketScenarios
             new SimSupplier { Stock = 200, SellPriceCents = 300, Cash = 30_000 },
             new SimFactory
             {
-                Zone = "barrio-caruso", MaxPerCycle = 6, Workers = 3, WagePerWorker = 100, Productivity = 1.6, Waste = 0.03,
-                Recipe = 1, Inputs = 100, Cash = 30_000, SellPriceCents = 200, InputPriceCents = 80, ReorderBelow = 60, ReorderAmount = 300,
+                Zone = "barrio-caruso", MaxPerCycle = 8, Workers = 4, WagePerWorker = 50, Productivity = 2, Waste = 0.03,
+                Recipe = 1, Inputs = 200, Cash = 30_000, SellPriceCents = 200, InputPriceCents = 80, ReorderBelow = 100, ReorderAmount = 400,
+                ChainTarget = 400,
             },
-            new SimTruck { Capacity = 40, TripCycles = 2, FeePerTrip = 300, MinLoad = 20 });
+            new SimTruck { Capacity = 40, TripCycles = 2, FeePerTrip = 300, MinLoad = 20, ShipWhenSupplierBelow = 300 });
         sim.Shops.Add(Stand("Puesto A", -3, 8));
         sim.Shops.Add(Stand("Puesto B", 6, -4));
         return sim;
