@@ -141,6 +141,7 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
    - [x] Mercado visible (2026-11-02): pizarras en los locales, libreta de precios, La Gaceta de Bellmont, Nino el informante y libro de cuentas con clientes perdidos (tecla P). Ver `docs/MERCADO-VISIBLE.md`.
    - [x] Negocios que crecen (2026-11-02): clientela del mercado simulado (9.000 habitantes), fama, mejoras sin tope (capacidad, calidad, atracción) pagadas al Taller Caruso, precio a elección, crítico de La Gaceta, eventos diarios y gente visible en los locales. Ver `docs/NEGOCIOS-QUE-CRECEN.md`. Pendiente: protección de las familias.
    - [ ] Etapa 2: modo sombra (el mercado calcula al lado de la economía real, sin decidir nada).
+- [x] **Interiores del Mercado y física compartida** (2026-11-02): galpón Moretti, Taller Caruso, Oficina Valenti, ramos generales, botica, sastrería y diner, con puertas, mostradores adentro, arte provisorio reemplazable por modelos (.glb) y objetos con física (Jolt) que ven todos igual. Ver `docs/INTERIORES.md`. Pendiente: aprobar los productos de las tiendas; interiores del club de jazz, casino, cuarteles y barrios.
 2. [ ] **Vida autónoma de los NPC** (documento del equipo, 2026-11-01): habitantes con identidad, rutinas, necesidades, decisiones deterministas, relaciones y reacciones, simulados por niveles (cerca, intermedio, lejos), usando la economía de mercado sin duplicarla. Empieza con una auditoría y un ecosistema de prueba de 30 NPC.
 
 ## Más adelante (sin orden fijado)
