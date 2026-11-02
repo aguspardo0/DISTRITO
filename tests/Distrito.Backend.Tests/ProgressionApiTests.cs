@@ -124,7 +124,7 @@ public class ProgressionApiTests
         await api.BusinessActionAsync(Key, "restock", new BusinessActionRequest(id, Req()));
         await SetProgress(id, administration: 50); // nivel 5
 
-        Assert.Equal(EconomyCatalog.CoffeeDemandPerCycle + 1, await economy.RunBusinessCyclesAsync(economy.CurrentCycle() + 1, default, id));
+        Assert.Equal(3 + 1, await economy.RunBusinessCyclesAsync(economy.CurrentCycle() + 1, default, id)); // capacidad 3, +1 por Administración
 
         var p = (await api.GetEconomyAsync(Key, id)).Value!.ProgressOrEmpty;
         Assert.Equal(51, p.Administration);

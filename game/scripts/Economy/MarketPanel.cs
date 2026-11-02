@@ -21,6 +21,7 @@ public partial class MarketPanel : PanelContainer
     private VBoxContainer _content = null!;
     private PanelContainer _sheet = null!;
     private string _tab = Notes;
+    private string _message = "";
 
     public bool IsOpen => Visible;
 
@@ -28,6 +29,7 @@ public partial class MarketPanel : PanelContainer
     {
         _market = market;
         _market.InfoReceived += () => { if (Visible) Rebuild(); };
+        _market.MessageReceived += text => { _message = text; if (Visible) Rebuild(); };
     }
 
     public override void _Ready()
@@ -42,7 +44,7 @@ public partial class MarketPanel : PanelContainer
         var tabs = new HBoxContainer();
         tabs.AddThemeConstantOverride("separation", 6);
         box.AddChild(tabs);
-        foreach (var (code, label) in new[] { (Notes, "Libreta de precios"), (Paper, "El diario"), (Report, "Lo que sabe Nino"), (Ledger, "Libro de cuentas") })
+        foreach (var (code, label) in new[] { (Notes, "Libreta de precios"), (Paper, "El diario"), (Report, "Lo que sabe Nino"), (Ledger, "Mi negocio") })
         {
             var button = new Button { Text = label, ToggleMode = true, CustomMinimumSize = new Vector2(150, 0) };
             button.Pressed += () => ShowTab(code);
@@ -286,22 +288,82 @@ public partial class MarketPanel : PanelContainer
         }
     }
 
+    // ---------------- Mi negocio: fama, mejoras y precio ----------------
+
+    private void BuildGrowth(LedgerView l, BusinessGrowthView g)
+    {
+        var m = EconomyCatalog.FormatMoney;
+        // Fama: barra hacia el próximo nivel (sin techo: después de Leyenda siguen las estrellas).
+        var fameRow = new HBoxContainer();
+        fameRow.AddThemeConstantOverride("separation", 10);
+        fameRow.AddChild(Cell($"Fama: {g.FameName}", EncargoLook.Gold, 300, 16));
+        var bar = new ProgressBar { MinValue = 0, MaxValue = Math.Max(1, g.NextFameGoal), Value = g.Fame, ShowPercentage = false, CustomMinimumSize = new Vector2(300, 18) };
+        fameRow.AddChild(bar);
+        fameRow.AddChild(Cell($"{g.Fame:0} / {g.NextFameGoal:0}", EncargoLook.Muted, 160));
+        _content.AddChild(fameRow);
+        Row(Cell($"Atendés hasta {g.Capacity} por ciclo · último ciclo: {g.LastCustomers}", Colors.White, 420),
+            Cell($"Calidad ×{g.Quality:0.00} · Atracción ×{g.Attraction:0.00} · Alquiler {m(g.RentCents)}", Colors.White, 420));
+        var eventLocal = g.EventStart.ToOffset(TerritoryRules.ArgentinaOffset);
+        var now = DateTimeOffset.UtcNow;
+        var when = now >= g.EventStart && now < g.EventEnd ? "¡ahora!" : now >= g.EventEnd ? "ya pasó hoy" : $"hoy a las {eventLocal:HH:mm}";
+        _content.AddChild(EncargoLook.Text($"{g.EventName}: {when} (viene el doble de gente; tené mercadería y lugar).", EncargoLook.Good, 860));
+        if (g.ReviewStars is { } stars)
+            _content.AddChild(EncargoLook.Text($"Última nota de La Gaceta: {new string('★', stars)}{new string('☆', 5 - stars)} {g.ReviewText}",
+                stars >= 4 ? EncargoLook.Good : stars <= 2 ? EncargoLook.Warn : Colors.White, 860));
+
+        // Mejoras: tres ramas sin tope; cada nivel cuesta más. Se paga con la caja del negocio y, si falta, con tu bolsillo.
+        _content.AddChild(EncargoLook.Text("Mejoras del local (las hace el Taller Caruso)", EncargoLook.Gold, size: 15));
+        foreach (var u in g.Upgrades)
+        {
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 10);
+            row.AddChild(Cell($"{u.BranchName} (nivel {u.Level})", EncargoLook.Gold, 170));
+            row.AddChild(EncargoLook.Text($"Ahora: {u.Current} → {u.Next}. {u.Effect}.", Colors.White, 470));
+            var buy = new Button { Text = $"Mejorar ({m(u.CostCents)})", CustomMinimumSize = new Vector2(170, 0) };
+            var branch = u.Branch;
+            buy.Pressed += () => { _message = "Encargando la obra…"; _market.Upgrade(l.Kind, branch); Rebuild(); };
+            row.AddChild(buy);
+            _content.AddChild(row);
+        }
+
+        // Precio: la gente compara con lo que considera justo para tu calidad.
+        var priceRow = new HBoxContainer();
+        priceRow.AddThemeConstantOverride("separation", 8);
+        var fairness = g.FairPriceCents / (double)Math.Max(1, g.PriceCents);
+        var verdict = fairness < 0.87 ? "caro para tu calidad" : fairness > 1.15 ? "barato para tu calidad" : "justo";
+        priceRow.AddChild(Cell($"Precio: {m(g.PriceCents)} ({verdict}; justo: {m(g.FairPriceCents)})", fairness < 0.87 ? EncargoLook.Warn : Colors.White, 420));
+        var step = Math.Max(10, g.FairPriceCents / 20 / 10 * 10);
+        foreach (var (label, value) in new[] { ($"− {m(step)}", g.PriceCents - step), ($"+ {m(step)}", g.PriceCents + step), ("Precio justo", g.FairPriceCents) })
+        {
+            var b = new Button { Text = label, Disabled = value < g.MinPriceCents || value > g.MaxPriceCents || value == g.PriceCents };
+            var target = value;
+            b.Pressed += () => { _message = "Cambiando el precio…"; _market.SetPrice(l.Kind, target); Rebuild(); };
+            priceRow.AddChild(b);
+        }
+        _content.AddChild(priceRow);
+    }
+
     // ---------------- Libro de cuentas ----------------
 
     private void BuildLedger(MarketInfoView info)
     {
         var m = EconomyCatalog.FormatMoney;
-        _content.AddChild(EncargoLook.Text("Libro de cuentas", EncargoLook.Gold, size: 20));
+        _content.AddChild(EncargoLook.Text("Mi negocio", EncargoLook.Gold, size: 20));
         if (info.Ledgers.Count == 0)
         {
             _content.AddChild(EncargoLook.Text("No tenés negocios. Las licencias para un puesto de café o un club de jazz las da la Oficina Valenti.", EncargoLook.Muted, 860));
             return;
         }
+        if (_message.Length > 0)
+            _content.AddChild(EncargoLook.Text(_message, EncargoLook.Good, 860));
         foreach (var l in info.Ledgers)
         {
             _content.AddChild(new HSeparator());
             var type = EconomyCatalog.BusinessTypes.GetValueOrDefault(l.Kind);
-            Row(Cell($"«{l.Name}»", EncargoLook.Gold, 420, 18), Cell(type?.Name ?? "", EncargoLook.Muted, 300));
+            Row(Cell($"«{l.Name}»", EncargoLook.Gold, 420, 18), Cell(l.Growth is { } g0 ? $"{g0.Category} · {type?.Name}" : type?.Name ?? "", EncargoLook.Muted, 420));
+            if (l.Growth is { } g)
+                BuildGrowth(l, g);
+            _content.AddChild(EncargoLook.Text("Cuentas", EncargoLook.Gold, size: 15));
             Row(Cell($"Mercadería: {l.Stock} × {type?.ItemName ?? "unidades"}", l.Stock > 0 ? Colors.White : EncargoLook.Warn, 420),
                 Cell($"Caja del negocio: {m(l.CashCents)}", Colors.White, 300));
             Row(Cell($"Tu precio: {m(l.SalePriceCents)}  ·  promedio de la zona: {m(l.AveragePriceCents)}", Colors.White, 420),

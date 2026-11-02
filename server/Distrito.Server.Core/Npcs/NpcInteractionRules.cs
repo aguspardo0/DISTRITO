@@ -134,7 +134,7 @@ public static class NpcInteractionRules
             }
         // Libro de cuentas: el dueño lo ve en su local.
         if (EconomyCatalog.BusinessTypes.Values.FirstOrDefault(t => t.SiteNpc == npc.Code) is { } site && s.BusinessOf(site.Code) is not null)
-            options.Add(new NpcOption(LedgerOption, "Ver el libro de cuentas (ventas, costos y clientes perdidos)"));
+            options.Add(new NpcOption(LedgerOption, "Mi negocio: fama, mejoras, precio y cuentas"));
         if (SupplierRules.Catalog.ContainsKey(npc.Code))
             options.Add(new NpcOption(SupplierOrdersOption,
                 $"Pedidos por mayor (desde {SupplierRules.MinUnits}; {SupplierRules.VolumeDiscountPercent} % menos desde {SupplierRules.VolumeDiscountFrom})"));
@@ -463,14 +463,12 @@ public static class NpcInteractionRules
             return (noBusinessText, new List<NpcOption>());
 
         var m = EconomyCatalog.FormatMoney;
-        var maxSales = type.BaseDemand + (b.HasHelper ? type.EmployeeExtraDemand : 0)
-                       + Distrito.Shared.Progression.ProgressionRules.ExtraSalesPerCycle(s.ProgressOrEmpty.AdministrationLevel);
-        var night = type.NightBonus ? " (+1 de noche, de 20 a 4 hs)" : "";
         var text = $"{b.Name} — {b.OperatingState}\n" +
-                   $"Stock: {b.Stock} × {type.ItemName} · vende hasta {maxSales} por ciclo{night} a {m(type.SalePriceCents)}\n" +
+                   $"Stock: {b.Stock} × {type.ItemName} · precio {m(b.SalePriceCents)} · fama {b.Fame:0} · último ciclo: {b.LastCustomers} clientes\n" +
                    $"Caja: {m(b.CashCents)} · Patrimonio: {m(b.EquityCents)}\n" +
                    $"Vendidos: {b.UnitsSold} · Facturación: {m(b.RevenueCents)} · Alquiler: {m(b.RentCents)} · Sueldos: {m(b.WagesCents)} · Ganancia: {m(b.ProfitCents)}\n" +
-                   $"{char.ToUpperInvariant(type.EmployeeName[0])}{type.EmployeeName[1..]}: {(b.HasHelper ? "contratado" : "no")}";
+                   $"{char.ToUpperInvariant(type.EmployeeName[0])}{type.EmployeeName[1..]}: {(b.HasHelper ? "contratado" : "no")}\n\n" +
+                   "Fama, mejoras del local y precio: «Mi negocio» (tecla P).";
         var options = new List<NpcOption>();
         var carrying = s.QuantityOf(type.ItemCode);
         if (carrying > 0)
@@ -480,7 +478,7 @@ public static class NpcInteractionRules
         options.Add(b.HasHelper
             ? new NpcOption($"fire:{type.Code}", $"Despedir al {type.EmployeeName}")
             : new NpcOption($"hire:{type.Code}",
-                $"Contratar {type.EmployeeName} ({m(type.EmployeeWageCents)} por ciclo abierto, vende {type.EmployeeExtraDemand} más)"));
+                $"Contratar {type.EmployeeName} ({m(type.EmployeeWageCents)} por ciclo abierto, atiende a uno más por ciclo)"));
         if (b.Stock == 0 && carrying == 0)
             text += $"\n\nSin mercadería no hay ventas: comprá {type.ItemName}s en el Almacén Moretti.";
         return (text, options);

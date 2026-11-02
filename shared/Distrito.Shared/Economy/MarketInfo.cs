@@ -7,7 +7,8 @@ namespace Distrito.Shared.Economy;
 public sealed record PriceLine(string ItemCode, string Name, long PriceCents, bool InStock, int Trend = 0, bool Buying = false);
 
 /// <summary>Pizarra de un local: lo que vende y lo que compra, igual para todos (los descuentos personales van en el mostrador).</summary>
-public sealed record PriceBoardView(string NpcCode, string Place, List<PriceLine> Lines, DateTimeOffset At, string? Note = null);
+/// <summary><see cref="Crowd"/>: clientes atendidos en el último ciclo (la gente que se ve en el local).</summary>
+public sealed record PriceBoardView(string NpcCode, string Place, List<PriceLine> Lines, DateTimeOffset At, string? Note = null, int Crowd = 0);
 
 /// <summary>Un precio anotado en la libreta: lo que decía la pizarra cuando el jugador pasó.</summary>
 public sealed record PriceNote(string NpcCode, string Place, string ItemCode, string Name, long PriceCents, bool InStock, bool Buying, DateTimeOffset SeenAt)
@@ -33,7 +34,8 @@ public sealed record LedgerCycle(DateTimeOffset At, int Sold, int Wanted, long R
 
 /// <summary>Libro de cuentas de un negocio propio: todo lo de hoy y los últimos ciclos.</summary>
 public sealed record LedgerView(Guid BusinessId, string Name, string Kind, int Stock, long CashCents, long SalePriceCents, long UnitCostCents,
-    long AveragePriceCents, int SoldToday, int WantedToday, long RevenueToday, long RentToday, long WagesToday, List<LedgerCycle> Recent)
+    long AveragePriceCents, int SoldToday, int WantedToday, long RevenueToday, long RentToday, long WagesToday, List<LedgerCycle> Recent,
+    BusinessGrowthView? Growth = null)
 {
     public int LostToday => Math.Max(0, WantedToday - SoldToday);
     public long CostOfGoodsToday => SoldToday * UnitCostCents;
@@ -62,7 +64,11 @@ public sealed record NewspaperFacts(
     List<ZoneView> Zones,
     List<EventView> Events,
     int Deliveries,
-    int SupplierOrders);
+    int SupplierOrders,
+    List<string>? Reviews = null,
+    List<string>? Agenda = null,
+    List<string>? Famous = null,
+    string? BestReviewed = null);
 
 public static class MarketInfoRules
 {
@@ -174,6 +180,11 @@ public static class MarketInfoRules
             headline = "OLA DE ASALTOS EN BELLMONT";
             lead = $"{f.Robberies + f.VehiclesForced} golpes en las últimas 24 horas. Los comerciantes piden más vigilancia.";
         }
+        else if (f.BestReviewed is { } star)
+        {
+            headline = $"LA CRÍTICA SE RINDE ANTE «{star.ToUpperInvariant()}»";
+            lead = "Cinco estrellas para el local de moda. Ya hay cola en la puerta.";
+        }
         else if (stockouts.Count > 0)
         {
             headline = $"FALTA {stockouts[0].Name.ToUpperInvariant()} EN EL MERCADO";
@@ -213,6 +224,12 @@ public static class MarketInfoRules
             news.Add($"Baja {q.Item} en el {q.Place}: {m(q.PriceCents)}.");
         foreach (var b in f.NewBusinesses)
             news.Add($"Abrió {b}.");
+        foreach (var r in f.Reviews ?? [])
+            news.Add($"Crítica: {r}");
+        foreach (var famous in f.Famous ?? [])
+            news.Add($"Los más nombrados: {famous}.");
+        foreach (var a in f.Agenda ?? [])
+            news.Add($"Agenda: {a}.");
         foreach (var z in controlled)
             news.Add($"En {z.Name} manda «{z.ControllerCrew}».");
         foreach (var e in events.Skip(headline.StartsWith("HOY") ? 1 : 0).Take(3))

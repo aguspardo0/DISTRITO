@@ -151,14 +151,18 @@ public sealed partial class EconomyService
         await using var c = await db.OpenConnectionAsync(ct);
         await using var tx = await c.BeginTransactionAsync(ct);
 
-        Guid account;
+        Guid account, owner;
         long lastCycle;
         bool hasHelper;
-        Guid owner;
         BusinessType type;
-        string location;
-        await using (var lockBusiness = new NpgsqlCommand(
-            "SELECT account_id, last_cycle, has_helper, owner_character_id, kind, location FROM distrito.businesses WHERE id = @id FOR UPDATE", c, tx))
+        string location, name;
+        GrowthState state;
+        double carry;
+        await using (var lockBusiness = new NpgsqlCommand("""
+            SELECT account_id, last_cycle, has_helper, owner_character_id, kind, location, name,
+                   fame, price_cents, level_capacity, level_quality, level_attraction, customer_carry
+              FROM distrito.businesses WHERE id = @id FOR UPDATE
+            """, c, tx))
         {
             lockBusiness.Parameters.AddWithValue("id", businessId);
             await using var reader = await lockBusiness.ExecuteReaderAsync(ct);
@@ -170,48 +174,85 @@ public sealed partial class EconomyService
             owner = reader.GetGuid(3);
             type = EconomyCatalog.BusinessTypes[reader.GetString(4)];
             location = reader.GetString(5);
+            name = reader.GetString(6);
+            state = new GrowthState(businessId, type.Code, reader.GetDouble(7), reader.IsDBNull(8) ? type.SalePriceCents : reader.GetInt64(8),
+                reader.GetInt32(9), reader.GetInt32(10), reader.GetInt32(11));
+            carry = reader.GetDouble(12);
         }
         if (lastCycle >= currentCycle)
             return 0;
 
+        var cfg = Growth();
+        var rivals = await GrowthRivalsAsync(c, tx, type.Code, businessId, ct);
         var population = await AccountIdByCodeAsync(c, tx, EconomyCatalog.PopulationAccount, ct);
         var valenti = await AccountIdByCodeAsync(c, tx, EconomyCatalog.ValentiOfficeNpc, ct);
         await LockAccountsAsync(c, tx, ct, account, population, valenti);
+        // Administración del dueño (nivel 5: +1, nivel 10: +2 de capacidad).
+        var adminBonus = ProgressionRules.ExtraSalesPerCycle((await LoadProgressAsync(c, tx, owner, ct)).AdministrationLevel);
 
         // Si el servidor estuvo apagado mucho tiempo, no se simulan más de MaxCatchUpCycles ciclos de golpe.
         var first = Math.Max(lastCycle + 1, currentCycle - EconomyCatalog.MaxCatchUpCycles + 1);
         var totalSold = 0;
+        var lastServed = 0;
         for (var cycle = first; cycle <= currentCycle; cycle++)
         {
+            var at = DateTimeOffset.FromUnixTimeSeconds(cycle * CycleSeconds);
             var stock = await QuantityAsync(c, tx, account, type.ItemCode, location, ct);
-            if (stock == 0)
+            var open = stock > 0;
+            // El empleado trabaja solo con el local abierto y si hay caja para pagarle al empezar el ciclo.
+            var helperWorks = open && hasHelper && await BalanceAsync(c, tx, account, ct) >= type.EmployeeWageCents;
+            state = state with { HasHelper = helperWorks, AdminBonus = adminBonus };
+
+            // La gente de Bellmont que quiere este rubro se reparte entre los locales (y los que vienen por la fama).
+            var demand = BusinessGrowth.Demand(cfg, state, [.. rivals, state], at);
+            carry += demand.Total * GrowthCrowd;
+            var wanted = (int)Math.Min(carry, 1_000_000);
+            carry -= wanted;
+            var capacity = BusinessGrowth.CapacityOf(cfg, state);
+            var units = open ? Math.Min(Math.Min(wanted, capacity), stock) : 0;
+            var lostNoStock = open ? Math.Max(0, Math.Min(wanted, capacity) - units) : wanted;
+            var lostQueue = open ? Math.Max(0, wanted - capacity) : 0;
+            var fame = BusinessGrowth.NextFame(cfg, state, units, lostNoStock, lostQueue, open);
+
+            // El crítico de La Gaceta pasa una vez por día, a una hora que nadie sabe.
+            var day = MarketInfoRules.DayOf(at);
+            var critic = BusinessGrowth.CriticAt(businessId, day);
+            if (critic >= at && critic < at.AddSeconds(CycleSeconds))
             {
-                // Sin mercadería no hay ventas ni alquiler (no se mueve plata), pero los clientes vinieron igual:
-                // queda anotado en el libro de cuentas cuántos se fueron sin comprar.
-                var closedNight = type.NightBonus && EconomyCatalog.IsNight(DateTimeOffset.FromUnixTimeSeconds(cycle * CycleSeconds)) ? 1 : 0;
-                var closedDemand = type.BaseDemand + closedNight + ProgressionRules.ExtraSalesPerCycle((await LoadProgressAsync(c, tx, owner, ct)).AdministrationLevel);
+                var stars = BusinessGrowth.CriticStars(cfg, state, open);
+                var delta = BusinessGrowth.CriticFame(cfg, stars);
+                await using var review = new NpgsqlCommand("""
+                    INSERT INTO distrito.business_reviews (business_id, day, stars, text, fame_delta) VALUES (@b, @d, @s, @t, @f)
+                    ON CONFLICT DO NOTHING
+                    """, c, tx);
+                review.Parameters.AddWithValue("b", businessId);
+                review.Parameters.AddWithValue("d", day);
+                review.Parameters.AddWithValue("s", stars);
+                review.Parameters.AddWithValue("t", BusinessGrowth.CriticText(stars, $"«{name}»"));
+                review.Parameters.AddWithValue("f", delta);
+                if (await review.ExecuteNonQueryAsync(ct) > 0)
+                    fame = Math.Max(0, fame + delta);
+            }
+            state = state with { Fame = fame };
+
+            if (units == 0)
+            {
+                // Sin ventas (cerrado o sin clientes) no se mueve plata, pero queda anotado quiénes vinieron.
                 await using var closed = new NpgsqlCommand("""
-                    INSERT INTO distrito.business_cycles (business_id, cycle, units_sold, revenue_cents, rent_cents, wages_cents, units_wanted)
-                    VALUES (@b, @cycle, 0, 0, 0, 0, @w) ON CONFLICT DO NOTHING
+                    INSERT INTO distrito.business_cycles (business_id, cycle, units_sold, revenue_cents, rent_cents, wages_cents, units_wanted, fame)
+                    VALUES (@b, @cycle, 0, 0, 0, 0, @w, @fame) ON CONFLICT DO NOTHING
                     """, c, tx);
                 closed.Parameters.AddWithValue("b", businessId);
                 closed.Parameters.AddWithValue("cycle", cycle);
-                closed.Parameters.AddWithValue("w", closedDemand);
+                closed.Parameters.AddWithValue("w", wanted);
+                closed.Parameters.AddWithValue("fame", fame);
                 await closed.ExecuteNonQueryAsync(ct);
+                lastServed = 0;
                 continue;
             }
 
-            // El empleado trabaja solo si hay caja para pagarle al empezar el ciclo; si no, ese ciclo no trabaja.
-            var helperWorks = hasHelper && await BalanceAsync(c, tx, account, ct) >= type.EmployeeWageCents;
-            // Administración del dueño (nivel 5: +1, nivel 10: +2), según su práctica al empezar el ciclo.
-            var administration = (await LoadProgressAsync(c, tx, owner, ct)).AdministrationLevel;
-            // De noche (hora del ciclo) los negocios nocturnos venden uno más.
-            var night = type.NightBonus && EconomyCatalog.IsNight(DateTimeOffset.FromUnixTimeSeconds(cycle * CycleSeconds)) ? 1 : 0;
-            var demand = type.BaseDemand + (helperWorks ? type.EmployeeExtraDemand : 0) + night
-                         + ProgressionRules.ExtraSalesPerCycle(administration);
-            var units = Math.Min(stock, demand);
-            var revenue = units * type.SalePriceCents;
-            var rent = Math.Min(type.RentCents, revenue);
+            var revenue = units * state.PriceCents;
+            var rent = Math.Min(BusinessGrowth.Rent(cfg, state), revenue);
             var wages = helperWorks ? type.EmployeeWageCents : 0;
 
             var txId = await NewLedgerTransactionAsync(c, tx, $"business-cycle:{businessId}:{cycle}", "business_cycle",
@@ -219,14 +260,15 @@ public sealed partial class EconomyService
             if (wages > 0)
                 await TransferMoneyAsync(c, tx, txId, from: account, to: population, wages, ct); // el sueldo vuelve a la población
             await TransferMoneyAsync(c, tx, txId, from: population, to: account, revenue, ct);
-            await TransferMoneyAsync(c, tx, txId, from: account, to: valenti, rent, ct);
+            if (rent > 0)
+                await TransferMoneyAsync(c, tx, txId, from: account, to: valenti, rent, ct);
             await MoveItemsAsync(c, tx, txId, type.ItemCode, units,
                 from: (account, location), to: (population, "consumido"),
                 notEnough: "Sin stock.", ct);
 
             await using var record = new NpgsqlCommand("""
-                INSERT INTO distrito.business_cycles (business_id, cycle, units_sold, revenue_cents, rent_cents, wages_cents, transaction_id, units_wanted)
-                VALUES (@b, @cycle, @u, @rev, @rent, @wages, @tx, @wanted)
+                INSERT INTO distrito.business_cycles (business_id, cycle, units_sold, revenue_cents, rent_cents, wages_cents, transaction_id, units_wanted, fame)
+                VALUES (@b, @cycle, @u, @rev, @rent, @wages, @tx, @wanted, @fame)
                 """, c, tx);
             record.Parameters.AddWithValue("b", businessId);
             record.Parameters.AddWithValue("cycle", cycle);
@@ -235,17 +277,24 @@ public sealed partial class EconomyService
             record.Parameters.AddWithValue("rent", rent);
             record.Parameters.AddWithValue("wages", wages);
             record.Parameters.AddWithValue("tx", txId);
-            record.Parameters.AddWithValue("wanted", demand);
+            record.Parameters.AddWithValue("wanted", wanted);
+            record.Parameters.AddWithValue("fame", fame);
             await record.ExecuteNonQueryAsync(ct);
             await GrantProgressAsync(c, tx, owner, ProgressionRules.XpPerSalesCycle, logistics: 0, negotiation: 0, administration: 1, ct);
             if (await CrewOfCharacterAsync(c, tx, owner, ct) is { } ownerCrew && TerritoryRules.ZoneOfNpc(type.SiteNpc) is { } businessZone)
                 await GrantInfluenceAsync(c, tx, ownerCrew, businessZone, TerritoryRules.SalesCyclePoints, $"ventas de {type.Name.ToLowerInvariant()}", ct);
             totalSold += units;
+            lastServed = units;
         }
 
-        await using (var advance = new NpgsqlCommand("UPDATE distrito.businesses SET last_cycle = @cycle WHERE id = @id", c, tx))
+        await using (var advance = new NpgsqlCommand("""
+            UPDATE distrito.businesses SET last_cycle = @cycle, fame = @fame, customer_carry = @carry, last_customers = @last WHERE id = @id
+            """, c, tx))
         {
             advance.Parameters.AddWithValue("cycle", currentCycle);
+            advance.Parameters.AddWithValue("fame", state.Fame);
+            advance.Parameters.AddWithValue("carry", carry);
+            advance.Parameters.AddWithValue("last", lastServed);
             advance.Parameters.AddWithValue("id", businessId);
             await advance.ExecuteNonQueryAsync(ct);
         }

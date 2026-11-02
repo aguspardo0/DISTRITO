@@ -295,7 +295,8 @@ public static class BusinessGrowth
         return score < 0.8 ? 2 : score < 1.15 ? 3 : score < 1.6 ? 4 : 5;
     }
 
-    public static double CriticFame(GrowthConfig cfg, int stars) => (stars - 3) * cfg.Fame.Critic;
+    /// <summary>Fama que da (o saca) la nota del crítico. Si estaba cerrado, la mala nota pesa la mitad: ya pierde por estar cerrado.</summary>
+    public static double CriticFame(GrowthConfig cfg, int stars) => stars == 1 ? -cfg.Fame.Critic / 2 : (stars - 3) * cfg.Fame.Critic;
 
     public static string CriticText(int stars, string name) => stars switch
     {
@@ -305,4 +306,43 @@ public static class BusinessGrowth
         4 => $"«{name}: muy recomendable. Buena atención y buen producto.»",
         _ => $"«{name} es lo mejor de Bellmont. Hay que ir.»",
     };
+}
+
+/// <summary>Una rama de mejoras vista por el dueño: dónde está, qué sigue y cuánto cuesta.</summary>
+public sealed record UpgradeOption(string Branch, string BranchName, int Level, string Current, string Next, long CostCents, string Effect);
+
+/// <summary>Todo lo del crecimiento de un negocio, para la ventana «Mi negocio».</summary>
+public sealed record BusinessGrowthView(
+    double Fame, string FameName, double NextFameGoal, string Category, int Capacity, double Quality, double Attraction,
+    long PriceCents, long FairPriceCents, long MinPriceCents, long MaxPriceCents, long RentCents, int LastCustomers,
+    List<UpgradeOption> Upgrades, string EventName, DateTimeOffset EventStart, DateTimeOffset EventEnd, int? ReviewStars, string? ReviewText);
+
+public sealed record BusinessUpgradeRequest(Guid CharacterId, string Kind, string Branch, string RequestId);
+
+public sealed record BusinessPriceRequest(Guid CharacterId, string Kind, long PriceCents, string RequestId);
+
+public static class BusinessGrowthViews
+{
+    /// <summary>Arma la vista del dueño a partir del estado y la config (la usa el backend).</summary>
+    public static BusinessGrowthView Build(GrowthConfig cfg, GrowthState s, int lastCustomers, DateOnly today, int? stars, string? review)
+    {
+        var k = BusinessGrowth.KindOf(cfg, s.Kind);
+        var (min, max) = BusinessGrowth.PriceRange(cfg, s.Kind);
+        string Effect(string branch) => branch switch
+        {
+            BusinessGrowth.Capacity => $"Atendés {k.CapacityPerLevel} cliente{(k.CapacityPerLevel == 1 ? "" : "s")} más por ciclo",
+            BusinessGrowth.Quality => $"La gente te prefiere, da más fama y acepta un {k.FairPricePerQuality * 100:0} % más de precio",
+            _ => $"Llega {k.AttractionPerLevel * 100:0} % más de gente nueva",
+        };
+        var upgrades = BusinessGrowth.Branches.Select(b =>
+        {
+            var level = BusinessGrowth.LevelOf(s, b);
+            return new UpgradeOption(b, BusinessGrowth.BranchName(b), level, BusinessGrowth.UpgradeName(cfg, s.Kind, b, level),
+                BusinessGrowth.UpgradeName(cfg, s.Kind, b, level + 1), BusinessGrowth.UpgradeCost(cfg, s.Kind, b, level), Effect(b));
+        }).ToList();
+        return new BusinessGrowthView(s.Fame, BusinessGrowth.FameName(cfg, s.Fame), BusinessGrowth.NextFameGoal(cfg, s.Fame), BusinessGrowth.Category(cfg, s),
+            BusinessGrowth.CapacityOf(cfg, s), BusinessGrowth.QualityOf(cfg, s), BusinessGrowth.AttractionOf(cfg, s), s.PriceCents,
+            BusinessGrowth.FairPriceCents(cfg, s), min, max, BusinessGrowth.Rent(cfg, s), lastCustomers, upgrades,
+            k.EventName, BusinessGrowth.EventStart(cfg, s.Kind, today), BusinessGrowth.EventEnd(cfg, s.Kind, today), stars, review);
+    }
 }

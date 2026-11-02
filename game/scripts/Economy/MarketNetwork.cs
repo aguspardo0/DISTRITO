@@ -20,6 +20,7 @@ public partial class MarketNetwork : Node3D
     private const double LookAgainSeconds = 60;
 
     private GameNetwork _network = null!;
+    private EconomyNetwork? _economy;
     private string _last = "";
     private double _clock, _nextPoll, _nextLook;
     private bool _polling;
@@ -32,10 +33,14 @@ public partial class MarketNetwork : Node3D
 
     public event Action? InfoReceived;
 
-    public void Initialize(GameNetwork network)
+    /// <summary>Resultado de una mejora o un cambio de precio (se muestra en la ventana).</summary>
+    public event Action<string>? MessageReceived;
+
+    public void Initialize(GameNetwork network, EconomyNetwork? economy = null)
     {
         _instance = this;
         _network = network;
+        _economy = economy;
         _network.PlayerAdmitted += (peer, _) =>
         {
             if (_last.Length > 0)
@@ -103,6 +108,56 @@ public partial class MarketNetwork : Node3D
                 _signs[board.NpcCode] = sign;
             }
             sign.Text = MarketInfoRules.BoardText(board);
+            ShowCrowd(board, npc);
+        }
+    }
+
+    private readonly Dictionary<string, Node3D> _crowds = new();
+
+    private static readonly Color[] CoatColors =
+    [
+        new(0.32f, 0.27f, 0.22f), new(0.2f, 0.24f, 0.32f), new(0.45f, 0.18f, 0.16f), new(0.24f, 0.3f, 0.22f),
+        new(0.5f, 0.45f, 0.38f), new(0.15f, 0.15f, 0.17f), new(0.55f, 0.32f, 0.4f), new(0.3f, 0.42f, 0.45f),
+    ];
+
+    /// <summary>La gente que se ve en el local: tantos como clientes atendidos en el último ciclo (hasta 16 para no pesar).</summary>
+    private void ShowCrowd(PriceBoardView board, NpcDefinition npc)
+    {
+        if (_crowds.TryGetValue(board.NpcCode, out var old))
+        {
+            if (old.GetChildCount() == Math.Min(board.Crowd, 16))
+                return;
+            old.QueueFree();
+            _crowds.Remove(board.NpcCode);
+        }
+        var count = Math.Min(board.Crowd, 16);
+        if (count == 0)
+            return;
+        var crowd = new Node3D { Name = $"Clientes_{board.NpcCode.Replace(':', '_')}", Position = new Vector3(npc.Position.X, 0, npc.Position.Z) };
+        AddChild(crowd);
+        _crowds[board.NpcCode] = crowd;
+        var rng = new Random(board.NpcCode.GetHashCode());
+        for (var i = 0; i < count; i++)
+        {
+            // En semicírculo frente al mostrador, en dos filas: la cola se ve crecer.
+            var ring = i < 7 ? 1.9f : 3.0f;
+            var angle = Mathf.Pi * (0.15f + 0.7f * ((i % 7) + 0.5f) / 7f) + (i >= 7 ? 0.2f : 0);
+            var person = new Node3D { Position = new Vector3(Mathf.Cos(angle) * ring, 0, Mathf.Sin(angle) * ring), Rotation = new Vector3(0, -angle - Mathf.Pi / 2, 0) };
+            var coat = new StandardMaterial3D { AlbedoColor = CoatColors[rng.Next(CoatColors.Length)] };
+            var height = 1.5f + (float)rng.NextDouble() * 0.3f;
+            person.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = 0.22f, Height = height }, MaterialOverride = coat, Position = new Vector3(0, height / 2, 0) });
+            person.AddChild(new MeshInstance3D
+            {
+                Mesh = new SphereMesh { Radius = 0.13f, Height = 0.26f },
+                MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.78f, 0.6f, 0.47f) }, Position = new Vector3(0, height + 0.08f, 0),
+            });
+            if (rng.Next(3) > 0)
+                person.AddChild(new MeshInstance3D
+                {
+                    Mesh = new CylinderMesh { TopRadius = 0.14f, BottomRadius = 0.2f, Height = 0.08f },
+                    MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.1f, 0.09f) }, Position = new Vector3(0, height + 0.2f, 0),
+                });
+            crowd.AddChild(person);
         }
     }
 
@@ -204,6 +259,63 @@ public partial class MarketNetwork : Node3D
             RpcId(1, MethodName.ServerInfo);
     }
 
+    /// <summary>Comprar el próximo nivel de una rama de mejoras de un negocio propio.</summary>
+    public void Upgrade(string kind, string branch) => SendAction(MethodName.ServerUpgrade, kind, branch);
+
+    /// <summary>Cambiar el precio al público de un negocio propio.</summary>
+    public void SetPrice(string kind, long cents) => SendAction(MethodName.ServerPrice, kind, cents.ToString());
+
+    private void SendAction(StringName method, string kind, string value)
+    {
+        if (Multiplayer.MultiplayerPeer is null || Multiplayer.IsServer())
+            MessageReceived?.Invoke("Esto necesita un servidor con cuentas.");
+        else
+            RpcId(1, method, kind, value);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerUpgrade(string kind, string branch)
+    {
+        if (Multiplayer.IsServer())
+            _ = ActAsync(Multiplayer.GetRemoteSenderId(), (api, me) =>
+                api.UpgradeBusinessAsync(_network.ServerKey, new BusinessUpgradeRequest(me, kind ?? "", branch ?? "", Guid.NewGuid().ToString())));
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerPrice(string kind, string cents)
+    {
+        if (Multiplayer.IsServer() && long.TryParse(cents, out var value))
+            _ = ActAsync(Multiplayer.GetRemoteSenderId(), (api, me) =>
+                api.SetBusinessPriceAsync(_network.ServerKey, new BusinessPriceRequest(me, kind ?? "", value, Guid.NewGuid().ToString())));
+    }
+
+    private readonly HashSet<long> _busy = new();
+
+    private async Task ActAsync(long peer, Func<DistritoApiClient, Guid, Task<ApiResult<EconomyActionResult>>> action)
+    {
+        if (_network.Backend is not { } api || !_network.TryGetSession(peer, out var me) || !_busy.Add(peer))
+            return;
+        try
+        {
+            var result = await action(api, me.CharacterId);
+            var text = result.IsSuccess ? result.Value!.Message : $"Hubo un problema: {result.Error!.Message}";
+            if (result is { IsSuccess: true, Value.Ok: true })
+                GD.Print($"[DISTRITO] NEGOCIO {me.CharacterName}: {text}");
+            if (Multiplayer.GetPeers().Contains((int)peer))
+                RpcId(peer, MethodName.ReceiveMessage, text);
+            _economy?.RefreshPeer(peer);
+            RequestRefresh();
+            await SendInfoAsync(peer);
+        }
+        finally
+        {
+            _busy.Remove(peer);
+        }
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ReceiveMessage(string text) => MessageReceived?.Invoke(text);
+
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ServerInfo()
     {
@@ -258,7 +370,10 @@ public partial class MarketNetwork : Node3D
                 new(EconomyCatalog.CoffeeBagItem, "Bolsa de café", 180, true, 0, true), new(EconomyCatalog.SparePartsItem, "Caja de repuestos", 480, true, 0, true),
             ], now),
             new(EconomyCatalog.WorkshopNpc, "Taller Caruso", [new("vehiculo:camioneta", "Camioneta de reparto", 12_000, true), new("vehiculo:camion", "Camión de carga", 35_000, true)], now),
-            new(EconomyCatalog.CoffeeCornerNpc, "Esquina del café", [new(EconomyCatalog.CoffeeBagItem, "Café en taza", 500, true)], now, "2 locales abiertos"),
+            new(EconomyCatalog.CoffeeCornerNpc, "Esquina del café",
+            [
+                new("a", "«Café Don Sal» (Café)", 560, true), new("b", "«La Esquina de Vito» (Puesto)", 500, true), new("c", "«El Rincón» (Puesto)", 450, false),
+            ], now, "De moda: «Café Don Sal» (Popular)", 11),
             new(MarketInfoRules.KioskNpc, MarketInfoRules.KioskName, [new(MarketInfoRules.Newspaper, MarketInfoRules.PaperName, 10, true)], now,
                 "«TENSIÓN: LOS MORETTI SE PONEN DUROS»"),
         ];
@@ -293,7 +408,12 @@ public partial class MarketNetwork : Node3D
                 [
                     new(now.AddMinutes(-5), 0, 3, 0, 0), new(now.AddMinutes(-10), 2, 3, 1_000, 700), new(now.AddMinutes(-15), 3, 3, 1_500, 1_000),
                     new(now.AddMinutes(-20), 3, 3, 1_500, 1_000), new(now.AddMinutes(-25), 3, 4, 1_500, 1_000),
-                ]),
+                ], new BusinessGrowthView(712, "Popular", 2000, "Café", 5, 1.5, 1.2, 560, 600, 250, 1500, 130, 5,
+                [
+                    new(BusinessGrowth.Capacity, "Capacidad", 2, "Mesitas en la vereda", "Salón con mesas", 3_070, "Atendés 1 cliente más por ciclo"),
+                    new(BusinessGrowth.Quality, "Calidad", 2, "Máquina de espresso", "Café de primera", 4_610, "La gente te prefiere, da más fama y acepta un 10 % más de precio"),
+                    new(BusinessGrowth.Attraction, "Atracción", 1, "Toldo a rayas", "Cartel de neón", 1_440, "Llega 20 % más de gente nueva"),
+                ], "Mañana de feria", now.AddHours(2), now.AddHours(3), 4, "«Café Don Sal»: muy recomendable. Buena atención y buen producto.")),
             ]);
         InfoReceived?.Invoke();
     }

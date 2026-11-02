@@ -62,22 +62,40 @@ public sealed partial class EconomyService
         boards.Add(new PriceBoardView(workshop, "Taller Caruso",
             Vehicles.All.Select(v => new PriceLine($"vehiculo:{v.Code}", v.Name, v.PriceCents, true, TrendOf(workshop, $"vehiculo:{v.Code}", false, v.PriceCents))).ToList(), now));
 
-        // Locales de jugadores: el precio al público y si hay alguno abierto (con mercadería).
+        // Locales de jugadores: cada uno con su precio y su categoría; la gente que hay se ve en el lugar.
+        var cfg = Growth();
         foreach (var type in EconomyCatalog.BusinessTypes.Values)
         {
-            await using var open = new NpgsqlCommand("""
-                SELECT count(*) FILTER (WHERE COALESCE((SELECT sum(quantity) FROM distrito.item_stacks s WHERE s.owner_account_id = b.account_id AND s.location = b.location), 0) > 0)::int,
-                       count(*)::int
-                  FROM distrito.businesses b WHERE b.kind = @k
-                """, c, tx);
-            open.Parameters.AddWithValue("k", type.Code);
-            int opened = 0, total = 0;
-            await using (var r = await open.ExecuteReaderAsync(ct))
-                if (await r.ReadAsync(ct)) { opened = r.GetInt32(0); total = r.GetInt32(1); }
-            var product = type.Code == EconomyCatalog.CoffeeStandLocation ? "Café en taza" : "Trago en el club";
-            var note = total == 0 ? "Local libre: se alquila" : opened == 0 ? "Cerrado: sin mercadería" : opened == 1 ? "1 local abierto" : $"{opened} locales abiertos";
-            boards.Add(new PriceBoardView(type.SiteNpc, type.Code == EconomyCatalog.CoffeeStandLocation ? "Esquina del café" : "Club de jazz",
-                [new PriceLine(type.ItemCode, product, type.SalePriceCents, opened > 0, TrendOf(type.SiteNpc, type.ItemCode, false, type.SalePriceCents))], now, note));
+            var site = type.Code == EconomyCatalog.CoffeeStandLocation ? "Esquina del café" : "Club de jazz";
+            var locals = new List<PriceLine>();
+            var crowd = 0;
+            var famous = (Name: "", Fame: 0.0);
+            await using (var cmd = new NpgsqlCommand("""
+                SELECT b.id, b.name, b.fame, b.price_cents, b.level_capacity, b.level_quality, b.level_attraction, b.last_customers,
+                       COALESCE((SELECT sum(quantity) FROM distrito.item_stacks s WHERE s.owner_account_id = b.account_id AND s.location = b.location), 0) > 0
+                  FROM distrito.businesses b WHERE b.kind = @k ORDER BY b.fame DESC, b.created_at
+                """, c, tx))
+            {
+                cmd.Parameters.AddWithValue("k", type.Code);
+                await using var r = await cmd.ExecuteReaderAsync(ct);
+                while (await r.ReadAsync(ct))
+                {
+                    var state = ReadGrowthState(r, 2, r.GetGuid(0), type.Code);
+                    var open = r.GetBoolean(8);
+                    crowd += open ? r.GetInt32(7) : 0;
+                    if (state.Fame > famous.Fame) famous = (r.GetString(1), state.Fame);
+                    locals.Add(new PriceLine(r.GetGuid(0).ToString(), $"«{r.GetString(1)}» ({BusinessGrowth.Category(cfg, state)})", state.PriceCents, open,
+                        TrendOf(type.SiteNpc, r.GetGuid(0).ToString(), false, state.PriceCents)));
+                }
+            }
+            var opened = locals.Count(l => l.InStock);
+            var note = locals.Count == 0 ? "Local libre: se alquila (Oficina Valenti)"
+                : opened == 0 ? "Todos cerrados: sin mercadería"
+                : famous.Fame >= cfg.Fame.Levels[1] ? $"De moda: «{famous.Name}» ({BusinessGrowth.FameName(cfg, famous.Fame)})"
+                : opened == 1 ? "1 local abierto" : $"{opened} locales abiertos";
+            if (locals.Count == 0)
+                locals.Add(new PriceLine(type.ItemCode, type.Code == EconomyCatalog.CoffeeStandLocation ? "Café en taza" : "Trago en el club", type.SalePriceCents, false));
+            boards.Add(new PriceBoardView(type.SiteNpc, site, locals.Take(6).ToList(), now, note, crowd));
         }
         return boards;
     }
@@ -270,9 +288,38 @@ public sealed partial class EconomyService
             }
         }
 
+        var reviews = new List<string>();
+        string? best = null;
+        await using (var cmd = new NpgsqlCommand("""
+            SELECT b.name, r.stars, r.text FROM distrito.business_reviews r JOIN distrito.businesses b ON b.id = r.business_id
+             WHERE r.created_at >= @since ORDER BY r.stars DESC, r.created_at DESC LIMIT 4
+            """, c, tx))
+        {
+            cmd.Parameters.AddWithValue("since", since);
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
+            {
+                reviews.Add($"{new string('★', r.GetInt32(1))} {r.GetString(2)}");
+                if (r.GetInt32(1) == 5) best ??= r.GetString(0);
+            }
+        }
+        var growthCfg = Growth();
+        var famous = new List<string>();
+        await using (var cmd = new NpgsqlCommand("SELECT name, fame FROM distrito.businesses WHERE fame >= @min ORDER BY fame DESC LIMIT 3", c, tx))
+        {
+            cmd.Parameters.AddWithValue("min", growthCfg.Fame.Levels[2]);
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
+                famous.Add($"«{r.GetString(0)}» ({BusinessGrowth.FameName(growthCfg, r.GetDouble(1)).ToLowerInvariant()})");
+        }
+        var agenda = EconomyCatalog.BusinessTypes.Values.Select(t =>
+            $"{BusinessGrowth.KindOf(growthCfg, t.Code).EventName} en {(t.Code == EconomyCatalog.CoffeeStandLocation ? "la Esquina del café" : "el Club de jazz")}, "
+            + $"desde las {BusinessGrowth.EventStart(growthCfg, t.Code, day).ToOffset(TerritoryRules.ArgentinaOffset):HH:mm}: el doble de gente").ToList();
+
         var facts = new NewspaperFacts(day, boards, await PreviousPricesAsync(c, tx, day, ct), await LoadFamilyMoodsAsync(c, tx, ct),
             robberies, forced, newBusinesses, open, (await LoadTerritoryAsync(c, tx, Guid.Empty, ct)).Zones,
-            UpcomingEvents(TimeSpan.FromHours(24)).Where(e => MarketInfoRules.DayOf(e.StartsAt) == day).ToList(), deliveries, orders);
+            UpcomingEvents(TimeSpan.FromHours(24)).Where(e => MarketInfoRules.DayOf(e.StartsAt) == day).ToList(), deliveries, orders,
+            reviews, agenda, famous, best);
         var edition = MarketInfoRules.Write(facts);
 
         await using (var insert = new NpgsqlCommand(
@@ -432,8 +479,16 @@ public sealed partial class EconomyService
             }
             var stock = await QuantityAsync(c, tx, b.Account, type.ItemCode, b.Location, ct);
             var cash = await BalanceAsync(c, tx, b.Account, ct);
-            ledgers.Add(new LedgerView(b.Id, b.Name, b.Kind, stock, cash, type.SalePriceCents, type.ItemPriceCents, type.SalePriceCents,
-                sold, wanted, revenue, rent, wages, recent));
+            var growth = await GrowthViewAsync(c, tx, characterId, b.Kind, ct);
+            long average = type.SalePriceCents;
+            await using (var avg = new NpgsqlCommand("SELECT avg(COALESCE(price_cents, @ref))::bigint FROM distrito.businesses WHERE kind = @k", c, tx))
+            {
+                avg.Parameters.AddWithValue("ref", type.SalePriceCents);
+                avg.Parameters.AddWithValue("k", b.Kind);
+                if (await avg.ExecuteScalarAsync(ct) is long a) average = a;
+            }
+            ledgers.Add(new LedgerView(b.Id, b.Name, b.Kind, stock, cash, growth?.PriceCents ?? type.SalePriceCents, type.ItemPriceCents, average,
+                sold, wanted, revenue, rent, wages, recent, growth));
         }
         return ledgers;
     }

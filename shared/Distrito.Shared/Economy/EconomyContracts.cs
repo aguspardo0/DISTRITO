@@ -30,8 +30,17 @@ public sealed record BusinessView(
     int LastCycleUnits,
     bool HasHelper = false,
     long WagesCents = 0,
-    string Kind = EconomyCatalog.CoffeeStandLocation)
+    string Kind = EconomyCatalog.CoffeeStandLocation,
+    double Fame = 0,
+    long PriceCents = 0,
+    int LevelCapacity = 0,
+    int LevelQuality = 0,
+    int LevelAttraction = 0,
+    int LastCustomers = 0)
 {
+    /// <summary>Precio al público: el elegido por el dueño o el de referencia del rubro.</summary>
+    public long SalePriceCents => PriceCents > 0 ? PriceCents : Type.SalePriceCents;
+
     public BusinessType Type => EconomyCatalog.BusinessTypes[Kind];
     public long CostOfGoodsCents => UnitsSold * Type.ItemPriceCents;
     public long ProfitCents => RevenueCents - RentCents - WagesCents - CostOfGoodsCents;

@@ -58,7 +58,8 @@ public static class TestBackend
     public static Distrito.Backend.Economy.EconomyService Economy() =>
         new(Npgsql.NpgsqlDataSource.Create(ConnectionString), TimeProvider.System,
             new Microsoft.Extensions.Configuration.ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?> { ["Economy:BusinessCycleSeconds"] = "300" })
+                // Ciudad enorme: siempre hay más clientes que capacidad, así las ventas de las pruebas son exactas.
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["Economy:BusinessCycleSeconds"] = "300", ["Business:Crowd"] = "1000" })
                 .Build());
 
     public static DistritoApiClient Api(WebApplicationFactory<Program> factory) => new(factory.CreateClient());

@@ -147,7 +147,7 @@ public partial class Main : Node3D
 
         _market = new MarketNetwork { Name = "Market" };
         AddChild(_market);
-        _market.Initialize(_network);
+        _market.Initialize(_network, _economy);
 
         _vehicles = new Distrito.Game.Transport.VehicleNetwork { Name = "Vehicles" };
         AddChild(_vehicles);

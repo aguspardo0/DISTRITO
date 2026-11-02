@@ -202,7 +202,7 @@ public class NpcInteractionRulesTests
         Assert.Equal(NpcActionKind.FireHelper,
             NpcInteractionRules.Resolve(EconomyCatalog.CoffeeCornerNpc, "fire:puesto-cafe", withHelper)!.Kind);
         Assert.Null(NpcInteractionRules.Resolve(EconomyCatalog.CoffeeCornerNpc, "hire:puesto-cafe", withHelper));
-        Assert.Contains("vende hasta 3", NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, withHelper).Text);
+        Assert.Contains("contratado", NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, withHelper).Text);
     }
 
     [Fact]

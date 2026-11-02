@@ -56,28 +56,28 @@ public class BusinessApiTests
         Assert.NotNull(license.Snapshot.Business);
         Assert.Equal(EconomyCatalog.StartingFundsCents - EconomyCatalog.CoffeeStandLicenseCents, license.Snapshot.BalanceCents);
 
-        await GrantMoney(api, id, 1_000); // con $5 no alcanza para 3 bolsas
-        for (var i = 0; i < 3; i++)
+        await GrantMoney(api, id, 1_000); // con $5 no alcanza para 4 bolsas
+        for (var i = 0; i < 4; i++)
             Assert.True((await BuyBag(api, id)).Value!.Ok);
         var restocked = (await api.BusinessActionAsync(Key, "restock", Req(id))).Value!;
         Assert.True(restocked.Ok, restocked.Message);
-        Assert.Equal(3, restocked.Snapshot.Business!.Stock);
+        Assert.Equal(4, restocked.Snapshot.Business!.Stock);
         Assert.Equal(0, restocked.Snapshot.QuantityOf(EconomyCatalog.CoffeeBagItem));
 
-        // Dos ciclos: vende 2 y después 1 (se queda sin stock). El dueño no hace nada: la economía sigue sola.
+        // Dos ciclos: atiende a 3 (la capacidad del puesto) y después a 1 (se queda sin stock). El dueño no hace nada.
         var start = economy.CurrentCycle();
-        Assert.Equal(2, await economy.RunBusinessCyclesAsync(start + 1, default, id));
+        Assert.Equal(3, await economy.RunBusinessCyclesAsync(start + 1, default, id));
         Assert.Equal(0, await economy.RunBusinessCyclesAsync(start + 1, default, id)); // repetir el mismo ciclo no vende de nuevo
         Assert.Equal(1, await economy.RunBusinessCyclesAsync(start + 2, default, id));
         Assert.Equal(0, await economy.RunBusinessCyclesAsync(start + 5, default, id)); // sin stock, nada
 
         var business = (await api.GetEconomyAsync(Key, id)).Value!.Business!;
         Assert.Equal(0, business.Stock);
-        Assert.Equal(3, business.UnitsSold);
-        Assert.Equal(3 * EconomyCatalog.CoffeeSalePriceCents, business.RevenueCents);
+        Assert.Equal(4, business.UnitsSold);
+        Assert.Equal(4 * EconomyCatalog.CoffeeSalePriceCents, business.RevenueCents);
         Assert.Equal(2 * EconomyCatalog.CoffeeStandRentCents, business.RentCents);
         Assert.Equal(business.RevenueCents - business.RentCents, business.CashCents);
-        Assert.Equal(business.RevenueCents - business.RentCents - 3 * EconomyCatalog.CoffeeBagPriceCents, business.ProfitCents);
+        Assert.Equal(business.RevenueCents - business.RentCents - 4 * EconomyCatalog.CoffeeBagPriceCents, business.ProfitCents);
 
         var before = (await api.GetEconomyAsync(Key, id)).Value!.BalanceCents;
         var withdrawn = (await api.BusinessActionAsync(Key, "withdraw", Req(id))).Value!;
@@ -119,7 +119,7 @@ public class BusinessApiTests
 
         var cycle = economy.CurrentCycle() + 1;
         var results = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => economy.RunBusinessCyclesAsync(cycle, default, id)));
-        Assert.Equal(EconomyCatalog.CoffeeDemandPerCycle, results.Sum());
+        Assert.Equal(3, results.Sum()); // la capacidad del puesto, una sola vez
 
         await using var db = NpgsqlDataSource.Create(TestBackend.ConnectionString);
         await using var total = db.CreateCommand("SELECT sum(balance_cents) FROM distrito.economic_accounts");
@@ -140,7 +140,7 @@ public class BusinessApiTests
         Assert.Equal("no_business", (await api.BusinessActionAsync(Key, "hire", Req(id))).Value!.ErrorCode);
         await api.BusinessActionAsync(Key, "license", Req(id));
         await GrantMoney(api, id, 2_000);
-        for (var i = 0; i < 6; i++) Assert.True((await BuyBag(api, id)).Value!.Ok);
+        for (var i = 0; i < 8; i++) Assert.True((await BuyBag(api, id)).Value!.Ok);
         await api.BusinessActionAsync(Key, "restock", Req(id));
 
         var hireReq = Req(id);
@@ -151,15 +151,15 @@ public class BusinessApiTests
         Assert.Equal("already_hired", (await api.BusinessActionAsync(Key, "hire", Req(id))).Value!.ErrorCode);
 
         var start = economy.CurrentCycle();
-        // Ciclo 1: la caja está en $0, no hay con qué pagarle → no trabaja, vende 2.
-        Assert.Equal(2, await economy.RunBusinessCyclesAsync(start + 1, default, id));
-        // Ciclo 2: ya hay caja → trabaja, cobra $1 y se venden 3.
-        Assert.Equal(3, await economy.RunBusinessCyclesAsync(start + 2, default, id));
+        // Ciclo 1: la caja está en $0, no hay con qué pagarle → no trabaja, atiende a 3.
+        Assert.Equal(3, await economy.RunBusinessCyclesAsync(start + 1, default, id));
+        // Ciclo 2: ya hay caja → trabaja, cobra $1 y se atiende a uno más (4).
+        Assert.Equal(4, await economy.RunBusinessCyclesAsync(start + 2, default, id));
 
         var b = (await api.GetEconomyAsync(Key, id)).Value!.Business!;
         Assert.Equal(EconomyCatalog.CoffeeHelperWageCents, b.WagesCents);
-        Assert.Equal(5 * EconomyCatalog.CoffeeSalePriceCents - 2 * EconomyCatalog.CoffeeStandRentCents - EconomyCatalog.CoffeeHelperWageCents, b.CashCents);
-        Assert.Equal(b.RevenueCents - b.RentCents - b.WagesCents - 5 * EconomyCatalog.CoffeeBagPriceCents, b.ProfitCents);
+        Assert.Equal(7 * EconomyCatalog.CoffeeSalePriceCents - 2 * EconomyCatalog.CoffeeStandRentCents - EconomyCatalog.CoffeeHelperWageCents, b.CashCents);
+        Assert.Equal(b.RevenueCents - b.RentCents - b.WagesCents - 7 * EconomyCatalog.CoffeeBagPriceCents, b.ProfitCents);
 
         var fired = (await api.BusinessActionAsync(Key, "fire", Req(id))).Value!;
         Assert.True(fired.Ok, fired.Message);
@@ -170,7 +170,7 @@ public class BusinessApiTests
     }
 
     [Fact]
-    public async Task Club_de_jazz_junto_al_cafe_vende_cajones_y_de_noche_uno_mas()
+    public async Task Club_de_jazz_junto_al_cafe_vende_cajones_y_el_musico_suma_capacidad()
     {
         await using var factory = TestBackend.Create();
         var api = TestBackend.Api(factory);
@@ -194,8 +194,8 @@ public class BusinessApiTests
         Assert.Equal(6, restocked.Snapshot.BusinessOf(club.Code)!.Stock);
         Assert.Equal(0, restocked.Snapshot.Business!.Stock); // el café no recibió los cajones
 
-        int Expected(long cycle, bool musician) => club.BaseDemand + (musician ? 1 : 0)
-            + (EconomyCatalog.IsNight(DateTimeOffset.FromUnixTimeSeconds(cycle * economy.CycleSeconds)) ? 1 : 0);
+        // Con la ciudad llena, manda la capacidad: 3 lugares, uno más con el músico (la noche trae más gente, no más lugares).
+        int Expected(long cycle, bool musician) => 3 + (musician ? 1 : 0);
 
         var first = economy.CurrentCycle() + 1;
         var sold1 = Expected(first, musician: false);

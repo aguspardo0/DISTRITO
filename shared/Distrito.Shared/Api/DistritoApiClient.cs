@@ -213,6 +213,12 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<DropView>> PveContrabandAsync(string serverKey, PveContrabandRequest request, CancellationToken ct = default) =>
         SendAsync<DropView>(HttpMethod.Post, "internal/pve/contraband", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<EconomyActionResult>> UpgradeBusinessAsync(string serverKey, BusinessUpgradeRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/economy/business/upgrade", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<EconomyActionResult>> SetBusinessPriceAsync(string serverKey, BusinessPriceRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/economy/business/price", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<List<PriceBoardView>>> GetMarketBoardsAsync(string serverKey, CancellationToken ct = default) =>
         SendAsync<List<PriceBoardView>>(HttpMethod.Get, "internal/market/boards", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

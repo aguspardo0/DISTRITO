@@ -728,7 +728,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
                    COALESCE((SELECT units_sold FROM distrito.business_cycles bc WHERE bc.business_id = b.id ORDER BY cycle DESC LIMIT 1), 0),
                    b.has_helper,
                    COALESCE((SELECT sum(wages_cents) FROM distrito.business_cycles bc WHERE bc.business_id = b.id), 0)::bigint,
-                   b.kind
+                   b.kind, b.fame, COALESCE(b.price_cents, 0), b.level_capacity, b.level_quality, b.level_attraction, b.last_customers
               FROM distrito.businesses b JOIN distrito.economic_accounts a ON a.id = b.account_id
              WHERE b.owner_character_id = @c ORDER BY b.created_at;
             """, c, tx))
@@ -751,7 +751,7 @@ public sealed partial class EconomyService(NpgsqlDataSource db, TimeProvider clo
             while (await reader.ReadAsync(ct))
                 businesses.Add(new BusinessView(reader.GetGuid(0), reader.GetString(1), reader.GetInt32(2), reader.GetInt64(3),
                     reader.GetInt64(4), reader.GetInt64(5), reader.GetInt32(6), reader.GetInt32(7), reader.GetBoolean(8), reader.GetInt64(9),
-                    reader.GetString(10)));
+                    reader.GetString(10), reader.GetDouble(11), reader.GetInt64(12), reader.GetInt32(13), reader.GetInt32(14), reader.GetInt32(15), reader.GetInt32(16)));
             business = businesses.FirstOrDefault(b => b.Kind == EconomyCatalog.CoffeeStandLocation);
         }
 
