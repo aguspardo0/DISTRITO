@@ -38,6 +38,8 @@ public sealed class MarketConfig
     [JsonPropertyName("velocidadPrecio")] public double PriceSpeed { get; set; } = 0.5;
     [JsonPropertyName("topeDiarioPrecio")] public double DailyPriceCap { get; set; } = 0.05;
     [JsonPropertyName("anclaPrecio")] public double PriceAnchor { get; set; } = 0.5;
+    [JsonPropertyName("topeEfectoPrecio")] public double MaxPriceBoost { get; set; } = 1.25;
+    [JsonPropertyName("reservaEmpresasCentavos")] public long BusinessReserveCents { get; set; } = 20_000;
     [JsonPropertyName("precioMinimoRelativo")] public double MinPriceRatio { get; set; } = 0.5;
     [JsonPropertyName("precioMaximoRelativo")] public double MaxPriceRatio { get; set; } = 2.0;
     [JsonPropertyName("zonas")] public List<MarketZoneConfig> Zones { get; set; } = new();
@@ -83,11 +85,13 @@ public static class MarketMath
     /// 2. Demanda del ciclo: la necesidad del ciclo frenada por el precio (contra la referencia) y por lo que la zona puede
     /// gastar sin quedarse sin reserva.
     /// </summary>
-    public static double Demand(double needPerCycle, double referencePrice, double averagePrice, long budgetCents, int reserveCycles, double elasticity)
+    public static double Demand(double needPerCycle, double referencePrice, double averagePrice, long budgetCents, int reserveCycles, double elasticity,
+        double maxBoost = double.MaxValue)
     {
         if (needPerCycle <= 0 || averagePrice <= 0)
             return 0;
-        var byPrice = needPerCycle * Math.Pow(referencePrice / averagePrice, elasticity);
+        // Barato atrae más gente, pero la necesidad tiene un techo: nadie toma cinco cafés porque estén en oferta.
+        var byPrice = needPerCycle * Math.Min(Math.Pow(referencePrice / averagePrice, elasticity), maxBoost);
         var byBudget = Math.Max(0, budgetCents) / (reserveCycles * averagePrice);
         return Math.Min(byPrice, byBudget);
     }

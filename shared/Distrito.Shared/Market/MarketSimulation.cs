@@ -178,6 +178,7 @@ public sealed class MarketSimulation
         Restock();
         Sell();
         PayCosts();
+        SpendSurplus();
 
         _cycle++;
         if (_cycle % _cfg.CyclesPerDay == 0)
@@ -268,9 +269,9 @@ public sealed class MarketSimulation
                 var shares = MarketMath.Shares(attractions, _cfg.NoPurchaseWeight);
                 var shareSum = shares.Sum();
                 var averagePrice = shareSum > 0 ? shops.Select((s, i) => shares[i] * s.PriceCents).Sum() / shareSum : reference;
-                var demand = MarketMath.Demand(needPerCycle, reference, averagePrice, z.Budget, _cfg.ReserveCycles, _cfg.Elasticity);
+                var demand = MarketMath.Demand(needPerCycle, reference, averagePrice, z.Budget, _cfg.ReserveCycles, _cfg.Elasticity, _cfg.MaxPriceBoost);
                 // Sin ningún local con mercadería, la necesidad igual cuenta (es una oportunidad), al precio de referencia.
-                z.DemandToday += shareSum > 0 ? demand : MarketMath.Demand(needPerCycle, reference, reference, z.Budget, _cfg.ReserveCycles, _cfg.Elasticity);
+                z.DemandToday += shareSum > 0 ? demand : MarketMath.Demand(needPerCycle, reference, reference, z.Budget, _cfg.ReserveCycles, _cfg.Elasticity, _cfg.MaxPriceBoost);
                 for (var si = 0; si < shops.Count; si++)
                 {
                     wanted[si, zi] = shares[si] * demand;
@@ -341,6 +342,26 @@ public sealed class MarketSimulation
                 _zones[s.Zone].Budget += s.WagePerCycle; // el empleado vive en la zona del local
             }
         }
+    }
+
+    /// <summary>
+    /// Las empresas NPC no guardan la plata para siempre: lo que les sobra por encima de una reserva vuelve a la gente de su
+    /// barrio (sueldos, compras, gastos), de a poco. Sin esto la plata se estanca y la demanda se seca.
+    /// </summary>
+    private void SpendSurplus()
+    {
+        long Pay(long cash, string zone)
+        {
+            var surplus = cash - _cfg.BusinessReserveCents;
+            if (surplus <= 0) return 0;
+            var amount = Math.Max(1, surplus / _cfg.ReserveCycles);
+            _zones[zone].Budget += amount;
+            return amount;
+        }
+        Supplier.Cash -= Pay(Supplier.Cash, "el-mercado");
+        Truck.Cash -= Pay(Truck.Cash, Factory.Zone);
+        Factory.Cash -= Pay(Factory.Cash, Factory.Zone);
+        FamiliesCash -= Pay(FamiliesCash, "barrio-valenti"); // el alquiler lo cobra la Oficina Valenti
     }
 
     private void CloseDay(int day)
