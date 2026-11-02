@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Distrito.Shared.Economy;
 using Distrito.Shared.Market;
 
 // Simulador del mercado de prueba: corre los escenarios con config/mercado.json y deja un informe (markdown + CSV).
