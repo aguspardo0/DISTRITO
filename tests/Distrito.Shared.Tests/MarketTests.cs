@@ -97,7 +97,9 @@ public class MarketTests
     public void Nunca_se_vende_mas_de_lo_que_la_gente_quiere(string code)
     {
         var (sim, _) = Run(code);
-        Assert.All(sim.Days.SelectMany(d => d.Zones), z => Assert.True(z.Served <= z.Wanted + 1, $"{z.Zone}: {z.Served} > {z.Wanted}"));
+        // Lo vendido se anota en la zona del local, no en la del comprador: se compara el total del día.
+        Assert.All(sim.Days, d => Assert.True(d.Zones.Sum(z => z.Served) <= d.Zones.Sum(z => z.Wanted) + d.Zones.Count,
+            $"día {d.Day}: {d.Zones.Sum(z => z.Served)} > {d.Zones.Sum(z => z.Wanted):0}"));
     }
 
     [Fact]
