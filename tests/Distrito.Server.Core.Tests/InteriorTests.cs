@@ -36,7 +36,8 @@ public class InteriorTests
             Assert.Equal((p, false), InteriorLayout.DoorNear(p.Door.X + p.Outward.X, p.Door.Y + p.Outward.Y));
             Assert.Equal((p, true), InteriorLayout.DoorNear(p.EntryPoint.X, p.EntryPoint.Y));
             // Salir no deja parado sobre otra puerta (no se rebota de un local a otro).
-            Assert.True(InteriorLayout.DoorNear(p.ExitPoint.X, p.ExitPoint.Y) is null or { Plan.Code: var c } && c == p.Code);
+            var after = InteriorLayout.DoorNear(p.ExitPoint.X, p.ExitPoint.Y);
+            Assert.True(after is null || after.Value.Plan.Code == p.Code);
             foreach (var q in InteriorLayout.All.Where(q => q != p))
                 Assert.True(Vector2.Distance(p.Door, q.Door) > InteriorLayout.DoorRange * 2, $"{p.Code} y {q.Code} tienen las puertas pegadas");
         }

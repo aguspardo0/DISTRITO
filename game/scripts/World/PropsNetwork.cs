@@ -180,8 +180,8 @@ public partial class PropsNetwork : Node3D
     public override void _Process(double delta)
     {
         // Se arman cuando ya hay partida (servidor: cuerpos con física; cliente: solo lo que se ve). Al salir se desarman.
-        var peer = Multiplayer.MultiplayerPeer;
-        var online = peer is not null && peer is not OfflineMultiplayerPeer && peer.GetConnectionStatus() == MultiplayerPeer.ConnectionStatus.Connected;
+        var link = Multiplayer.MultiplayerPeer;
+        var online = link is not null && link is not OfflineMultiplayerPeer && link.GetConnectionStatus() == MultiplayerPeer.ConnectionStatus.Connected;
         if (online && !_spawned)
         {
             Spawn(Multiplayer.IsServer());
