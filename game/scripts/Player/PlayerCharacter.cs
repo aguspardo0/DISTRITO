@@ -72,7 +72,8 @@ public partial class PlayerCharacter : CharacterBody3D
         var driving = _vehicle.Length > 0;
         _visual.Visible = !driving;
         CollisionLayer = driving ? 0u : 1u;
-        CollisionMask = driving ? 0u : 1u;
+        // Capa 3 (valor 4): objetos con física compartida. El servidor los empuja al caminar.
+        CollisionMask = driving ? 0u : 1u | Distrito.Game.World.PropsNetwork.PropLayer;
     }
 
     /// <summary>Muerto (además de Downed): reaparece a los 10 s. Herido = Downed sin Dead.</summary>
@@ -213,6 +214,7 @@ public partial class PlayerCharacter : CharacterBody3D
         velocity.Z = horizontal.Y;
         Velocity = velocity;
         MoveAndSlide();
+        Distrito.Game.World.PropsNetwork.PushFromSlides(this, horizontal.Length(), 0.9f);
 
         if (Weapon != Distrito.Shared.Economy.Weapons.Fists)
             Rotation = new Vector3(0, AimYaw, 0);

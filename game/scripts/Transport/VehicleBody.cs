@@ -35,6 +35,7 @@ public partial class VehicleBody : CharacterBody3D
     {
         var type = Vehicles.Find(view.Kind) ?? Vehicles.Pickup;
         var body = new VehicleBody { Name = $"Vehicle_{view.Id:N}", Id = view.Id, Type = type, OwnerName = view.OwnerName };
+        body.CollisionMask = 1u | Distrito.Game.World.PropsNetwork.PropLayer; // los vehículos atropellan cajones y barriles
         body.AddChild(new CollisionShape3D
         {
             Shape = new BoxShape3D { Size = new Vector3(type.Width, type.Height * 0.8f, type.Length) },
@@ -186,6 +187,7 @@ public partial class VehicleBody : CharacterBody3D
             velocity.Y = -0.5f;
         Velocity = velocity;
         MoveAndSlide();
+        Distrito.Game.World.PropsNetwork.PushFromSlides(this, Mathf.Abs(Speed), 3.5f);
         if (GetSlideCollisionCount() > 0 && GetRealVelocity().Length() < Mathf.Abs(Speed) * 0.5f)
             Speed *= 0.4f; // chocó
     }

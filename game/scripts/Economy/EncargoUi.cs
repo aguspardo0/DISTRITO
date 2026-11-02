@@ -23,13 +23,14 @@ public static class EncargoLook
     {
         if (NpcInteractionRules.Find(code) is not { } npc)
             return Name(code);
-        var zone = CityLayout.BarrioAt(npc.Position.X, npc.Position.Z)?.Area.Name
-                   ?? (CityLayout.Docks.Contains(npc.Position.X, npc.Position.Z) ? "Los Muelles" : "El Mercado");
+        var spot = npc.MapPosition;
+        var zone = CityLayout.BarrioAt(spot.X, spot.Y)?.Area.Name
+                   ?? (CityLayout.Docks.Contains(spot.X, spot.Y) ? "Los Muelles" : "El Mercado");
         return $"{Name(code)} ({zone})";
     }
 
     public static Vector3? PositionOf(string? code) =>
-        code is not null && NpcInteractionRules.Find(code) is { } npc ? new Vector3(npc.Position.X, 0, npc.Position.Z) : null;
+        code is not null && NpcInteractionRules.Find(code) is { } npc ? new Vector3(npc.MapPosition.X, 0, npc.MapPosition.Y) : null;
 
     public static string TimeLeft(DateTimeOffset until)
     {

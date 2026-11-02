@@ -106,9 +106,11 @@ public partial class VisualStock : Node3D
 
     private void BuildShelves()
     {
-        _shelves = new Node3D { Name = "EstantesMoretti", Position = ShelvesAt };
+        // Adentro del galpón Moretti (si el interior está armado); si no, en la vereda como antes.
+        var anchors = InteriorBuilder.Anchors;
+        _shelves = new Node3D { Name = "EstantesMoretti", Position = anchors.GetValueOrDefault("galpon-moretti:stock-estantes", ShelvesAt) };
         AddChild(_shelves);
-        _pallets = new Node3D { Name = "PedidosMoretti", Position = PalletsAt };
+        _pallets = new Node3D { Name = "PedidosMoretti", Position = anchors.GetValueOrDefault("galpon-moretti:stock-pedidos", PalletsAt) };
         AddChild(_pallets);
     }
 

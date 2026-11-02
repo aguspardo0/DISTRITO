@@ -31,8 +31,8 @@ public partial class MapNetwork : Node
         var everyone = new List<MapMarker>();
         foreach (var peer in Multiplayer.GetPeers().Select(p => (long)p).Append(Multiplayer.GetUniqueId()))
             if (_network.GetPlayer(peer) is { } body)
-                everyone.Add(new MapMarker(peer, body.DisplayName.Length > 0 ? body.DisplayName : $"Jugador {peer}",
-                    body.GlobalPosition.X, body.GlobalPosition.Z));
+                var spot = InteriorLayout.MapPoint(body.GlobalPosition.X, body.GlobalPosition.Z); // adentro: en la puerta
+                everyone.Add(new MapMarker(peer, body.DisplayName.Length > 0 ? body.DisplayName : $"Jugador {peer}", spot.X, spot.Y));
 
         foreach (var peer in Multiplayer.GetPeers())
         {

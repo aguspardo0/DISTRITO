@@ -116,7 +116,7 @@ public static class CityLayout
     /// <summary>¿Se puede estar ahí? Con margen: el punto y los cuatro que lo rodean a esa distancia (sirve en las uniones).</summary>
     public static bool IsWalkable(float x, float z, float margin = 0f)
     {
-        bool In(float px, float pz) => Districts.Any(d => d.Contains(px, pz));
+        bool In(float px, float pz) => Districts.Any(d => d.Contains(px, pz)) || InteriorLayout.At(px, pz) is not null;
         return In(x, z) && (margin <= 0 || (In(x - margin, z) && In(x + margin, z) && In(x, z - margin) && In(x, z + margin)));
     }
 

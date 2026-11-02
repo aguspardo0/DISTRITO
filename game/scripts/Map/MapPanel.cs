@@ -107,8 +107,9 @@ public partial class MapPanel : Control
         var number = 0;
         foreach (var npc in NpcInteractionRules.All)
         {
-            var at = ToMap(npc.Position.X, npc.Position.Z);
-            if (CityLayout.BarrioAt(npc.Position.X, npc.Position.Z) is { } barrio)
+            var spot = npc.MapPosition; // si atiende adentro, en la puerta de su local
+            var at = ToMap(spot.X, spot.Y);
+            if (CityLayout.BarrioAt(spot.X, spot.Y) is { } barrio)
             {
                 var tone = Accent(barrio);
                 if (NpcInteractionRules.Bosses.Contains(npc))

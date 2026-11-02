@@ -11,8 +11,16 @@ public enum NpcActionKind { AcceptContract, Buy, Deliver, BuyLicense, Restock, W
 
 public sealed record NpcAction(NpcActionKind Kind, string Code, Guid? ContractId = null, int Quantity = 1);
 
-/// <summary>NPC fijo del barrio de prueba.</summary>
-public sealed record NpcDefinition(string Code, string Name, Vector3 Position);
+/// <summary>
+/// NPC fijo. <see cref="Counters"/>: otros mostradores donde atiende lo mismo (por ejemplo, adentro de su galpón).
+/// </summary>
+public sealed record NpcDefinition(string Code, string Name, Vector3 Position, IReadOnlyList<Vector3>? Counters = null)
+{
+    public IEnumerable<Vector3> Positions => Counters is null ? [Position] : Counters.Prepend(Position);
+
+    /// <summary>Dónde figura en el mapa: si atiende adentro de un edificio, en su puerta.</summary>
+    public Vector2 MapPosition => World.InteriorLayout.MapPoint(Position.X, Position.Z);
+}
 
 /// <summary>
 /// Qué ofrece cada NPC según el estado económico del jugador, y qué opciones son válidas.
@@ -38,10 +46,25 @@ public static class NpcInteractionRules
     public const string InformantOption = "ui:informe";
     public const string LedgerOption = "ui:libro";
 
-    public static readonly NpcDefinition Deposit = new(EconomyCatalog.DepositNpc, "Almacén Moretti", new Vector3(-8.5f, 0, -8.5f));
-    public static readonly NpcDefinition Workshop = new(EconomyCatalog.WorkshopNpc, "Taller Caruso", new Vector3(10f, 0, 3f));
+    // Los tres de las familias atienden en la vereda y también en el mostrador de adentro (galpón, taller y oficina).
+    public static readonly NpcDefinition Deposit = new(EconomyCatalog.DepositNpc, "Almacén Moretti", new Vector3(-8.5f, 0, -8.5f), [Inside("galpon-moretti")]);
+    public static readonly NpcDefinition Workshop = new(EconomyCatalog.WorkshopNpc, "Taller Caruso", new Vector3(10f, 0, 3f), [Inside("taller-caruso")]);
 
-    public static readonly NpcDefinition ValentiOffice = new(EconomyCatalog.ValentiOfficeNpc, "Oficina Valenti", new Vector3(-11.5f, 0, -1.5f));
+    public static readonly NpcDefinition ValentiOffice = new(EconomyCatalog.ValentiOfficeNpc, "Oficina Valenti", new Vector3(-11.5f, 0, -1.5f), [Inside("oficina-valenti")]);
+
+    private static Vector3 Inside(string interior)
+    {
+        var c = World.InteriorLayout.CounterOf(interior);
+        return new Vector3(c.X, 0, c.Y);
+    }
+
+    // Tiendas minoristas del Mercado (2026-11-02): atienden adentro. Los productos se activan cuando el equipo los apruebe.
+    public const string RamosNpc = "npc:ramos-generales", BoticaNpc = "npc:botica", SastreriaNpc = "npc:sastreria", DinerNpc = "npc:diner";
+    public static readonly NpcDefinition Ramos = new(RamosNpc, "Don Pepe (Ramos generales)", Inside("ramos-generales"));
+    public static readonly NpcDefinition Botica = new(BoticaNpc, "El boticario Ferri", Inside("botica"));
+    public static readonly NpcDefinition Sastreria = new(SastreriaNpc, "Bianchi, el sastre", Inside("sastreria"));
+    public static readonly NpcDefinition Diner = new(DinerNpc, "Mabel (Diner La Estrella)", Inside("diner"));
+    public static readonly IReadOnlyList<NpcDefinition> Shops = [Ramos, Botica, Sastreria, Diner];
     public static readonly NpcDefinition CoffeeCorner = new(EconomyCatalog.CoffeeCornerNpc, "Esquina del café", new Vector3(-3f, 0, 8f));
 
     public static readonly NpcDefinition JazzClub = new(EconomyCatalog.JazzClubNpc, "Club de jazz", new Vector3(8f, 0, -7f));
@@ -75,7 +98,7 @@ public static class NpcInteractionRules
     /// <summary>Gaetano, el marinero de Los Muelles: entrega los paquetes de los encargos.</summary>
     public static readonly NpcDefinition DocksContact = new(EncargoRules.DocksContact, "Gaetano, el marinero", new Vector3(47f, 0, 3.4f));
 
-    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner, JazzClub, Casino, Kiosk, Informant, .. Bosses, .. FamilyContacts, DocksContact];
+    public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner, JazzClub, Casino, Kiosk, Informant, .. Shops, .. Bosses, .. FamilyContacts, DocksContact];
 
     /// <summary>NPC del Mercado (proveedores y comercios), sin la gente de los barrios ni el marinero.</summary>
     public static readonly IReadOnlyList<NpcDefinition> Market = All.Except(Bosses).Except(FamilyContacts).Except([DocksContact]).ToList();
@@ -96,9 +119,29 @@ public static class NpcInteractionRules
 
     public static bool InRange(Vector3 player, NpcDefinition npc)
     {
-        var flat = new Vector2(player.X - npc.Position.X, player.Z - npc.Position.Z);
-        return flat.Length() <= InteractionRange && MathF.Abs(player.Y - npc.Position.Y) < 3f;
+        foreach (var at in npc.Positions)
+            if (new Vector2(player.X - at.X, player.Z - at.Z).Length() <= InteractionRange && MathF.Abs(player.Y - at.Y) < 3f)
+                return true;
+        return false;
     }
+
+    /// <summary>Distancia al mostrador más cercano de ese NPC.</summary>
+    public static float DistanceTo(Vector3 player, NpcDefinition npc) =>
+        npc.Positions.Min(at => new Vector2(player.X - at.X, player.Z - at.Z).Length());
+
+    private static (string, List<NpcOption>) ShopDialog(string code) => code switch
+    {
+        RamosNpc => ("Don Pepe acomoda latas en el estante. «Bienvenido a La Esperanza. Estamos terminando de acomodar: en unos días "
+                     + "tengo de todo, desde fideos hasta cigarrillos. Pase cuando quiera.»", new List<NpcOption>()),
+        BoticaNpc => ("El boticario limpia un frasco a contraluz. «Botica Ferri, para servirle. Vendas, tónicos y remedios… en cuanto llegue "
+                      + "el pedido de la droguería. Vuelva pronto.»", new List<NpcOption>()),
+        SastreriaNpc => ("Bianchi tiene alfileres en la boca y una cinta métrica al cuello. «Trajes a medida, sombreros, camperas. "
+                         + "Todavía estoy cortando las telas de la temporada: dentro de poco lo visto como un señor.»", new List<NpcOption>()),
+        _ => ("Mabel seca un vaso detrás de la barra. «¡Bienvenido a La Estrella! La cocina abre pronto: café, sándwiches y la mejor tarta "
+              + "de manzana de Bellmont. Mientras tanto, la rocola es gratis.»", new List<NpcOption>()),
+    };
+
+    private static bool IsShop(string code) => code is RamosNpc or BoticaNpc or SastreriaNpc or DinerNpc;
 
     public static NpcDialog DialogFor(string npcCode, EconomySnapshot s, string? prefix = null)
     {
@@ -116,6 +159,7 @@ public static class NpcInteractionRules
             EconomyCatalog.MorettiBossNpc or EconomyCatalog.ValentiBossNpc or EconomyCatalog.CarusoBossNpc => BossDialog(npcCode, s),
             _ when FamilyPeople.Find(npcCode) is { } contact => ContactDialog(contact, s),
             MarketInfoRules.KioskNpc => KioskDialog(s),
+            _ when IsShop(npcCode) => ShopDialog(npcCode),
             MarketInfoRules.InformantNpc => InformantDialog(s),
             EncargoRules.DocksContact => ("Un marinero viejo remienda una red. «Gaetano, para servirle. Acá llegan cosas que no figuran en ningún papel. "
                 + "Si alguien de las familias le dijo que pase, tengo algo para usted. Si no, yo no vi nada.»", new List<NpcOption>()),

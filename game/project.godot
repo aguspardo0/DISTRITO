@@ -24,3 +24,7 @@ project/assembly_name="Distrito.Game"
 [rendering]
 
 renderer/rendering_method="forward_plus"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"

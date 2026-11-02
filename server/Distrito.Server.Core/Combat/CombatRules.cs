@@ -53,6 +53,9 @@ public static class CombatRules
     /// </summary>
     public static string ZoneAt(Vector3 p)
     {
+        // Adentro de un edificio vale la zona de su puerta.
+        if (Distrito.Server.Core.World.InteriorLayout.At(p.X, p.Z) is { } inside)
+            return ZoneAt(new Vector3(inside.Door.X, 0, inside.Door.Y));
         if (Distrito.Server.Core.World.CityLayout.BarrioAt(p.X, p.Z) is { } barrio)
             return barrio.Area.Code;
         if (Distrito.Server.Core.World.CityLayout.Docks.Contains(p.X, p.Z))
@@ -63,8 +66,9 @@ public static class CombatRules
             .OrderBy(x => x.Dist).First().Zone!;
     }
 
+    /// <summary>Adentro de los locales no se pelea (como cerca de los mostradores).</summary>
     public static bool InSafeZone(Vector3 p, float radius = SafeRadius) =>
-        NpcInteractionRules.All.Any(n => Vector2.Distance(new(n.Position.X, n.Position.Z), new(p.X, p.Z)) <= radius);
+        Distrito.Server.Core.World.InteriorLayout.At(p.X, p.Z) is not null || NpcInteractionRules.All.Any(n => Vector2.Distance(new(n.Position.X, n.Position.Z), new(p.X, p.Z)) <= radius);
 
     /// <summary>Permisos efectivos en un punto según las reglas de zona configurables.</summary>
     public static ZonePermissions PermissionsAt(Vector3 p, ZoneRules rules, CombatState state, bool war = false)

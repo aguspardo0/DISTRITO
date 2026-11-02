@@ -8,10 +8,10 @@ public partial class NpcActor : StaticBody3D
 {
     public NpcDefinition Definition { get; private set; } = null!;
 
-    public static NpcActor Create(NpcDefinition definition, Color color)
+    public static NpcActor Create(NpcDefinition definition, Color color, Vector3? at = null, string suffix = "")
     {
-        var actor = new NpcActor { Name = definition.Code.Replace(':', '_'), Definition = definition };
-        actor.Position = new Vector3(definition.Position.X, definition.Position.Y, definition.Position.Z);
+        var actor = new NpcActor { Name = definition.Code.Replace(':', '_') + suffix, Definition = definition };
+        actor.Position = at ?? new Vector3(definition.Position.X, definition.Position.Y, definition.Position.Z);
 
         var shape = new CollisionShape3D
         {

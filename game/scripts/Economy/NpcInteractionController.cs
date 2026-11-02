@@ -111,7 +111,8 @@ public partial class NpcInteractionController : Node
         }
 
         var npc = NearestNpc();
-        _prompt.Text = npc is not null && !_dialog.IsOpen ? $"[E] Hablar con {npc.Name}" : "";
+        var door = npc is null && _network.LocalPlayer is { } me ? Distrito.Game.World.DoorNetwork.PromptAt(me.VisualPosition) : null;
+        _prompt.Text = _dialog.IsOpen ? "" : npc is not null ? $"[E] Hablar con {npc.Name}" : door ?? "";
     }
 
     public override void _UnhandledKeyInput(InputEvent @event)
@@ -121,6 +122,8 @@ public partial class NpcInteractionController : Node
             var npc = NearestNpc();
             if (npc is not null)
                 _economy.Interact(npc.Code);
+            else if (_network.LocalPlayer is { } me && Distrito.Game.World.DoorNetwork.PromptAt(me.VisualPosition) is not null)
+                Distrito.Game.World.DoorNetwork.Instance?.Use();
         }
     }
 
@@ -133,7 +136,7 @@ public partial class NpcInteractionController : Node
         var position = new System.Numerics.Vector3(p.X, p.Y, p.Z);
         return NpcInteractionRules.All
             .Where(n => NpcInteractionRules.InRange(position, n))
-            .OrderBy(n => System.Numerics.Vector3.Distance(n.Position, position))
+            .OrderBy(n => NpcInteractionRules.DistanceTo(position, n))
             .FirstOrDefault();
     }
 

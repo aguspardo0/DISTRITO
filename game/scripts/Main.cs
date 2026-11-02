@@ -67,6 +67,7 @@ public partial class Main : Node3D
         Distrito.Game.World.DocksBuilder.Build(GetNode<Node3D>("World"));
         Distrito.Game.World.DocksBuilder.BuildCasino(GetNode<Node3D>("World"));
         Distrito.Game.World.CityBuilder.Build(GetNode<Node3D>("World"));
+        Distrito.Game.World.InteriorBuilder.Build(GetNode<Node3D>("World"));
         try
         {
             Options = LaunchOptions.Parse(OS.GetCmdlineUserArgs());
@@ -120,6 +121,13 @@ public partial class Main : Node3D
         _inventory = new Distrito.Game.Inventory.InventoryNetwork { Name = "Inventory" };
         AddChild(_inventory);
         _inventory.Initialize(_network, _economy, _combat);
+
+        var doors = new Distrito.Game.World.DoorNetwork { Name = "Doors" };
+        AddChild(doors);
+        doors.Initialize(_network);
+        var props = new Distrito.Game.World.PropsNetwork();
+        AddChild(props);
+        props.Initialize(_network);
 
         _stock = new Distrito.Game.World.VisualStock { Name = "VisualStock" };
         AddChild(_stock);
@@ -199,6 +207,12 @@ public partial class Main : Node3D
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.JazzClub, new Color(0.2f, 0.15f, 0.35f)));
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.Casino, new Color(0.12f, 0.35f, 0.18f)));
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.Kiosk, new Color(0.5f, 0.44f, 0.3f)));
+        // Los mismos que atienden en la vereda, detrás de su mostrador de adentro; y los dueños de las tiendas.
+        foreach (var npc in new[] { NpcInteractionRules.Deposit, NpcInteractionRules.Workshop, NpcInteractionRules.ValentiOffice })
+            foreach (var (counter, i) in (npc.Counters ?? []).Select((c, i) => (c, i)))
+                npcs.AddChild(NpcActor.Create(npc, new Color(0.45f, 0.38f, 0.3f), new Vector3(counter.X, counter.Y, counter.Z), $"_adentro{i}"));
+        foreach (var shop in NpcInteractionRules.Shops)
+            npcs.AddChild(NpcActor.Create(shop, new Color(0.52f, 0.42f, 0.34f)));
         npcs.AddChild(NpcActor.Create(NpcInteractionRules.Informant, new Color(0.16f, 0.16f, 0.18f)));
         // Jefes de familia: traje oscuro con el color de su barrio.
         foreach (var (boss, barrio) in NpcInteractionRules.Bosses.Zip(Distrito.Server.Core.World.CityLayout.Barrios))
@@ -703,6 +717,20 @@ public partial class Main : Node3D
                 }
             }),
             ("libreta-precios", () => { _marketPanel?.Open(MarketPanel.Notes); _market.Preview(); }),
+            // Interiores del Mercado: el galpón mayorista, una tienda y el diner, mirando hacia adentro.
+            ("galpon", () => { _marketPanel?.Close(); EnterInterior("galpon-moretti"); }),
+            ("ramos-generales", () => EnterInterior("ramos-generales")),
+            ("diner", () => EnterInterior("diner")),
+            ("taller", () => EnterInterior("taller-caruso")),
+            ("puertas", () =>
+            {
+                // Afuera: la calle con las puertas, los toldos y los cajones con física.
+                if (_network.LocalPlayer is { } me)
+                {
+                    me.GlobalPosition = new Vector3(2f, 0.2f, -6f);
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(0);
+                }
+            }),
             ("diario", () => _marketPanel?.Open(MarketPanel.Paper)),
             ("informante", () => _marketPanel?.Open(MarketPanel.Report)),
             ("libro-cuentas", () => _marketPanel?.Open(MarketPanel.Ledger)),
@@ -739,6 +767,15 @@ public partial class Main : Node3D
                 EncargoStatus.Active, false, now.AddMinutes(4), now.AddMinutes(4), now.AddMinutes(2)),
         };
         return new EconomySnapshot(2500, [], [], 0, [new ReputationView(EconomyCatalog.Moretti, "Familia Moretti", 34)], Encargos: [.. active, .. offers]);
+    }
+
+    private void EnterInterior(string code)
+    {
+        if (_network.LocalPlayer is not { } me || Distrito.Server.Core.World.InteriorLayout.Find(code) is not { } plan)
+            return;
+        var at = plan.EntryPoint;
+        me.GlobalPosition = new Vector3(at.X, 0.2f, at.Y + 0.6f);
+        me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(plan.EntryYaw);
     }
 
     private void ShowBarrio(Distrito.Server.Core.World.BarrioPlan b)
