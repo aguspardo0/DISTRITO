@@ -25,7 +25,8 @@ public class EncargoApiTests
     {
         await using var db = NpgsqlDataSource.Create(TestBackend.ConnectionString);
         await using var cmd = db.CreateCommand("""
-            UPDATE distrito.character_encargos SET kind = @k, item_code = @i, quantity = @q, target_npc = @t, target = @g, stage = 0, progress = 0
+            UPDATE distrito.character_encargos SET kind = @k, item_code = @i, quantity = @q, target_npc = @t, target = @g, stage = 0, progress = 0,
+                   fast_until = NULL -- al cambiar el tipo, sin premio por rapidez (si salió un contrarreloj, pagaba 25 % más)
              WHERE id = @id
             """);
         cmd.Parameters.AddWithValue("k", kind);
