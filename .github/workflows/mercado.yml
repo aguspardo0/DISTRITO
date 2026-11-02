@@ -1,0 +1,31 @@
+name: Simulador de mercado
+
+# Corre el simulador del mercado de prueba (economía, etapa 1) y deja el informe como artefacto.
+# Rápido: no compila el juego ni el backend. Se lanza a mano o cuando cambia el mercado.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "shared/Distrito.Shared/Market/**"
+      - "tools/Distrito.MarketSim/**"
+      - "config/mercado.json"
+
+jobs:
+  simular:
+    name: Simular escenarios
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+      - name: Simular
+        run: |
+          set -o pipefail
+          dotnet run --project tools/Distrito.MarketSim -c Release -- config/mercado.json market-report | tee sim.log
+          grep '^\[' sim.log | while IFS= read -r l; do echo "::notice title=Mercado::${l:0:900}"; done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: informe-mercado
+          path: market-report

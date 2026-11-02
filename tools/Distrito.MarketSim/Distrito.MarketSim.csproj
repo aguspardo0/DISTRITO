@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Simulador del mercado de prueba (economía, etapa 1). No es parte del juego: corre en la CI y deja un informe. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\shared\Distrito.Shared\Distrito.Shared.csproj" />
+  </ItemGroup>
+</Project>
