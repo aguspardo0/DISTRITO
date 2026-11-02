@@ -32,6 +32,12 @@ public sealed class SimSupplier
     public int Stock { get; set; }
     public long SellPriceCents { get; init; }
     public long Cash { get; set; }
+    /// <summary>Lo que el proveedor le debe a la fábrica (mercadería fiada) y al camionero (fletes fiados).</summary>
+    public long DebtToFactoryCents { get; internal set; }
+    public long DebtToTruckCents { get; internal set; }
+    /// <summary>Hasta cuánto fían la fábrica y el camionero, entre los dos. Sin fiado, un asalto que vacía la caja traba la cadena para siempre.</summary>
+    public long CreditLimitCents { get; init; } = 100_000;
+    public long Debt => DebtToFactoryCents + DebtToTruckCents;
 }
 
 /// <summary>Fábrica (el tostadero): con insumos y obreros pagos produce; compra los insumos en el puerto.</summary>
@@ -70,6 +76,8 @@ public sealed class SimTruck
     public int Cargo { get; internal set; }
     public int Remaining { get; internal set; }
     public int LostToday { get; internal set; }
+    /// <summary>Después de un asalto el camión no sale hasta el día siguiente (hay que asegurar la ruta).</summary>
+    public int SuspendedUntilDay { get; internal set; } = -1;
 }
 
 /// <summary>Lo que pasó en un día, por zona y por local (para el informe y las pruebas).</summary>
@@ -213,27 +221,40 @@ public sealed class MarketSimulation
         // Camión: sale cuando el proveedor necesita y hay carga. El proveedor paga la carga y el flete al cargar (desde ahí la
         // mercadería es suya): si asaltan el camión, pierde el proveedor, no la fábrica.
         var t = Truck;
+        // Lo fiado se paga primero, con lo que haya en caja.
+        var toFactory = Math.Min(Supplier.Cash, Supplier.DebtToFactoryCents);
+        Supplier.Cash -= toFactory; Supplier.DebtToFactoryCents -= toFactory; f.Cash += toFactory;
+        var toTruck = Math.Min(Supplier.Cash, Supplier.DebtToTruckCents);
+        Supplier.Cash -= toTruck; Supplier.DebtToTruckCents -= toTruck; t.Cash += toTruck;
+
         if (t.Remaining > 0)
         {
             t.Remaining--;
             if (t.Remaining == 0)
             {
                 if (TruckRobbed(day))
+                {
                     t.LostToday += t.Cargo;
+                    t.SuspendedUntilDay = day + 1;
+                }
                 else
                     Supplier.Stock += t.Cargo;
                 t.Cargo = 0;
             }
         }
-        else if (f.Output >= t.MinLoad && Supplier.Stock < t.ShipWhenSupplierBelow)
+        else if (day >= t.SuspendedUntilDay && f.Output >= t.MinLoad && Supplier.Stock < t.ShipWhenSupplierBelow)
         {
-            var affordable = (int)((Supplier.Cash - t.FeePerTrip) / Math.Max(1, f.SellPriceCents));
+            var spendable = Supplier.Cash + Math.Max(0, Supplier.CreditLimitCents - Supplier.Debt) - t.FeePerTrip;
+            var affordable = (int)Math.Max(0, spendable / Math.Max(1, f.SellPriceCents));
             var load = Math.Min(Math.Min(t.Capacity, f.Output), affordable);
             if (load >= t.MinLoad)
             {
-                Supplier.Cash -= load * f.SellPriceCents + t.FeePerTrip;
-                f.Cash += load * f.SellPriceCents;
-                t.Cash += t.FeePerTrip;
+                // Se paga en efectivo lo que alcanza; el resto queda fiado (primero el flete, después la mercadería).
+                var fee = Math.Min(Supplier.Cash, t.FeePerTrip);
+                Supplier.Cash -= fee; t.Cash += fee; Supplier.DebtToTruckCents += t.FeePerTrip - fee;
+                var goods = load * f.SellPriceCents;
+                var cash = Math.Min(Supplier.Cash, goods);
+                Supplier.Cash -= cash; f.Cash += cash; Supplier.DebtToFactoryCents += goods - cash;
                 t.Cargo = load;
                 f.Output -= load;
                 t.Remaining = Math.Max(1, t.TripCycles);
