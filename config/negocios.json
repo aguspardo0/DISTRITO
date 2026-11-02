@@ -1,0 +1,58 @@
+{
+  "_ayuda": "Negocios que crecen (aprobado por el equipo 2026-11-02). La clientela sale de la gente de Bellmont: cada barrio tiene habitantes que quieren café o una salida de noche, y se reparten entre los locales según precio, calidad, fama, atracción y distancia. Sin tope: capacidad, calidad y atracción se amplían sin límite (cada nivel cuesta más). Plata en centavos. Calibrar con tools/Distrito.MarketSim (escenarios de crecimiento).",
+  "ciclosPorDia": 288,
+  "elasticidad": 1.5,
+  "pesoCalidad": 1.0,
+  "distanciaMetros": 90,
+  "noComproAca": 0.6,
+  "topeEfectoPrecio": 1.6,
+  "precioMinimo": 0.5,
+  "precioMaximo": 3.0,
+  "fama": {
+    "porCliente": 0.1,
+    "perdidoSinMercaderia": 0.4,
+    "perdidoPorCola": 0.08,
+    "olvidoPorCiclo": 0.0008,
+    "olvidoCerrado": 0.003,
+    "visitantesPorFama": 0.004,
+    "niveles": [0, 100, 400, 1200, 3000],
+    "critico": 60
+  },
+  "zonas": [
+    { "codigo": "el-mercado", "habitantes": 1200, "x": 0, "z": 0, "preferencias": { "puesto-cafe": 1.2, "club-jazz": 0.8 } },
+    { "codigo": "barrio-moretti", "habitantes": 2500, "x": -110, "z": 0, "preferencias": { "puesto-cafe": 1.0, "club-jazz": 1.0 } },
+    { "codigo": "barrio-valenti", "habitantes": 1500, "x": 24.5, "z": -110, "preferencias": { "puesto-cafe": 0.9, "club-jazz": 1.5 } },
+    { "codigo": "barrio-caruso", "habitantes": 3000, "x": 13, "z": 110, "preferencias": { "puesto-cafe": 1.3, "club-jazz": 0.7 } },
+    { "codigo": "los-muelles", "habitantes": 800, "x": 57, "z": 0, "preferencias": { "puesto-cafe": 1.2, "club-jazz": 1.1 } }
+  ],
+  "negocios": {
+    "puesto-cafe": {
+      "x": -3, "z": 8,
+      "consumoDiario": 0.3,
+      "capacidadBase": 3, "capacidadPorNivel": 2,
+      "calidadPorNivel": 0.25, "atraccionPorNivel": 0.2,
+      "costoCapacidad": 4000, "costoCalidad": 6000, "costoAtraccion": 3000, "crecimientoCosto": 1.8,
+      "alquilerPorNivel": 0.15,
+      "picoDesde": 7, "picoHasta": 12, "factorPico": 1.4,
+      "evento": "Mañana de feria", "eventoDesde": 8, "eventoHasta": 17, "eventoCiclos": 12, "eventoFactor": 2.5,
+      "nivelesCapacidad": ["Mostrador grande", "Mesitas en la vereda", "Salón con mesas", "Barra larga", "Segundo salón"],
+      "nivelesCalidad": ["Molinillo propio", "Máquina de espresso", "Café de primera", "Tostado de la casa", "Pastelería fina"],
+      "nivelesAtraccion": ["Toldo a rayas", "Cartel de neón", "Aviso en La Gaceta", "Vidriera iluminada", "Radio en el local"],
+      "categorias": ["Puesto", "Café", "Confitería", "Gran confitería"]
+    },
+    "club-jazz": {
+      "x": 8, "z": -7,
+      "consumoDiario": 0.12,
+      "capacidadBase": 3, "capacidadPorNivel": 2,
+      "calidadPorNivel": 0.25, "atraccionPorNivel": 0.2,
+      "costoCapacidad": 8000, "costoCalidad": 12000, "costoAtraccion": 6000, "crecimientoCosto": 1.8,
+      "alquilerPorNivel": 0.15,
+      "picoDesde": 20, "picoHasta": 4, "factorPico": 2.0,
+      "evento": "Noche de fiesta", "eventoDesde": 21, "eventoHasta": 1, "eventoCiclos": 18, "eventoFactor": 2.5,
+      "nivelesCapacidad": ["Más mesas", "Reservados", "Pista de baile", "Segundo piso", "Terraza"],
+      "nivelesCalidad": ["Barra de caoba", "Banda estable", "Escenario con luces", "Cantante de fama", "Orquesta completa"],
+      "nivelesAtraccion": ["Rocola", "Marquesina de neón", "Afiches en Bellmont", "Portero de traje", "Noches temáticas"],
+      "categorias": ["Club", "Club con banda", "Gran club nocturno", "Palacio del jazz"]
+    }
+  }
+}

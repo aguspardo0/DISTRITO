@@ -52,6 +52,20 @@ foreach (var scenario in MarketScenarios.All)
         + string.Join(" ", last.Shops.Select(s => $"{s.Shop}:vende={s.Sold},gana={Money(s.ProfitCents)}"))
         + $" ref_mercado={Money((long)last.Zones.First(z => z.Zone == "el-mercado").ReferencePrice)} almacen={last.SupplierStock}");
 }
+// Negocios que crecen: el ritmo de fama, clientela y mejoras (config/negocios.json).
+var growthPath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(configPath)) ?? ".", "negocios.json");
+if (File.Exists(growthPath))
+{
+    var growthCfg = GrowthConfig.Parse(File.ReadAllText(growthPath));
+    if (growthCfg.Validate() is { Count: > 0 } growthErrors)
+    {
+        Console.Error.WriteLine("config/negocios.json tiene errores:\n" + string.Join("\n", growthErrors));
+        return 2;
+    }
+    var growth = GrowthSim.Run(growthCfg);
+    md.Append(growth);
+    File.WriteAllText(Path.Combine(outDir, "crecimiento.md"), growth);
+}
 File.WriteAllText(Path.Combine(outDir, "informe.md"), md.ToString());
 Console.WriteLine(md.ToString());
 return failed ? 1 : 0;

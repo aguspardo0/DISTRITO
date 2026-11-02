@@ -9,6 +9,8 @@ on:
       - "shared/Distrito.Shared/Market/**"
       - "tools/Distrito.MarketSim/**"
       - "config/mercado.json"
+      - "config/negocios.json"
+      - "shared/Distrito.Shared/Economy/BusinessGrowth.cs"
 
 jobs:
   simular:
