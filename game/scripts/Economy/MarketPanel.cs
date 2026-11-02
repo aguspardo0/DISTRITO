@@ -298,6 +298,8 @@ public partial class MarketPanel : PanelContainer
         fameRow.AddThemeConstantOverride("separation", 10);
         fameRow.AddChild(Cell($"Fama: {g.FameName}", EncargoLook.Gold, 300, 16));
         var bar = new ProgressBar { MinValue = 0, MaxValue = Math.Max(1, g.NextFameGoal), Value = g.Fame, ShowPercentage = false, CustomMinimumSize = new Vector2(300, 18) };
+        bar.AddThemeStyleboxOverride("background", new StyleBoxFlat { BgColor = new Color(0.2f, 0.18f, 0.15f), CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3, CornerRadiusBottomLeft = 3, CornerRadiusBottomRight = 3 });
+        bar.AddThemeStyleboxOverride("fill", new StyleBoxFlat { BgColor = EncargoLook.Gold, CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3, CornerRadiusBottomLeft = 3, CornerRadiusBottomRight = 3 });
         fameRow.AddChild(bar);
         fameRow.AddChild(Cell($"{g.Fame:0} / {g.NextFameGoal:0}", EncargoLook.Muted, 160));
         _content.AddChild(fameRow);

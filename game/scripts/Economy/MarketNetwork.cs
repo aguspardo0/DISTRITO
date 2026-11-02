@@ -404,7 +404,7 @@ public partial class MarketNetwork : Node3D
                 new("Fletes en la calle", "Hay 1 con carga: 15 cajones de bebidas de Moretti al Club de jazz (225 kg) (quedan 6 min)."),
             ]),
             [
-                new(Guid.NewGuid(), "Café Don Sal", EconomyCatalog.CoffeeStandLocation, 3, 4_250, 500, 300, 500, 21, 27, 10_500, 1_200, 0,
+                new(Guid.NewGuid(), "Café Don Sal", EconomyCatalog.CoffeeStandLocation, 3, 4_250, 560, 300, 520, 21, 27, 11_760, 1_200, 0,
                 [
                     new(now.AddMinutes(-5), 0, 3, 0, 0), new(now.AddMinutes(-10), 2, 3, 1_000, 700), new(now.AddMinutes(-15), 3, 3, 1_500, 1_000),
                     new(now.AddMinutes(-20), 3, 3, 1_500, 1_000), new(now.AddMinutes(-25), 3, 4, 1_500, 1_000),

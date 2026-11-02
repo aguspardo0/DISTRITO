@@ -693,6 +693,15 @@ public partial class Main : Node3D
                     me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Atan2(4f, 6f));
                 }
             }),
+            ("clientes", () =>
+            {
+                // La Esquina del café con gente haciendo cola (los clientes del último ciclo) y su pizarra.
+                if (_network.LocalPlayer is { } me)
+                {
+                    me.GlobalPosition = new Vector3(-1f, 0.2f, 0.5f);
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Pi + 0.25f);
+                }
+            }),
             ("libreta-precios", () => { _marketPanel?.Open(MarketPanel.Notes); _market.Preview(); }),
             ("diario", () => _marketPanel?.Open(MarketPanel.Paper)),
             ("informante", () => _marketPanel?.Open(MarketPanel.Report)),
