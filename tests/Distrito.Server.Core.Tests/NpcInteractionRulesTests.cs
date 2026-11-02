@@ -178,7 +178,8 @@ public class NpcInteractionRulesTests
     public void La_esquina_ofrece_reponer_y_retirar_segun_corresponda()
     {
         Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, State()).Options);
-        Assert.Equal(new[] { "hire:puesto-cafe" },
+        // El dueño también puede abrir su libro de cuentas en el local.
+        Assert.Equal(new[] { "hire:puesto-cafe", NpcInteractionRules.LedgerOption },
             NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, WithBusiness()).Options.Select(o => o.Id));
 
         var both = NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, WithBusiness(cash: 400, carriedBags: 2)).Options;

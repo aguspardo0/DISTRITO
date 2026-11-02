@@ -49,8 +49,8 @@ public static class NpcInteractionRules
     /// <summary>Casino «El Trébol» de la familia Valenti (aprobado 2026-11-01), en la puerta del local.</summary>
     public static readonly NpcDefinition Casino = new(CasinoRules.Npc, CasinoRules.Name, new Vector3(24f, 0, 15.6f));
 
-    /// <summary>Kiosco de diarios (2026-11-02): vende La Gaceta de Bellmont, en la vereda frente a la calle principal.</summary>
-    public static readonly NpcDefinition Kiosk = new(MarketInfoRules.KioskNpc, MarketInfoRules.KioskName, new Vector3(3f, 0, -5f));
+    /// <summary>Kiosco de diarios (2026-11-02): vende La Gaceta de Bellmont, en la vereda oeste de la calle principal.</summary>
+    public static readonly NpcDefinition Kiosk = new(MarketInfoRules.KioskNpc, MarketInfoRules.KioskName, new Vector3(-15f, 0, -5f));
 
     /// <summary>Nino, el informante: en el callejón detrás de los galpones del Mercado.</summary>
     public static readonly NpcDefinition Informant = new(MarketInfoRules.InformantNpc, MarketInfoRules.InformantName, new Vector3(20.5f, 0, -6.5f));
