@@ -210,7 +210,8 @@ public sealed class MarketSimulation
         f.Output += made;
         f.ProducedToday += made;
 
-        // Camión: sale cuando hay carga suficiente; al llegar, el proveedor paga la mercadería y el flete.
+        // Camión: sale cuando el proveedor necesita y hay carga. El proveedor paga la carga y el flete al cargar (desde ahí la
+        // mercadería es suya): si asaltan el camión, pierde el proveedor, no la fábrica.
         var t = Truck;
         if (t.Remaining > 0)
         {
@@ -220,23 +221,23 @@ public sealed class MarketSimulation
                 if (TruckRobbed(day))
                     t.LostToday += t.Cargo;
                 else
-                {
-                    var value = t.Cargo * f.SellPriceCents;
-                    var payable = Math.Min(value + t.FeePerTrip, Supplier.Cash);
-                    var forGoods = Math.Min(value, payable);
-                    Supplier.Cash -= payable;
-                    f.Cash += forGoods;
-                    t.Cash += payable - forGoods;
                     Supplier.Stock += t.Cargo;
-                }
                 t.Cargo = 0;
             }
         }
         else if (f.Output >= t.MinLoad && Supplier.Stock < t.ShipWhenSupplierBelow)
         {
-            t.Cargo = Math.Min(t.Capacity, f.Output);
-            f.Output -= t.Cargo;
-            t.Remaining = Math.Max(1, t.TripCycles);
+            var affordable = (int)((Supplier.Cash - t.FeePerTrip) / Math.Max(1, f.SellPriceCents));
+            var load = Math.Min(Math.Min(t.Capacity, f.Output), affordable);
+            if (load >= t.MinLoad)
+            {
+                Supplier.Cash -= load * f.SellPriceCents + t.FeePerTrip;
+                f.Cash += load * f.SellPriceCents;
+                t.Cash += t.FeePerTrip;
+                t.Cargo = load;
+                f.Output -= load;
+                t.Remaining = Math.Max(1, t.TripCycles);
+            }
         }
     }
 
