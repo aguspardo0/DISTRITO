@@ -28,8 +28,17 @@ if not rows:
     out.append("No llegaron métricas del servidor.")
     print("::error title=Escala::no llegaron métricas del servidor")
 else:
-    buckets = {}
+    # Solo la subida y las mesetas: desde que el grupo empieza a irse (cae más de un 10 % desde el pico), las métricas
+    # mezclan la salida en masa y ya no dicen cuánto aguanta el servidor con esa cantidad.
+    peak_seen, measured = 0, []
     for r in rows:
+        n = int(r.get("jugadores", 0))
+        if peak_seen and n < peak_seen * 0.9:
+            break
+        peak_seen = max(peak_seen, n)
+        measured.append(r)
+    buckets = {}
+    for r in measured:
         n = int(r.get("jugadores", 0))
         if n == 0:
             continue
@@ -52,9 +61,9 @@ else:
         if pct >= 100 and first_full is None:
             first_full = key
     peak = max(int(r.get("jugadores", 0)) for r in rows)
-    disc = max(r.get("desconexiones", 0) for r in rows)
+    disc = max(r.get("desconexiones", 0) for r in measured)
     errs = max(r.get("errores", 0) for r in rows)
-    out += ["", f"Máximo de jugadores a la vez: **{peak}** · desconexiones acumuladas: {disc:.0f} · errores: {errs:.0f}",
+    out += ["", f"Máximo de jugadores a la vez: **{peak}** · desconexiones antes de la salida planeada: {disc:.0f} · errores: {errs:.0f}",
             f"Presupuesto de física: {PRESUPUESTO_MS:.1f} ms por paso (60 por segundo)."]
     if first_full:
         print(f"::warning title=Escala::la física pasó el presupuesto con hasta {first_full} jugadores")

@@ -32,6 +32,7 @@ Deuda conocida del prototipo: sin predicción del lado del cliente (con latencia
 ## Etapa 3 — Escala
 - [x] Interés de red por distancia (radio con histéresis), probado en CI
 - [x] Pruebas con 10 y 20 clientes automatizados, con métricas (ver NETWORKING.md)
+- [x] Prueba de escala real (2026-11-07): 100 bots desde 4 máquinas contra el servidor de internet, todos juntos. Hasta ~80 bien en el servidor de 1 núcleo; con 100 se satura (CPU 93 %, 43 cuadros, 2 desconexiones) y la red manda 65 Mbps. Ver NETWORKING.md
 - [ ] Interés de red por grilla espacial (hoy compara todos contra todos: suficiente hasta ~60 jugadores por zona)
 - [ ] Reducir ancho de banda en zonas densas (frecuencia por distancia, serialización propia)
 - [x] Decisión sobre el host del servidor (Vultr São Paulo)
