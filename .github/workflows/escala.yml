@@ -28,6 +28,7 @@ jobs:
       t0: ${{ steps.p.outputs.t0 }}
     env:
       DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v5
       - id: p
@@ -36,8 +37,9 @@ jobs:
           key="$RUNNER_TEMP/k"; .github/scripts/prepare-key.sh "$key" > /dev/null || exit 1
           release=$(ssh -i "$key" -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=20 \
             "$DEPLOY_USER@$DEPLOY_HOST" readlink -f /opt/distrito/current)
-          commit=$(basename "$release")
-          [ -n "$commit" ] || { echo "::error title=Escala::no se pudo leer la versión desplegada"; exit 1; }
+          short=$(basename "$release")   # el release se guarda con el hash corto
+          commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/$short" -q .sha)
+          [ -n "$commit" ] || { echo "::error title=Escala::no se pudo leer la versión desplegada ($short)"; exit 1; }
           echo "host=$DEPLOY_HOST" >> "$GITHUB_OUTPUT"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
           # Las máquinas de bots tardan unos minutos en instalar Godot y compilar: arrancan todas juntas a T0.
