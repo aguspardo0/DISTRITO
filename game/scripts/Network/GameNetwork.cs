@@ -30,7 +30,7 @@ public partial class GameNetwork : Node
     private const string PlayerScenePath = "res://scenes/Player.tscn";
     private const double SaveIntervalSeconds = 15;
 
-    private readonly ZoneSessions _sessions = new(NetworkDefaults.MaxPlayersPerZone);
+    private ZoneSessions _sessions = new(NetworkDefaults.MaxPlayersPerZone);
     private readonly PendingConnections _pending = new();
     private readonly Dictionary<long, ResolvedSession> _authenticated = new();
     private PackedScene _playerScene = null!;
@@ -110,11 +110,12 @@ public partial class GameNetwork : Node
     // ---------- Arranque ----------
 
     /// <summary>Servidor dedicado. Con backend exige cuenta; sin backend acepta invitados.</summary>
-    public Error StartDedicatedServer(int port, DistritoApiClient? backend, string serverKey)
+    public Error StartDedicatedServer(int port, DistritoApiClient? backend, string serverKey, int maxPlayers = NetworkDefaults.MaxPlayersPerZone)
     {
         _backend = backend;
         _serverKey = serverKey;
-        var error = CreateServerPeer(port);
+        _sessions = new ZoneSessions(maxPlayers);
+        var error = CreateServerPeer(port, maxPlayers);
         if (error == Error.Ok)
             Report($"Servidor dedicado escuchando en el puerto {port} ({(backend is null ? "modo invitado" : "con cuentas")}).");
         return error;
@@ -172,10 +173,10 @@ public partial class GameNetwork : Node
         Report("Saliste de la partida.");
     }
 
-    private Error CreateServerPeer(int port)
+    private Error CreateServerPeer(int port, int maxPlayers = NetworkDefaults.MaxPlayersPerZone)
     {
         var peer = new ENetMultiplayerPeer();
-        var error = peer.CreateServer(port, NetworkDefaults.MaxPlayersPerZone);
+        var error = peer.CreateServer(port, maxPlayers);
         if (error != Error.Ok)
         {
             Report($"No se pudo abrir el puerto {port}: {error}.");

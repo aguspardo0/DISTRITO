@@ -27,6 +27,18 @@ public class LaunchOptionsTests
     }
 
     [Fact]
+    public void Max_players_sube_el_tope_de_la_zona_para_las_pruebas_de_escala()
+    {
+        Assert.Equal(NetworkDefaults.MaxPlayersPerZone, LaunchOptions.Parse(["--server"]).MaxPlayers);
+
+        var options = LaunchOptions.Parse(["--server", "--max-players", "150", "--expect-players", "120"]);
+
+        Assert.Equal(150, options.MaxPlayers);
+        Assert.Equal(120, options.ExpectPlayers);
+        Assert.Throws<ArgumentException>(() => LaunchOptions.Parse(["--server", "--max-players", "0"]));
+    }
+
+    [Fact]
     public void Interpreta_host_del_cliente_y_activa_conexion_automatica()
     {
         var options = LaunchOptions.Parse(["--client", "--host", "10.0.0.5"]);

@@ -240,7 +240,7 @@ public partial class Main : Node3D
             backend = _account.Api;
         }
 
-        if (_network.StartDedicatedServer(Options.Port, backend, serverKey) != Error.Ok)
+        if (_network.StartDedicatedServer(Options.Port, backend, serverKey, Options.MaxPlayers) != Error.Ok)
         {
             GetTree().Quit(1);
             return;

@@ -1,0 +1,121 @@
+name: Escala real (servidor en internet)
+
+# Prueba cuántos jugadores aguanta el servidor de verdad: levanta una partida aparte en el servidor (modo invitado,
+# puerto 7790, sin tocar la partida oficial ni la base) y la llenan bots desde varias máquinas de GitHub a la vez.
+# Se corre a mano (Actions → «Escala real» → Run workflow), después de un despliegue.
+on:
+  workflow_dispatch:
+    inputs:
+      bots:
+        description: "Bots en total (múltiplo de 4; se mide con la mitad y con el total)"
+        default: "100"
+
+concurrency: escala-real
+
+env:
+  GODOT_VERSION: 4.7.2
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  PORT: "7790"
+
+jobs:
+  plan:
+    name: Preparar (versión desplegada y hora de arranque)
+    runs-on: ubuntu-24.04
+    outputs:
+      host: ${{ steps.p.outputs.host }}
+      commit: ${{ steps.p.outputs.commit }}
+      t0: ${{ steps.p.outputs.t0 }}
+    env:
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: p
+        run: |
+          . deploy/target.env
+          key="$RUNNER_TEMP/k"; .github/scripts/prepare-key.sh "$key" > /dev/null || exit 1
+          release=$(ssh -i "$key" -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=20 \
+            "$DEPLOY_USER@$DEPLOY_HOST" readlink -f /opt/distrito/current)
+          commit=$(basename "$release")
+          [ -n "$commit" ] || { echo "::error title=Escala::no se pudo leer la versión desplegada"; exit 1; }
+          echo "host=$DEPLOY_HOST" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          # Las máquinas de bots tardan unos minutos en instalar Godot y compilar: arrancan todas juntas a T0.
+          echo "t0=$(( $(date +%s) + 600 ))" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Escala::versión desplegada ${commit::7}; los bots arrancan en 10 minutos"
+
+  servidor:
+    name: Servidor (partida de prueba en el 7790)
+    needs: plan
+    runs-on: ubuntu-24.04
+    env:
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Correr la partida de prueba
+        run: |
+          . deploy/target.env
+          total=${{ inputs.bots }}
+          seconds=$(( 30 + total + 30 + 60 + 40 ))   # arranca 30 s antes de T0 y cierra 40 s después de que salen los bots
+          wait_s=$(( ${{ needs.plan.outputs.t0 }} - 30 - $(date +%s) ))
+          [ "$wait_s" -gt 0 ] && sleep "$wait_s"
+          key="$RUNNER_TEMP/k"; .github/scripts/prepare-key.sh "$key" > /dev/null || exit 1
+          ssh -i "$key" -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ServerAliveInterval=15 \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash -s -- $PORT $seconds $(( total + 20 ))" \
+            < .github/scripts/escala-servidor.sh | tee servidor.log
+          grep -q ESCALA_PUERTO_CERRADO servidor.log || echo "::warning title=Escala::no se confirmó el cierre del puerto $PORT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: escala-servidor
+          path: servidor.log
+
+  bots:
+    name: Bots (máquina ${{ matrix.maquina }})
+    needs: plan
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        maquina: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.plan.outputs.commit }}
+      - uses: actions/checkout@v5
+        with:
+          path: escala   # los scripts de la prueba, de la versión actual de main
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Descargar Godot ${{ env.GODOT_VERSION }} .NET
+        run: .github/scripts/install-godot.sh
+      - name: Compilar e importar
+        run: |
+          dotnet build game/Distrito.Game.csproj -c Debug -v q
+          timeout 300 "$GODOT" --headless --path game --import > /dev/null 2>&1
+      - name: Bots
+        run: |
+          escala/.github/scripts/escala-bots.sh "${{ needs.plan.outputs.host }}" "$PORT" "${{ needs.plan.outputs.t0 }}" \
+            "${{ matrix.maquina }}" 4 "${{ inputs.bots }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: escala-bots-${{ matrix.maquina }}
+          path: bots/
+
+  informe:
+    name: Informe
+    needs: [servidor, bots]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          path: art
+      - run: |
+          python3 .github/scripts/escala-informe.py art/escala-servidor/servidor.log art/escala-bots-*/resumen.txt
+          cat informe-escala.md >> "$GITHUB_STEP_SUMMARY"

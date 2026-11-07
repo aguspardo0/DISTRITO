@@ -35,6 +35,7 @@ public enum LaunchMode
 /// <param name="BotContract">El bot cumple el contrato de prueba (depósito → taller) y la prueba verifica el cobro.</param>
 /// <param name="UiSnapshotDir">Prueba visual: guarda capturas de pantalla de la interfaz en esta carpeta y cierra.</param>
 /// <param name="ExpectMapPlayers">La prueba exige que el mapa muestre esta cantidad de jugadores al final.</param>
+/// <param name="MaxPlayers">Servidor: cuántos jugadores entran en la zona (por defecto 64; las pruebas de escala lo suben).</param>
 /// <param name="BotContractCode">Qué contrato juega el bot (por defecto, la entrega de repuestos).</param>
 public sealed record LaunchOptions(
     LaunchMode Mode,
@@ -63,7 +64,8 @@ public sealed record LaunchOptions(
     int? ExpectMapPlayers = null,
     string? UiSnapshotDir = null,
     bool BotFight = false,
-    string? BotFightWeapon = null)
+    string? BotFightWeapon = null,
+    int MaxPlayers = NetworkDefaults.MaxPlayersPerZone)
 {
     public static LaunchOptions Default { get; } = new(
         LaunchMode.Client,
@@ -108,6 +110,9 @@ public sealed record LaunchOptions(
                 case "--interest-radius":
                     options = options with { InterestRadius = ParseInt(RequireValue(args, ref i), args[i - 1], 1, 10_000) };
                     break;
+                case "--max-players":
+                    options = options with { MaxPlayers = ParseInt(RequireValue(args, ref i), args[i - 1], 1, NetworkDefaults.MaxTestPlayers) };
+                    break;
                 case "--metrics-interval":
                     options = options with { MetricsIntervalSeconds = ParseInt(RequireValue(args, ref i), args[i - 1], 1, 3600) };
                     break;
@@ -127,10 +132,10 @@ public sealed record LaunchOptions(
                     options = options with { UiSnapshotDir = RequireValue(args, ref i) };
                     break;
                 case "--expect-map-players":
-                    options = options with { ExpectMapPlayers = ParseInt(RequireValue(args, ref i), args[i - 1], 0, NetworkDefaults.MaxPlayersPerZone) };
+                    options = options with { ExpectMapPlayers = ParseInt(RequireValue(args, ref i), args[i - 1], 0, NetworkDefaults.MaxTestPlayers) };
                     break;
                 case "--expect-visible-end":
-                    options = options with { ExpectVisibleAtEnd = ParseInt(RequireValue(args, ref i), args[i - 1], 0, NetworkDefaults.MaxPlayersPerZone) };
+                    options = options with { ExpectVisibleAtEnd = ParseInt(RequireValue(args, ref i), args[i - 1], 0, NetworkDefaults.MaxTestPlayers) };
                     break;
                 case "--bot-business":
                     options = options with { Bot = true, BotBusiness = true };
@@ -151,7 +156,7 @@ public sealed record LaunchOptions(
                     options = options with { TestSeconds = ParseInt(RequireValue(args, ref i), args[i - 1], 1, 600) };
                     break;
                 case "--expect-players":
-                    options = options with { ExpectPlayers = ParseInt(RequireValue(args, ref i), args[i - 1], 1, NetworkDefaults.MaxPlayersPerZone) };
+                    options = options with { ExpectPlayers = ParseInt(RequireValue(args, ref i), args[i - 1], 1, NetworkDefaults.MaxTestPlayers) };
                     break;
                 case "--backend":
                     options = options with { BackendUrl = ParseUrl(RequireValue(args, ref i)) };
