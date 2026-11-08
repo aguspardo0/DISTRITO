@@ -126,8 +126,8 @@ public static class LifeSociety
                 var after = Math.Round(Math.Clamp(before + delta, -1, 1), 3);
                 // El cliente le toma confianza al que lo atiende (más rápido que una amistad, salvo los desconfiados).
                 double trustA = 0, trustB = 0;
-                if (Serves(a, sa, sb)) trustB = 0.08 * hours * (1 - b.Trait("desconfiado"));
-                if (Serves(b, sb, sa)) trustA = 0.08 * hours * (1 - a.Trait("desconfiado"));
+                if (Serves(a, sa, sb)) trustB = 0.25 * hours * (1 - b.Trait("desconfiado"));
+                if (Serves(b, sb, sa)) trustA = 0.25 * hours * (1 - a.Trait("desconfiado"));
                 var forA = Math.Round(Math.Clamp(after + trustA, -1, 1), 3);
                 var forB = Math.Round(Math.Clamp(Tie(sb, a.Id) + (after - before) + trustB, -1, 1), 3);
                 TiesOf(a.Id)[b.Id] = forA;

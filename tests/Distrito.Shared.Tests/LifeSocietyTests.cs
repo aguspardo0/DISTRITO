@@ -109,7 +109,10 @@ public class LifeSocietyTests
     {
         var run = Two.Value;
         Assert.Contains(run.Reasons, r => r.Contains("su amigo"));
-        Assert.Contains(run.Reasons, r => r.StartsWith("visitar a ") || r.Contains("le tiene confianza") || r.Contains("que le tiene confianza"));
+        var visits = run.Reasons.Count(r => r.StartsWith("visitar a "));
+        var trust = run.Reasons.Count(r => r.Contains("le tiene confianza"));
+        Assert.True(visits > 0, $"nadie visitó a un amigo (confianza: {trust})");
+        Assert.True(trust > 0, $"nadie eligió dónde comprar por confianza (visitas: {visits})");
     }
 
     [Fact]
