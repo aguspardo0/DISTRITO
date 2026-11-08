@@ -152,7 +152,7 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
    - [x] Etapa 5: navegación y los tres niveles (los cercanos se ven caminando por las veredas, entran a los locales y patrullan).
    - [x] Etapa 6: relaciones (vecinos y compañeros que se conocen, amigos que se buscan y se visitan, confianza en el comerciante, gente que se lleva mal).
    - [x] Etapa 7: reacciones a tiros, heridos y asaltos (huir, esconderse, avisar a la policía, la policía acude sin arrestar, o seguir con lo suyo).
-   - [ ] Etapa 8: economía y jugadores (ambientación con la gente que compra; hablar con ellos).
+   - [x] Etapa 8: economía y jugadores como ambientación (la gente vuelve con la bolsa; hablar con ellos con E: quiénes son, qué vieron, rumores entre amigos, a quién conocen y dónde compran).
    - [ ] Etapa 9: optimización y prueba de población.
 
 ## Más adelante (sin orden fijado)

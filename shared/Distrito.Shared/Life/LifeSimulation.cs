@@ -164,6 +164,7 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
             Indoor = best.Place == HomePlace || best.Place.StartsWith(VisitPrefix, StringComparison.Ordinal) || cfg.Place(best.Place)?.Indoor == true,
             Since = at, ArrivesAt = arrives, Until = until, Money = Math.Max(0, money),
             Decision = Describe(best.Activity, best.Place), Reason = best.Reason, Decisions = s.Decisions + 1,
+            Bag = s.Activity == LifeActivities.Shopping, // sale del local con la bolsa (etapa 8)
         };
     }
 

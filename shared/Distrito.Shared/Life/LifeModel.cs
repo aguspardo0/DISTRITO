@@ -147,7 +147,7 @@ public sealed record ResidentState(Guid ResidentId, string Activity, string Plac
     DateTimeOffset ArrivesAt = default, DateTimeOffset Until = default, double FromX = 0, double FromZ = 0,
     double Hunger = 0.2, double Fatigue = 0.2, double Social = 0.3, long? Money = null,
     string? Decision = null, string? Reason = null, long Decisions = 0, DateTimeOffset NeedsAt = default,
-    double[]? Path = null, bool Indoor = false, Dictionary<Guid, double>? Ties = null, DateTimeOffset ScaredUntil = default)
+    double[]? Path = null, bool Indoor = false, Dictionary<Guid, double>? Ties = null, DateTimeOffset ScaredUntil = default, bool Bag = false)
 {
     public bool Travelling(DateTimeOffset now) => now < ArrivesAt;
 

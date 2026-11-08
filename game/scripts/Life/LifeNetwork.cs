@@ -171,11 +171,13 @@ public partial class LifeNetwork : Node
         var incident = new LifeIncident(kind, Math.Round(x, 2), Math.Round(z, 2), now);
         _recentIncidents.Add(incident);
         var counts = new Dictionary<string, int>();
+        var witnesses = new HashSet<Guid>();
         foreach (var r in _residents.Values.OrderBy(r => r.Id))
         {
             var (after, outcome) = _sim.React(r, _states[r.Id], incident);
             if (outcome is null)
                 continue;
+            witnesses.Add(r.Id);
             _states[r.Id] = after;
             counts[outcome] = counts.GetValueOrDefault(outcome) + 1;
             if (outcome is "huyeron" or "escondidos" or "avisaron")
@@ -194,9 +196,80 @@ public partial class LifeNetwork : Node
                 counts["policias"] = counts.GetValueOrDefault("policias") + 1;
             }
         }
+        if (_config is not null)
+        {
+            _rumors.Add(new LifeRumor(kind, incident.X, incident.Z, now, ResidentTalk.NearestPlaceName(_config, x, z), witnesses));
+            _rumors.RemoveAll(r => (now - r.At).TotalHours > ResidentTalk.RumorHours);
+            if (_rumors.Count > 40)
+                _rumors.RemoveRange(0, _rumors.Count - 40);
+        }
         GD.Print($"[DISTRITO] VIDA reaccion {kind} en ({x:0},{z:0}): " +
                  (counts.Count == 0 ? "nadie cerca" : string.Join(" ", counts.OrderBy(c => c.Key).Select(c => $"{c.Key}={c.Value}"))));
         SyncNearby(now); // los que salieron corriendo se ven enseguida
+    }
+
+    private readonly List<LifeRumor> _rumors = new();
+
+    // --- Etapa 8: hablar con los habitantes ---
+
+    /// <summary>A cuántos metros se puede hablar con alguien (el servidor lo vuelve a revisar con margen).</summary>
+    public const float TalkRange = 2.4f;
+
+    /// <summary>Cliente: lo que contestó un habitante (para el panel de diálogo).</summary>
+    public event Action<Distrito.Server.Core.Npcs.NpcDialog>? Spoke;
+
+    /// <summary>Código de diálogo de un habitante (para distinguirlo de los mostradores).</summary>
+    public const string DialogPrefix = "habitante:";
+
+    /// <summary>Cliente: preguntarle algo (pregunta vacía = saludar).</summary>
+    public void Ask(Guid resident, string question) => RpcId(1, MethodName.ServerAsk, resident.ToString("N"), question);
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ServerAsk(string residentId, string question)
+    {
+        if (!Multiplayer.IsServer() || _sim is null || _config is null)
+            return;
+        var peer = Multiplayer.GetRemoteSenderId();
+        if (!Guid.TryParse(residentId, out var id) || !_residents.TryGetValue(id, out var r) || _network.GetPlayer(peer) is not { } player)
+            return;
+        var now = DateTimeOffset.UtcNow;
+        var s = _states[id];
+        var (x, z) = s.PositionAt(now);
+        if (!s.Visible(now) || Distance((x, z), player.GlobalPosition.X, player.GlobalPosition.Z) > TalkRange + 3)
+            return;
+        var world = new LifeWorld(_residents, _states);
+        var text = question.Length == 0
+            ? ResidentTalk.Greeting(r, s, _config, now)
+            : ResidentTalk.Answer(question, r, s, world, _rumors, _config, now);
+        if (question.Length > 0)
+            Record(id, "charla", $"Un forastero le preguntó a {r.FullName}: {question}.");
+        var options = ResidentTalk.Questions.Where(q => q.Id != question).ToList();
+        RpcId(peer, MethodName.ReceiveAnswer, residentId, r.FullName, text,
+            options.Select(o => o.Id).ToArray(), options.Select(o => o.Label).ToArray());
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ReceiveAnswer(string residentId, string name, string text, string[] ids, string[] labels) =>
+        Spoke?.Invoke(new Distrito.Server.Core.Npcs.NpcDialog(DialogPrefix + residentId, name, text,
+            ids.Zip(labels, (i, l) => new Distrito.Server.Core.Npcs.NpcOption(i, l)).ToList()));
+
+    /// <summary>Cliente: el habitante visible más cercano a un punto, si está al alcance para hablar.</summary>
+    public (Guid Id, string Name)? NearestFigure(Vector3 at)
+    {
+        (Guid, string)? best = null;
+        var bestDistance = TalkRange;
+        foreach (var (id, f) in _figures)
+        {
+            if (!f.Root.Visible)
+                continue;
+            var d = new Vector2(f.Last.X - at.X, f.Last.Z - at.Z).Length();
+            if (d <= bestDistance)
+            {
+                bestDistance = d;
+                best = (id, f.View.Name);
+            }
+        }
+        return best;
     }
 
     private static double Distance((double X, double Z) p, double x, double z) => Math.Sqrt((p.X - x) * (p.X - x) + (p.Z - z) * (p.Z - z));
@@ -304,11 +377,22 @@ public partial class LifeNetwork : Node
             if (_figures.TryGetValue(view.Id, out var figure))
             {
                 figure.View = view;
+                if (figure.Root.GetNodeOrNull<Node3D>("Bolsa") is { } held)
+                    held.Visible = view.Bag;
                 continue;
             }
             var root = new Node3D { Name = $"Habitante_{view.Id:N}" };
             var model = CharacterModel.Build(ResidentLooks.For(view));
             root.AddChild(model);
+            var bag = new MeshInstance3D
+            {
+                Name = "Bolsa",
+                Mesh = new BoxMesh { Size = new Vector3(0.26f, 0.32f, 0.18f) },
+                Position = new Vector3(0.34f, 0.78f, -0.05f),
+                MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.62f, 0.5f, 0.33f), Roughness = 0.95f },
+                Visible = view.Bag,
+            };
+            root.AddChild(bag);
             root.AddChild(new Label3D
             {
                 Text = view.Name,

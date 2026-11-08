@@ -56,6 +56,7 @@ public partial class Main : Node3D
     private Distrito.Game.Map.MapPanel? _mapPanel;
     private PauseMenu? _pause;
     private NpcInteractionController? _interaction;
+    private Distrito.Game.Life.LifeNetwork? _life;
     private AccountSession? _account;
     private ConnectMenu? _menu;
     private Label? _hud;
@@ -174,6 +175,7 @@ public partial class Main : Node3D
         AddChild(life);
         life.Initialize(_network, _combat);
         _admin.UseLife(life);
+        _life = life;
         SpawnNpcs();
 
         if (Options.Mode == LaunchMode.Server)
@@ -348,6 +350,8 @@ public partial class Main : Node3D
 
         var interaction = new NpcInteractionController { Name = "NpcInteraction" };
         _interaction = interaction;
+        if (_life is not null)
+            interaction.UseLife(_life);
         AddChild(interaction);
         interaction.Initialize(_network, _economy, layer);
 

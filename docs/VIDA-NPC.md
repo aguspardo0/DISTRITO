@@ -125,3 +125,23 @@ qué hace cada uno, por qué y cómo está de hambre, cansancio y ganas de ver g
 - **Para probarlo a mano:** panel de administración (F10) → «Habitantes» → «Tiro al aire acá»: simula un tiro donde
   estás parado (sin daño ni balas) y muestra qué hizo cada uno.
 - **Pruebas:** `LifeReactionTests`.
+
+## Etapa 8 (2026-11-08): la gente con la bolsa y hablar con ellos
+
+Sigue siendo **ambientación** (decisión del equipo): la plata la mueven los habitantes simulados de siempre.
+
+- **La bolsa:** el que sale de comprar (botica, ramos generales, sastrería, kiosco) camina hasta su próximo destino con
+  una bolsa de papel en la mano (`ResidentState.Bag`, viaja en el tramo de red).
+- **Hablar con ellos:** cerca de un habitante (2,4 m) aparece «[E] Hablar con …» (los mostradores y las puertas tienen
+  prioridad). El servidor revisa que estés cerca y contesta (`ResidentTalk`):
+  - **el saludo:** quién es, de qué trabaja, de qué barrio es y qué está haciendo («¡Ahora no, que hay tiros!» si
+    huye; «Todavía tengo el corazón en la boca» si se asustó hace poco);
+  - **«¿Pasó algo raro por acá?»:** lo que vio (tiros, heridos, asaltos de las últimas 6 horas, con el lugar y cuándo)
+    o lo que le contó un amigo que lo vio — los rumores corren por las amistades de la etapa 6. El desconfiado no
+    suelta nada y la policía sabe de todos los avisos;
+  - **«¿A quién conoce en el barrio?»:** sus amigos, conocidos y con quién se lleva mal;
+  - **«¿Dónde conviene comprar?»:** el comerciante en el que confía, si tiene uno.
+- **Registro:** cada pregunta queda en el historial del habitante («Un forastero le preguntó…»).
+- **Pruebas:** `ResidentTalkTests`.
+- **Queda para más adelante:** que la fila de los locales del Mercado la formen habitantes con nombre (hoy son
+  figuras genéricas) y que el habitante se frene mientras le hablás.

@@ -8,7 +8,7 @@ namespace Distrito.Shared.Life;
 /// servidor mande la posición a cada rato: se manda una vez por decisión.
 /// </summary>
 public sealed record ResidentView(Guid Id, string Name, string Profession, bool Woman, string Activity,
-    long DepartMs, long ArriveMs, float[] Points, bool HiddenOnArrival)
+    long DepartMs, long ArriveMs, float[] Points, bool HiddenOnArrival, bool Bag = false)
 {
     /// <summary>Posición y hacia dónde mira a una hora dada (ms Unix del servidor).</summary>
     public (float X, float Z, float DirX, float DirZ, bool Walking) At(long nowMs)
@@ -64,7 +64,7 @@ public sealed record ResidentView(Guid Id, string Name, string Profession, bool 
             points = [(s.X, s.Z)];
         return new ResidentView(r.Id, r.FullName, r.Profession, r.Woman, s.Activity,
             s.Since.ToUnixTimeMilliseconds(), s.ArrivesAt.ToUnixTimeMilliseconds(),
-            points.SelectMany(p => new[] { (float)Math.Round(p.X, 2), (float)Math.Round(p.Z, 2) }).ToArray(), s.Indoor);
+            points.SelectMany(p => new[] { (float)Math.Round(p.X, 2), (float)Math.Round(p.Z, 2) }).ToArray(), s.Indoor, s.Bag);
     }
 }
 
@@ -86,7 +86,7 @@ public static class ResidentSyncCodec
             w.Write(v.Name);
             w.Write(v.Profession);
             w.Write(v.Activity);
-            w.Write((byte)((v.Woman ? 1 : 0) | (v.HiddenOnArrival ? 2 : 0)));
+            w.Write((byte)((v.Woman ? 1 : 0) | (v.HiddenOnArrival ? 2 : 0) | (v.Bag ? 4 : 0)));
             w.Write(v.DepartMs);
             w.Write(v.ArriveMs);
             var count = Math.Min(v.Points.Length / 2, MaxPoints);
@@ -122,7 +122,7 @@ public static class ResidentSyncCodec
                 var points = new float[r.ReadByte() * 2];
                 for (var p = 0; p < points.Length; p++)
                     points[p] = r.ReadSingle();
-                views.Add(new ResidentView(id, name, profession, (flags & 1) != 0, activity, depart, arrive, points, (flags & 2) != 0));
+                views.Add(new ResidentView(id, name, profession, (flags & 1) != 0, activity, depart, arrive, points, (flags & 2) != 0, (flags & 4) != 0));
             }
             var removed = new List<Guid>();
             for (int i = 0, n = r.ReadUInt16(); i < n; i++)

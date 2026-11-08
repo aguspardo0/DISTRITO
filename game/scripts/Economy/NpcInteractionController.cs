@@ -22,6 +22,18 @@ public partial class NpcInteractionController : Node
 
     public NpcDialogPanel Dialog => _dialog;
 
+    private Distrito.Game.Life.LifeNetwork? _life;
+
+    /// <summary>Hablar con los habitantes que andan por la calle (vida de los NPC, etapa 8).</summary>
+    public void UseLife(Distrito.Game.Life.LifeNetwork life)
+    {
+        _life = life;
+        life.Spoke += dialog => _dialog.ShowDialog(dialog);
+    }
+
+    private (Guid Id, string Name)? NearestResident() =>
+        _life is not null && _network.LocalPlayer is { } me ? _life.NearestFigure(me.VisualPosition) : null;
+
     public void Initialize(GameNetwork network, EconomyNetwork economy, CanvasLayer hud)
     {
         _network = network;
@@ -49,7 +61,12 @@ public partial class NpcInteractionController : Node
 
         _dialog.OptionChosen += (npc, option) =>
         {
-            if (option == NpcInteractionRules.SupplierOrdersOption)
+            if (npc.StartsWith(Distrito.Game.Life.LifeNetwork.DialogPrefix, StringComparison.Ordinal))
+            {
+                if (_life is not null && Guid.TryParse(npc[Distrito.Game.Life.LifeNetwork.DialogPrefix.Length..], out var resident))
+                    _life.Ask(resident, option);
+            }
+            else if (option == NpcInteractionRules.SupplierOrdersOption)
             {
                 _dialog.Close();
                 SupplierRequested?.Invoke(npc);
@@ -112,7 +129,8 @@ public partial class NpcInteractionController : Node
 
         var npc = NearestNpc();
         var door = npc is null && _network.LocalPlayer is { } me ? Distrito.Game.World.DoorNetwork.PromptAt(me.VisualPosition) : null;
-        _prompt.Text = _dialog.IsOpen ? "" : npc is not null ? $"[E] Hablar con {npc.Name}" : door ?? "";
+        var resident = npc is null && door is null ? NearestResident() : null;
+        _prompt.Text = _dialog.IsOpen ? "" : npc is not null ? $"[E] Hablar con {npc.Name}" : door ?? (resident is { } who ? $"[E] Hablar con {who.Name}" : "");
     }
 
     public override void _UnhandledKeyInput(InputEvent @event)
@@ -124,6 +142,8 @@ public partial class NpcInteractionController : Node
                 _economy.Interact(npc.Code);
             else if (_network.LocalPlayer is { } me && Distrito.Game.World.DoorNetwork.PromptAt(me.VisualPosition) is not null)
                 Distrito.Game.World.DoorNetwork.Instance?.Use();
+            else if (NearestResident() is { } who)
+                _life?.Ask(who.Id, "");
         }
     }
 
