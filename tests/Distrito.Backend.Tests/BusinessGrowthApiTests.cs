@@ -110,7 +110,7 @@ public class BusinessGrowthApiTests
     }
 
     [Fact]
-    public async Task El_dueno_elige_el_precio_dentro_del_rango()
+    public async Task El_dueno_elige_el_precio_que_quiera()
     {
         await using var factory = TestBackend.Create();
         var api = TestBackend.Api(factory);
@@ -119,8 +119,8 @@ public class BusinessGrowthApiTests
         var cafe = EconomyCatalog.CoffeeStandLocation;
         Assert.True((await api.BusinessActionAsync(Key, "license", new BusinessActionRequest(me, Req()))).Value!.Ok);
 
-        Assert.Equal("price_range", (await api.SetBusinessPriceAsync(Key, new BusinessPriceRequest(me, cafe, 100, Req()))).Value!.ErrorCode);
-        Assert.Equal("price_range", (await api.SetBusinessPriceAsync(Key, new BusinessPriceRequest(me, cafe, 100_000, Req()))).Value!.ErrorCode);
+        Assert.Equal("price_range", (await api.SetBusinessPriceAsync(Key, new BusinessPriceRequest(me, cafe, -5, Req()))).Value!.ErrorCode);
+        Assert.Equal("price_range", (await api.SetBusinessPriceAsync(Key, new BusinessPriceRequest(me, cafe, BusinessGrowth.MaxPriceCents + 1, Req()))).Value!.ErrorCode);
         var set = (await api.SetBusinessPriceAsync(Key, new BusinessPriceRequest(me, cafe, 700, Req()))).Value!;
         Assert.True(set.Ok, set.Message);
         Assert.Contains("caro", set.Message);
@@ -133,6 +133,13 @@ public class BusinessGrowthApiTests
         var ledger = (await api.GetMarketInfoAsync(Key, me)).Value!.Ledgers.Single();
         Assert.Equal(700, ledger.RevenueToday);
         Assert.Equal(700, ledger.SalePriceCents);
-        Assert.Equal(1_500, ledger.Growth!.MaxPriceCents);
+        Assert.Equal(BusinessGrowth.MaxPriceCents, ledger.Growth!.MaxPriceCents);
+
+        // Precio libre: un centavo o cien veces la referencia, se puede; cero no.
+        Assert.True((await api.SetBusinessPriceAsync(Key, new BusinessPriceRequest(me, cafe, 50_000, Req()))).Value!.Ok);
+        var cheap = (await api.SetBusinessPriceAsync(Key, new BusinessPriceRequest(me, cafe, 1, Req()))).Value!;
+        Assert.True(cheap.Ok);
+        Assert.Contains("perdés plata", cheap.Message);
+        Assert.Equal("price_range", (await api.SetBusinessPriceAsync(Key, new BusinessPriceRequest(me, cafe, 0, Req()))).Value!.ErrorCode);
     }
 }

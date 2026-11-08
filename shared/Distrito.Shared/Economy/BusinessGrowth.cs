@@ -65,8 +65,6 @@ public sealed class GrowthConfig
     [JsonPropertyName("distanciaMetros")] public double DistanceScale { get; set; } = 90;
     [JsonPropertyName("noComproAca")] public double NoPurchaseWeight { get; set; } = 0.6;
     [JsonPropertyName("topeEfectoPrecio")] public double MaxPriceBoost { get; set; } = 1.6;
-    [JsonPropertyName("precioMinimo")] public double MinPriceRatio { get; set; } = 0.5;
-    [JsonPropertyName("precioMaximo")] public double MaxPriceRatio { get; set; } = 3.0;
     [JsonPropertyName("fama")] public GrowthFame Fame { get; set; } = new();
     [JsonPropertyName("zonas")] public List<GrowthZone> Zones { get; set; } = new();
     [JsonPropertyName("negocios")] public Dictionary<string, GrowthKind> Kinds { get; set; } = new();
@@ -130,11 +128,15 @@ public static class BusinessGrowth
     /// <summary>La fama atrae, sin techo pero cada vez menos por punto.</summary>
     public static double FameFactor(double fame) => 1 + 0.5 * Math.Log2(1 + Math.Max(0, fame) / 200);
 
-    public static (long Min, long Max) PriceRange(GrowthConfig cfg, string kind)
-    {
-        var reference = EconomyCatalog.BusinessTypes[kind].SalePriceCents;
-        return ((long)Math.Round(reference * cfg.MinPriceRatio), (long)Math.Round(reference * cfg.MaxPriceRatio));
-    }
+    /// <summary>
+    /// Precio libre (aprobado por el equipo, 2026-11-08, como en Sim Companies): el dueño cobra lo que quiera. Lo frenan
+    /// las consecuencias, no un tope: caro viene menos gente, sube menos la fama y el crítico pone mala nota; barato
+    /// vende más pero gana menos (o pierde). Solo hay límites técnicos: al menos un centavo y a lo sumo un millón.
+    /// </summary>
+    public const long MinPriceCents = 1;
+    public const long MaxPriceCents = 100_000_000;
+
+    public static (long Min, long Max) PriceRange(GrowthConfig cfg, string kind) => (MinPriceCents, MaxPriceCents);
 
     public static long Rent(GrowthConfig cfg, GrowthState s) =>
         (long)Math.Round(EconomyCatalog.BusinessTypes[s.Kind].RentCents * (1 + KindOf(cfg, s.Kind).RentPerLevel * s.TotalLevels));

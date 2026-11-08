@@ -45,7 +45,9 @@ falta, con el bolsillo del dueño. Va al Taller Caruso. El alquiler sube un 15 %
 **Categorías** según las mejoras: Puesto → Café → Confitería → Gran confitería (y Club → Club con banda → Gran club
 nocturno → Palacio del jazz). Después, estrellas cada 12 mejoras.
 
-**Precio a elección**, de la mitad al triple del precio de referencia. La ventana dice si está caro, justo o barato para
+**Precio libre** (aprobado 2026-11-08, como en Sim Companies): cada dueño cobra lo que quiera, desde un centavo hasta un
+millón (límites técnicos), con los botones o escribiendo el precio. Lo frenan las consecuencias: caro viene menos gente,
+sube menos la fama y el crítico pone mala nota; por debajo del costo pierde plata en cada venta. La ventana dice si está caro, justo o barato para
 tu calidad.
 
 **Algo para hacer cada día:**

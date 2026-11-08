@@ -160,7 +160,9 @@ public sealed partial class EconomyService
             var cfg = Growth();
             var (min, max) = BusinessGrowth.PriceRange(cfg, type.Code);
             if (r.PriceCents < min || r.PriceCents > max)
-                throw new EconomyRejected("price_range", $"El precio tiene que estar entre {EconomyCatalog.FormatMoney(min)} y {EconomyCatalog.FormatMoney(max)}.");
+                throw new EconomyRejected("price_range", r.PriceCents < min
+                    ? "El precio tiene que ser de al menos un centavo."
+                    : $"Ese precio es demasiado: el máximo es {EconomyCatalog.FormatMoney(max)}.");
             await using (var cmd = new NpgsqlCommand("UPDATE distrito.businesses SET price_cents = @p WHERE id = @id", c, tx))
             {
                 cmd.Parameters.AddWithValue("p", r.PriceCents);
@@ -168,7 +170,9 @@ public sealed partial class EconomyService
                 await cmd.ExecuteNonQueryAsync(ct);
             }
             var fair = BusinessGrowth.FairPriceCents(cfg, owned.State);
-            var opinion = r.PriceCents > fair * 1.15 ? "Para tu calidad es caro: va a venir menos gente y la fama sube menos."
+            var opinion = r.PriceCents > fair * 3 ? "Carísimo: casi nadie va a pagar eso y el crítico te va a destrozar."
+                : r.PriceCents < EconomyCatalog.BusinessTypes[type.Code].ItemPriceCents ? "Ojo: cobrás menos de lo que te cuesta la mercadería, perdés plata en cada venta."
+                : r.PriceCents > fair * 1.15 ? "Para tu calidad es caro: va a venir menos gente y la fama sube menos."
                 : r.PriceCents < fair * 0.85 ? "Barato para lo que das: viene más gente, pero ganás menos por venta."
                 : "Un precio justo para tu calidad.";
             return $"«{owned.Name}» ahora cobra {EconomyCatalog.FormatMoney(r.PriceCents)}. {opinion}";

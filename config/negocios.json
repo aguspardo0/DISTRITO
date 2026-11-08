@@ -1,13 +1,11 @@
 {
-  "_ayuda": "Negocios que crecen (aprobado por el equipo 2026-11-02). La clientela sale de la gente de Bellmont: cada barrio tiene habitantes que quieren café o una salida de noche, y se reparten entre los locales según precio, calidad, fama, atracción y distancia. Sin tope: capacidad, calidad y atracción se amplían sin límite (cada nivel cuesta más). Plata en centavos. Calibrar con tools/Distrito.MarketSim (escenarios de crecimiento).",
+  "_ayuda": "Negocios que crecen (aprobado por el equipo 2026-11-02). La clientela sale de la gente de Bellmont: cada barrio tiene habitantes que quieren café o una salida de noche, y se reparten entre los locales según precio, calidad, fama, atracción y distancia. Sin tope: capacidad, calidad y atracción se amplían sin límite (cada nivel cuesta más). Plata en centavos. Precio libre (aprobado 2026-11-08): cada dueño cobra lo que quiera. Calibrar con tools/Distrito.MarketSim (escenarios de crecimiento).",
   "ciclosPorDia": 288,
   "elasticidad": 1.5,
   "pesoCalidad": 1.0,
   "distanciaMetros": 90,
   "noComproAca": 0.6,
   "topeEfectoPrecio": 1.6,
-  "precioMinimo": 0.5,
-  "precioMaximo": 3.0,
   "fama": {
     "porCliente": 0.1,
     "perdidoSinMercaderia": 0.1,

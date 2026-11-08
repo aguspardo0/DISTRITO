@@ -342,7 +342,36 @@ public partial class MarketPanel : PanelContainer
             b.Pressed += () => { _message = "Cambiando el precio…"; _market.SetPrice(l.Kind, target); Rebuild(); };
             priceRow.AddChild(b);
         }
+        // Precio libre: también se puede escribir el que quieras.
+        var typed = new LineEdit { PlaceholderText = "otro: 7,50", CustomMinimumSize = new Vector2(100, 0) };
+        var apply = new Button { Text = "Poner" };
+        void Apply()
+        {
+            if (TryParseMoney(typed.Text, out var cents) && cents >= g.MinPriceCents && cents <= g.MaxPriceCents)
+            {
+                _message = "Cambiando el precio…";
+                _market.SetPrice(l.Kind, cents);
+            }
+            else
+                _message = "Escribí un precio en pesos, por ejemplo 7,50.";
+            Rebuild();
+        }
+        apply.Pressed += Apply;
+        typed.TextSubmitted += _ => Apply();
+        priceRow.AddChild(typed);
+        priceRow.AddChild(apply);
         _content.AddChild(priceRow);
+    }
+
+    /// <summary>«7,50», «7.50», «$7» o «7» → centavos.</summary>
+    internal static bool TryParseMoney(string text, out long cents)
+    {
+        cents = 0;
+        var clean = text.Trim().TrimStart('$').Trim().Replace(',', '.');
+        if (!decimal.TryParse(clean, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var amount) || amount <= 0)
+            return false;
+        cents = (long)Math.Round(amount * 100, MidpointRounding.AwayFromZero);
+        return cents > 0;
     }
 
     // ---------------- Libro de cuentas ----------------

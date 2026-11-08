@@ -158,7 +158,7 @@ public class BusinessGrowthTests
         Assert.Equal(3, view.Upgrades.Count);
         Assert.Equal("Mesitas en la vereda", view.Upgrades.Single(u => u.Branch == BusinessGrowth.Capacity).Next);
         Assert.Equal(BusinessGrowth.UpgradeCost(Cfg, Cafe, BusinessGrowth.Quality, 2), view.Upgrades.Single(u => u.Branch == BusinessGrowth.Quality).CostCents);
-        Assert.Equal(250, view.MinPriceCents);
-        Assert.Equal(1500, view.MaxPriceCents);
+        Assert.Equal(BusinessGrowth.MinPriceCents, view.MinPriceCents); // precio libre (2026-11-08)
+        Assert.Equal(BusinessGrowth.MaxPriceCents, view.MaxPriceCents);
     }
 }
