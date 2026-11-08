@@ -130,11 +130,12 @@ public class LifeSimulationTests
     public void Se_pone_al_dia_despues_de_horas_sin_simular_y_es_determinista()
     {
         var cfg = Config();
-        var p = ResidentGenerator.Generate(cfg)[0];
+        var p = ResidentGenerator.Generate(cfg).First(r => r.Profession == "obrero"); // turno de 6 a 15 de Bellmont
         var a = new LifeSimulation(cfg).Advance(p, ResidentGenerator.InitialState(p, Start), Start.AddHours(6));
         var b = new LifeSimulation(cfg).Advance(p, ResidentGenerator.InitialState(p, Start), Start.AddHours(6));
         Assert.True(a.Until > Start.AddHours(6));
-        Assert.True(a.Decisions > 3);
+        Assert.True(a.Decisions >= 2);
+        Assert.Equal(LifeActivities.Working, a.Activity); // 6 horas reales después es mediodía en Bellmont: está trabajando
         Assert.Equal(a, b);
     }
 }

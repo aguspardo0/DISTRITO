@@ -121,6 +121,13 @@ public sealed class LifeSimulation(LifeConfig cfg)
         var until = best.Until ?? arrives + TimeSpan.FromSeconds(best.Minutes * 60 / BellmontClock.Speed);
         if (until <= arrives)
             until = arrives + TimeSpan.FromMinutes(1);
+        // Lo que no es trabajo termina una hora de Bellmont antes del turno: le da tiempo a ir.
+        if (r.Workplace is not null && r.HasShift && best.Activity is not (LifeActivities.Working or LifeActivities.Patrolling))
+        {
+            var beforeShift = BellmontClock.Next(at, r.ShiftFrom) - TimeSpan.FromHours(1.0 / BellmontClock.Speed);
+            if (until > beforeShift && beforeShift > arrives)
+                until = beforeShift;
+        }
         var money = (s.Money ?? r.PocketMoneyCents) - best.Cost;
         return s with
         {
@@ -140,8 +147,8 @@ public sealed class LifeSimulation(LifeConfig cfg)
         var c = cfg.Costs;
         var reasons = $"hambre {s.Hunger:0.00}, cansancio {s.Fatigue:0.00}, ganas de ver gente {s.Social:0.00}, tiene {Money(money)}";
 
-        // Trabajo: si le toca, casi siempre va (salvo mucha hambre o agotamiento).
-        if (r.Workplace is { } work && r.OnShift(hour))
+        // Trabajo: si le toca (o empieza dentro de una hora), casi siempre va (salvo mucha hambre o agotamiento).
+        if (r.Workplace is { } work && (r.OnShift(hour) || r.OnShift((hour + 1) % 24)))
         {
             var activity = r.Profession == "policia" ? LifeActivities.Patrolling : LifeActivities.Working;
             var place = activity == LifeActivities.Patrolling && s.Activity == LifeActivities.Patrolling ? PatrolStop(r, s) : work;
