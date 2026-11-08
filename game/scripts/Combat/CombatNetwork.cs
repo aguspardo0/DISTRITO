@@ -513,7 +513,13 @@ public partial class CombatNetwork : Node
     public void ConfirmHit() => ConfirmedHits++;
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered)]
-    public void PlayPunch(long attacker) => _network.GetPlayer(attacker)?.PlayPunch();
+    public void PlayPunch(long attacker)
+    {
+        if (_network.GetPlayer(attacker) is not { } p)
+            return;
+        p.PlayPunch();
+        Distrito.Game.Audio.SoundPlayer.At(Distrito.Game.Audio.Sfx.Punch, p.VisualPosition + Vector3.Up * 1.3f, -4, Distrito.Game.Audio.SoundPlayer.Vary(), 30);
+    }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ShowDrop(string id, Vector3 position, string label)

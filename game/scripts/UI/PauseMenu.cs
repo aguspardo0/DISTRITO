@@ -12,6 +12,7 @@ public partial class PauseMenu : Control
     private CheckButton _vsync = null!;
     private HSlider _sensitivity = null!;
     private HSlider _music = null!;
+    private HSlider _effects = null!;
 
     public event Action? LeaveRequested;
     public event Action? TutorialSkipRequested;
@@ -64,6 +65,11 @@ public partial class PauseMenu : Control
         _music.ValueChanged += v => GameSettings.SetMusicVolume((float)v);
         box.AddChild(_music);
 
+        box.AddChild(new Label { Text = "Volumen de los efectos y la calle" });
+        _effects = new HSlider { MinValue = 0, MaxValue = 1, Step = 0.05, CustomMinimumSize = new Vector2(300, 0) };
+        _effects.ValueChanged += v => GameSettings.SetEffectsVolume((float)v);
+        box.AddChild(_effects);
+
         box.AddChild(new HSeparator());
         var tutorial = new HBoxContainer();
         tutorial.AddChild(Button("Saltar el tutorial", () => { Close(); TutorialSkipRequested?.Invoke(); }));
@@ -79,6 +85,7 @@ public partial class PauseMenu : Control
         _vsync.SetPressedNoSignal(GameSettings.VSync);
         _sensitivity.SetValueNoSignal(GameSettings.MouseSensitivity);
         _music.SetValueNoSignal(GameSettings.MusicVolume);
+        _effects.SetValueNoSignal(GameSettings.EffectsVolume);
         Visible = true;
         Input.MouseMode = Input.MouseModeEnum.Visible;
     }

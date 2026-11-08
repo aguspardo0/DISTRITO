@@ -72,6 +72,7 @@ public partial class Main : Node3D
         Distrito.Game.World.CityBuilder.Build(GetNode<Node3D>("World"));
         AddChild(new Distrito.Game.World.DayNightCycle { Name = "DayNight" });
         AddChild(new Distrito.Game.World.MusicPlayer { Name = "Music" });
+        AddChild(new Distrito.Game.Audio.SoundPlayer { Name = "Sound" });
         Distrito.Game.World.InteriorBuilder.Build(GetNode<Node3D>("World"));
         try
         {

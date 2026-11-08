@@ -501,6 +501,7 @@ public partial class CombatNetwork
         _network.GetPlayer(shooter)?.PlayRecoil();
         if (DisplayServer.GetName() == "headless")
             return;
+        Distrito.Game.Audio.SoundPlayer.At(Distrito.Game.Audio.Sfx.Shot, from, 0, Distrito.Game.Audio.SoundPlayer.Vary(0.06f), 140);
         var mesh = new ImmediateMesh();
         mesh.SurfaceBegin(Mesh.PrimitiveType.Lines);
         mesh.SurfaceAddVertex(from);

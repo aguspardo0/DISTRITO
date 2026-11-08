@@ -158,6 +158,7 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
 - [x] Primera hora (2026-11-08): turnos de empleado en la Esquina del café ($3 cada 10 minutos + propinas de hasta $1), con el minijuego de la urna (como se hacía el café en 1952); el tutorial guía de empleado a dueño del puesto sin obligar. Ver `docs/PRIMERA-HORA.md`
 - [x] Rubro café (2026-11-08): tope de 6 turnos por día, la competencia (Café La Perla y El Gato Negro) y las misiones «El café de Don Aldo» (plata de la familia que encarga + fama del puesto)
 - [x] Día y noche visibles (2026-11-08): sol y luna con el reloj de Bellmont, cielo y luz por hora, faroles, neones y ventanas que se prenden de noche, y la hora de Bellmont en pantalla
+- [x] Sonido (2026-11-08): efectos generados por código (pasos, tiros, piñas, la urna, la taza, motores, la calle y bocinas), reproductor de música para discos de dominio público y volúmenes en Opciones. Ver `docs/SONIDO.md`
 - [ ] Mapa, fase 2: la bahía, el puerto grande, la aduana, el barrio obrero y la estación; el anillo para autos
 
 ## Más adelante (sin orden fijado)

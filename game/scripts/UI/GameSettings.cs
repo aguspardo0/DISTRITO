@@ -20,6 +20,11 @@ public static class GameSettings
 
     public static event Action? MusicVolumeChanged;
 
+    /// <summary>Volumen de los efectos y el sonido de la calle (0 a 1).</summary>
+    public static float EffectsVolume { get; private set; } = 0.8f;
+
+    public static event Action? EffectsVolumeChanged;
+
     public static bool IsHeadless => DisplayServer.GetName() == "headless";
 
     public static void Load()
@@ -31,6 +36,7 @@ public static class GameSettings
             VSync = (bool)cfg.GetValue("pantalla", "vsync", true);
             MouseSensitivity = Mathf.Clamp((float)cfg.GetValue("controles", "sensibilidad", 0.003f), 0.0005f, 0.01f);
             MusicVolume = Mathf.Clamp((float)cfg.GetValue("sonido", "musica", 0.5f), 0f, 1f);
+            EffectsVolume = Mathf.Clamp((float)cfg.GetValue("sonido", "efectos", 0.8f), 0f, 1f);
         }
         ApplyDisplay();
     }
@@ -40,6 +46,7 @@ public static class GameSettings
     public static void SetVSync(bool on) { VSync = on; ApplyDisplay(); Save(); }
     public static void SetMouseSensitivity(float value) { MouseSensitivity = Mathf.Clamp(value, 0.0005f, 0.01f); Save(); }
     public static void SetMusicVolume(float value) { MusicVolume = Mathf.Clamp(value, 0f, 1f); Save(); MusicVolumeChanged?.Invoke(); }
+    public static void SetEffectsVolume(float value) { EffectsVolume = Mathf.Clamp(value, 0f, 1f); Save(); EffectsVolumeChanged?.Invoke(); }
 
     private static void ApplyDisplay()
     {
@@ -71,6 +78,7 @@ public static class GameSettings
         cfg.SetValue("pantalla", "vsync", VSync);
         cfg.SetValue("controles", "sensibilidad", MouseSensitivity);
         cfg.SetValue("sonido", "musica", MusicVolume);
+        cfg.SetValue("sonido", "efectos", EffectsVolume);
         cfg.Save(Path);
     }
 }

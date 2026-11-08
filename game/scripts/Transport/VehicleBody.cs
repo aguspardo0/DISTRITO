@@ -203,7 +203,42 @@ public partial class VehicleBody : CharacterBody3D
         if (Multiplayer.MultiplayerPeer is null || Multiplayer.IsServer())
             return;
         var weight = 1f - Mathf.Exp(-12f * (float)delta);
+        var before = GlobalPosition;
         GlobalPosition = GlobalPosition.Lerp(_targetPosition, weight);
         Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, _targetYaw, weight), 0);
+        EngineSound(before.DistanceTo(GlobalPosition) / Math.Max(1e-3f, (float)delta), (float)delta);
+    }
+
+    private AudioStreamPlayer3D? _engine;
+    private float _heardSpeed;
+
+    /// <summary>El motor: suena cuando el auto anda (o tiene chofer), más agudo y más fuerte cuanto más rápido va.</summary>
+    private void EngineSound(float speed, float delta)
+    {
+        if (!Distrito.Game.Audio.SoundPlayer.Enabled)
+            return;
+        _heardSpeed = Mathf.Lerp(_heardSpeed, speed, 1 - Mathf.Exp(-4 * delta));
+        var on = DriverPeer != 0 || _heardSpeed > 0.5f;
+        if (_engine is null)
+        {
+            if (!on)
+                return;
+            _engine = new AudioStreamPlayer3D
+            {
+                Name = "Motor", Stream = Distrito.Game.Audio.Sfx.Engine, Bus = Distrito.Game.Audio.SoundPlayer.Bus,
+                MaxDistance = 70, UnitSize = 8, Position = new Vector3(0, 0.8f, 0),
+            };
+            AddChild(_engine);
+        }
+        if (!on)
+        {
+            if (_engine.Playing)
+                _engine.Stop();
+            return;
+        }
+        if (!_engine.Playing)
+            _engine.Play();
+        _engine.PitchScale = 0.8f + Mathf.Clamp(_heardSpeed / 18f, 0, 1.4f);
+        _engine.VolumeDb = -14 + Mathf.Clamp(_heardSpeed, 0, 20) * 0.4f;
     }
 }

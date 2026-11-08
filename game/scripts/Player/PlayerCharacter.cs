@@ -85,6 +85,8 @@ public partial class PlayerCharacter : CharacterBody3D
 
     private CharacterModel? _model;
     private Vector3 _lastVisualPosition;
+    private float _stepDistance;
+    private int _steps;
 
     private Label3D _nameTag = null!;
     private string _shownTag = "";
@@ -241,7 +243,18 @@ public partial class PlayerCharacter : CharacterBody3D
         _model.SetAimPitch(AimPitch);
         var now = _visual.GlobalPosition;
         var moved = new Vector2(now.X - _lastVisualPosition.X, now.Z - _lastVisualPosition.Z).Length();
+        var grounded = MathF.Abs(now.Y - _lastVisualPosition.Y) < 0.05f && Vehicle.Length == 0 && !Downed;
         _lastVisualPosition = now;
         _model.Animate(moved / delta, delta);
+        // Pasos: uno cada 1,7 m caminados en el piso (más seguido corriendo, porque se camina más rápido).
+        if (grounded && moved < 2 && Distrito.Game.Audio.SoundPlayer.Enabled)
+        {
+            _stepDistance += moved;
+            if (_stepDistance >= 1.7f)
+            {
+                _stepDistance = 0;
+                Distrito.Game.Audio.SoundPlayer.At(Distrito.Game.Audio.Sfx.Step(_steps++), now + Vector3.Up * 0.1f, -10, Distrito.Game.Audio.SoundPlayer.Vary(0.1f), 25);
+            }
+        }
     }
 }

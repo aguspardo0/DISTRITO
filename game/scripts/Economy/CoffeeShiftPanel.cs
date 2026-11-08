@@ -20,6 +20,7 @@ public partial class CoffeeShiftPanel : PanelContainer
     private string _milk = "";
     private int _cups = CoffeeShiftRules.UrnCups;
     private bool _refilling;
+    private AudioStreamPlayer? _pour;
 
     public bool IsOpen => Visible;
 
@@ -100,8 +101,16 @@ public partial class CoffeeShiftPanel : PanelContainer
         _clock += delta;
         if (!Visible)
             return;
-        if (Input.IsPhysicalKeyPressed(Key.Space) && !_refilling && _waiting.Count > 0)
+        var pouring = Input.IsPhysicalKeyPressed(Key.Space) && !_refilling && _waiting.Count > 0;
+        if (pouring)
             _fill = Math.Min(1.05, _fill + delta * 0.42); // unos 2 segundos hasta la línea
+        // El chorro de la urna suena mientras se sirve.
+        if (Distrito.Game.Audio.SoundPlayer.Enabled)
+        {
+            _pour ??= AddPourPlayer();
+            if (pouring && !_pour.Playing) _pour.Play();
+            else if (!pouring && _pour.Playing) _pour.Stop();
+        }
         Render();
     }
 
@@ -136,6 +145,8 @@ public partial class CoffeeShiftPanel : PanelContainer
             case Key.R when !_refilling: _net.Refill(); _feedback.Text = "Cargás café molido y agua en la urna…"; break;
             case Key.Enter or Key.KpEnter when _waiting.Count > 0 && _fill > 0:
                 _net.Serve(new CoffeeServe(_waiting[_selected].Id, Math.Round(_fill, 3), _sugar, _milk));
+                if (Distrito.Game.Audio.SoundPlayer.Enabled && GetViewport().GetCamera3D() is { } cam)
+                    Distrito.Game.Audio.SoundPlayer.At(Distrito.Game.Audio.Sfx.Clink, cam.GlobalPosition, -6, Distrito.Game.Audio.SoundPlayer.Vary(), 10);
                 ResetCup();
                 break;
             case Key.Escape:
@@ -150,11 +161,19 @@ public partial class CoffeeShiftPanel : PanelContainer
         GetViewport().SetInputAsHandled();
     }
 
+    private AudioStreamPlayer AddPourPlayer()
+    {
+        var p = new AudioStreamPlayer { Stream = Distrito.Game.Audio.Sfx.Pour, Bus = Distrito.Game.Audio.SoundPlayer.Bus, VolumeDb = -8 };
+        AddChild(p);
+        return p;
+    }
+
     public void Close()
     {
         if (!Visible)
             return;
         Visible = false;
+        _pour?.Stop();
         if (DisplayServer.GetName() != "headless")
             Input.MouseMode = Input.MouseModeEnum.Captured;
     }
