@@ -314,6 +314,11 @@ public static class CityLayout
             {
                 // Hacia dónde da el frente: en dos filas, cada una a su calle; en una sola, a cualquiera de las dos.
                 var side = rows == 2 ? (row == 0 ? -1 : 1) : (rng.NextDouble() < 0.5 ? -1 : 1);
+                // Del lado del borde de la ciudad no hay calle: ese frente mira hacia adentro (al pasaje o a la otra calle).
+                var lo = alongX ? block.MinZ : block.MinX;
+                var hi = alongX ? block.MaxZ : block.MaxX;
+                if (side < 0 && lo <= -DowntownHalf + 0.01f || side > 0 && hi >= DowntownHalf - 0.01f)
+                    side = -side;
                 var a0 = row == 0 ? 0 : depth - rowDepth;
                 var cursor = 0f;
                 while (cursor < length - 0.01f)

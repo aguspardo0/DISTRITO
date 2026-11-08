@@ -51,7 +51,8 @@ public class LifeTests
         cfg.Expansions.Clear();
         var before = ResidentGenerator.Generate(cfg);
         Assert.Equal(30, before.Count);
-        Assert.Equal(before, with.Take(30)); // mismos ids, nombres, casas y personalidades
+        static string Key(Resident r) => $"{r.Id} {r.FullName} {r.HomeX} {r.HomeZ} {r.Workplace} {string.Join(',', r.Traits.Select(t => $"{t.Key}={t.Value}"))}";
+        Assert.Equal(before.Select(Key), with.Take(30).Select(Key)); // mismos ids, nombres, casas y personalidades
         var downtown = with.Skip(30).ToList();
         Assert.Contains(downtown, p => p.Profession == "oficinista");
         Assert.All(downtown, p => Assert.StartsWith("centro-", p.District));
@@ -89,7 +90,7 @@ public class LifeTests
         var people = ResidentGenerator.Generate(cfg);
         Assert.All(people, p =>
         {
-            var d = cfg.Districts.Single(x => x.Code == p.District);
+            var d = cfg.AllDistricts.Single(x => x.Code == p.District);
             Assert.True(Math.Sqrt(Math.Pow(p.HomeX - d.X, 2) + Math.Pow(p.HomeZ - d.Z, 2)) <= d.Radius + 0.01);
         });
         Assert.True(people.Select(p => p.District).Distinct().Count() >= 3);

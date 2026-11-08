@@ -80,7 +80,7 @@ public class CityNavigationTests
             var (ex, ez) = route[^1];
             // En el Centro la casa puede estar en el medio de la manzana: se llega hasta la vereda más cercana.
             var limit = r.District.StartsWith("centro-") ? 35 : 8;
-            Assert.True(Math.Sqrt((ex - r.HomeX) * (ex - r.HomeX) + (ez - r.HomeZ) * (ez - r.HomeZ)) < limit, $"la casa de {r.FullName} queda inalcanzable");
+            Assert.True(Math.Sqrt((ex - r.HomeX) * (ex - r.HomeX) + (ez - r.HomeZ) * (ez - r.HomeZ)) < limit, $"la casa de {r.FullName} ({r.HomeX:0.0}, {r.HomeZ:0.0}, {r.District}) queda inalcanzable: el camino termina en ({ex:0.0}, {ez:0.0})");
         }
     }
 
