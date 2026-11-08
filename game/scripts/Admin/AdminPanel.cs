@@ -29,6 +29,7 @@ public partial class AdminPanel : PanelContainer
         _admin.StatusReceived += () => { if (Visible) Rebuild(); };
         _admin.MessageReceived += text => _message.Text = text;
         _admin.ResidentsReceived += ShowResidents;
+        _admin.ReportsReceived += text => ShowText("Problemas reportados (F8)", text);
     }
 
     public override void _Ready()
@@ -193,6 +194,11 @@ public partial class AdminPanel : PanelContainer
         shot.Pressed += _admin.RequestTestShot;
         _content.AddChild(shot);
 
+        Section("Prueba cerrada");
+        var reports = new Button { Text = "Ver los problemas reportados (F8)" };
+        reports.Pressed += _admin.RequestReports;
+        _content.AddChild(reports);
+
         Section("Eventos ahora");
         var events = new HFlowContainer();
         foreach (var (label, code) in new[] { ("Camión de reparto", "camion"), ("Cobrador", "cobrador"), ("Contrabando", "contrabando") })
@@ -204,9 +210,11 @@ public partial class AdminPanel : PanelContainer
         _content.AddChild(events);
     }
 
-    private void ShowResidents(string text)
+    private void ShowResidents(string text) => ShowText("Habitantes de Bellmont", text);
+
+    private void ShowText(string title, string text)
     {
-        var dialog = new AcceptDialog { Title = "Habitantes de Bellmont", OkButtonText = "Cerrar", Size = new Vector2I(900, 620) };
+        var dialog = new AcceptDialog { Title = title, OkButtonText = "Cerrar", Size = new Vector2I(900, 620) };
         var scroll = new ScrollContainer { CustomMinimumSize = new Vector2(860, 540) };
         var label = new Label { Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(840, 0) };
         label.AddThemeFontSizeOverride("font_size", 14);

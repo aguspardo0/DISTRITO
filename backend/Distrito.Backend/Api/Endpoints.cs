@@ -110,6 +110,18 @@ public static class Endpoints
         internalApi.MapPost("/economy/business/withdraw", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.WithdrawAsync(r, ct));
         internalApi.MapPost("/economy/business/upgrade", (BusinessUpgradeRequest r, EconomyService e, CancellationToken ct) => e.UpgradeBusinessAsync(r, ct));
         internalApi.MapPost("/economy/business/price", (BusinessPriceRequest r, EconomyService e, CancellationToken ct) => e.SetBusinessPriceAsync(r, ct));
+        internalApi.MapPost("/reports", async (BugReport r, Distrito.Backend.Reports.ReportStore s, CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await s.AddAsync(r, ct));
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(ex.Message);
+            }
+        });
+        internalApi.MapGet("/reports", (int? limit, Distrito.Backend.Reports.ReportStore s, CancellationToken ct) => s.LatestAsync(limit ?? 50, ct));
         internalApi.MapGet("/life/residents", (Distrito.Backend.Life.LifeStore s, CancellationToken ct) => s.SnapshotAsync(ct));
         internalApi.MapPost("/life/save", async (Distrito.Shared.Life.LifeStateBatch b, Distrito.Backend.Life.LifeStore s, CancellationToken ct) =>
         {

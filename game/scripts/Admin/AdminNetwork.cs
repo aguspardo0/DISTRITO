@@ -54,6 +54,33 @@ public partial class AdminNetwork : Node
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ReceiveResidents(string text) => ResidentsReceived?.Invoke(text);
 
+    /// <summary>Los últimos problemas reportados con F8 (prueba cerrada).</summary>
+    public event Action<string>? ReportsReceived;
+    public void RequestReports() => Send(MethodName.ServerReports);
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerReports()
+    {
+        if (Multiplayer.IsServer())
+            _ = AsAdminAsync(Multiplayer.GetRemoteSenderId(), (peer, _) => _ = SendReportsAsync(peer));
+    }
+
+    private async Task SendReportsAsync(long peer)
+    {
+        if (_network.Backend is not { } api)
+            return;
+        var result = await api.GetBugReportsAsync(_network.ServerKey, 60);
+        var text = !result.IsSuccess ? $"No se pudieron leer: {result.Error!.Message}"
+            : result.Value!.Count == 0 ? "Todavía nadie reportó nada."
+            : string.Join("\n\n", result.Value.Select(r =>
+                $"#{r.Id} · {r.At?.ToOffset(TimeSpan.FromHours(-3)):dd/MM HH:mm} · {r.Player} · {r.Zone} ({r.X:0}, {r.Z:0}) · versión {r.Version}\n{r.Text}"));
+        if (Multiplayer.GetPeers().Contains((int)peer))
+            RpcId(peer, MethodName.ReceiveReports, text);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ReceiveReports(string text) => ReportsReceived?.Invoke(text);
+
     /// <summary>Prueba de reacciones (etapa 7): un tiro al aire donde está el administrador, sin daño.</summary>
     public void RequestTestShot() => Send(MethodName.ServerTestShot);
 

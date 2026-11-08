@@ -224,6 +224,12 @@ public sealed class DistritoApiClient(HttpClient http)
 
     // ---------- Vida de los NPC ----------
 
+    public Task<ApiResult<long>> SendBugReportAsync(string serverKey, BugReport report, CancellationToken ct = default) =>
+        SendAsync<long>(HttpMethod.Post, "internal/reports", report, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<List<BugReport>>> GetBugReportsAsync(string serverKey, int limit = 50, CancellationToken ct = default) =>
+        SendAsync<List<BugReport>>(HttpMethod.Get, $"internal/reports?limit={limit}", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<Distrito.Shared.Life.LifeSnapshot>> GetResidentsAsync(string serverKey, CancellationToken ct = default) =>
         SendAsync<Distrito.Shared.Life.LifeSnapshot>(HttpMethod.Get, "internal/life/residents", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

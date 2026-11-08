@@ -70,6 +70,8 @@ public partial class PauseMenu : Control
         _effects.ValueChanged += v => GameSettings.SetEffectsVolume((float)v);
         box.AddChild(_effects);
 
+        box.AddChild(new Label { Text = "¿Algo anda mal? Apretá F8 para reportarlo (prueba cerrada)." });
+
         box.AddChild(new HSeparator());
         var tutorial = new HBoxContainer();
         tutorial.AddChild(Button("Saltar el tutorial", () => { Close(); TutorialSkipRequested?.Invoke(); }));

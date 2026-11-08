@@ -49,6 +49,7 @@ public partial class Main : Node3D
     private Distrito.Game.Casino.CasinoNetwork _casino = null!;
     private CoffeeShiftNetwork _coffeeShift = null!;
     private CoffeeShiftPanel? _coffeePanel;
+    private BugReportPanel? _reportPanel;
     private Distrito.Game.Player.SkillNetwork _skills = null!;
     private Distrito.Game.Player.SkillTreePanel? _skillPanel;
     private Distrito.Game.Casino.CasinoPanel? _casinoPanel;
@@ -394,6 +395,10 @@ public partial class Main : Node3D
         layer.AddChild(UiAnchor.Wrap(_coffeePanel, UiAnchor.Center, UiAnchor.End, bottom: 40, name: "CoffeeShiftArea"));
         _coffeePanel.Initialize(_coffeeShift);
         interaction.CoffeeShiftRequested += _coffeeShift.Start;
+
+        _reportPanel = new BugReportPanel { Name = "BugReport" };
+        layer.AddChild(UiAnchor.Wrap(_reportPanel, UiAnchor.Center, UiAnchor.Center, name: "BugReportArea"));
+        _reportPanel.Initialize(_network);
 
         _marketPanel = new MarketPanel { Name = "MarketPanel" };
         layer.AddChild(UiAnchor.Wrap(_marketPanel, UiAnchor.Center, UiAnchor.Center, name: "MarketArea"));
@@ -854,7 +859,7 @@ public partial class Main : Node3D
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Escape } && _network.LocalPlayer is not null && _pause is not null)
         {
             // Esc cierra primero lo que esté abierto; si no hay nada, abre o cierra las opciones.
-            if (_interaction?.Dialog is { IsOpen: true } || _supplierPanel is { IsOpen: true } || _vehicleShop is { IsOpen: true } || _casinoPanel is { IsOpen: true } || _coffeePanel is { IsOpen: true })
+            if (_interaction?.Dialog is { IsOpen: true } || _supplierPanel is { IsOpen: true } || _vehicleShop is { IsOpen: true } || _casinoPanel is { IsOpen: true } || _coffeePanel is { IsOpen: true } || _reportPanel is { IsOpen: true })
                 return; // el diálogo y los pedidos se cierran solos con Esc
             if (_crewPanel is { IsOpen: true }) _crewPanel.Toggle();
             else if (_inventoryPanel is { IsOpen: true }) _inventoryPanel.Toggle();
@@ -888,6 +893,8 @@ public partial class Main : Node3D
             _inventoryPanel?.Toggle();
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.M } && _network.LocalPlayer is not null)
             _mapPanel?.Toggle();
+        if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.F8 } && _network.LocalPlayer is not null)
+            _reportPanel?.Toggle();
     }
 
     public override void _ExitTree() => _account?.Dispose();
