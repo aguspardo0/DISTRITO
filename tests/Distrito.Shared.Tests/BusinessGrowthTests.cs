@@ -114,10 +114,37 @@ public class BusinessGrowthTests
         foreach (var kind in EconomyCatalog.BusinessTypes.Keys)
         {
             var start = BusinessGrowth.EventStart(Cfg, kind, day);
+            var k = BusinessGrowth.KindOf(Cfg, kind);
+            var hour = Distrito.Shared.Life.BellmontClock.Hour(start);
+            Assert.True(k.EventFrom <= k.EventTo ? hour >= k.EventFrom && hour < k.EventTo : hour >= k.EventFrom || hour < k.EventTo,
+                $"el evento de {kind} empieza a las {hour} de Bellmont");
             Assert.True(BusinessGrowth.InEvent(Cfg, kind, start.AddMinutes(1)));
             Assert.False(BusinessGrowth.InEvent(Cfg, kind, BusinessGrowth.EventEnd(Cfg, kind, day).AddMinutes(1)));
             var me = new GrowthState(Guid.NewGuid(), kind, 0, EconomyCatalog.BusinessTypes[kind].SalePriceCents, 0, 0, 0);
             Assert.True(BusinessGrowth.Demand(Cfg, me, [me], start.AddMinutes(1)).Event);
+        }
+    }
+
+    [Fact]
+    public void La_hora_pico_sigue_el_reloj_de_Bellmont_y_la_gente_por_dia_no_cambia()
+    {
+        foreach (var kind in EconomyCatalog.BusinessTypes.Keys)
+        {
+            var k = BusinessGrowth.KindOf(Cfg, kind);
+            var start = new DateTimeOffset(2026, 11, 8, 0, 0, 0, TerritoryRules.ArgentinaOffset);
+            double sum = 0;
+            for (var minute = 0; minute < 24 * 60; minute++)
+            {
+                var at = start.AddMinutes(minute);
+                var factor = BusinessGrowth.PeakFactor(Cfg, kind, at);
+                var hour = Distrito.Shared.Life.BellmontClock.Hour(at);
+                var inPeak = k.PeakFrom <= k.PeakTo ? hour >= k.PeakFrom && hour < k.PeakTo : hour >= k.PeakFrom || hour < k.PeakTo;
+                Assert.Equal(inPeak ? k.PeakFactor : 1, factor);
+                sum += factor;
+            }
+            // Mismo total por día real que con el reloj real: el pico dura lo mismo, partido en dos.
+            var peakHours = (k.PeakTo - k.PeakFrom + 24) % 24;
+            Assert.Equal(24 * 60 + peakHours * 60 * (k.PeakFactor - 1), sum, 3);
         }
     }
 

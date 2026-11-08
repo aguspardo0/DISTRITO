@@ -51,6 +51,9 @@ tu calidad.
 **Algo para hacer cada día:**
 - **Evento del rubro:** la *Mañana de feria* (café) y la *Noche de fiesta* (club) traen 2,5 veces más gente durante una
   hora o hora y media. La hora cambia cada día y sale en La Gaceta y en «Mi negocio»: hay que tener mercadería y lugar.
+- **Horas pico y eventos con el reloj de Bellmont** (aprobado 2026-11-08): las horas pico (`picoDesde`/`picoHasta`) y el
+  horario de los eventos son horas de Bellmont, cuyo día dura 12 horas reales. El pico pasa dos veces por día real con la
+  mitad de duración cada vez, así que la gente por día es la misma; el evento sigue siendo uno por día real.
 - **El crítico de La Gaceta** pasa una vez por día a una hora que nadie sabe. De 1 a 5 estrellas, según calidad, precio
   justo y si estaba abierto. Las 5 estrellas pueden ser el titular del diario. Cerrado: una estrella.
 - **Competencia:** los locales del mismo rubro se reparten la misma gente.

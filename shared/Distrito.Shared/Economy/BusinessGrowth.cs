@@ -206,13 +206,21 @@ public static class BusinessGrowth
 
     private static bool InHours(int hour, int from, int to) => from <= to ? hour >= from && hour < to : hour >= from || hour < to;
 
+    /// <summary>
+    /// Hora pico del rubro, según el reloj de Bellmont (aprobado por el equipo, 2026-11-08): el club se llena de noche
+    /// en Bellmont. Como hay dos días de Bellmont por día real, el pico pasa dos veces por día real con la mitad de
+    /// duración cada una: la gente por día es la misma de antes.
+    /// </summary>
     public static double PeakFactor(GrowthConfig cfg, string kind, DateTimeOffset at)
     {
         var k = KindOf(cfg, kind);
-        return InHours(at.ToOffset(TerritoryRules.ArgentinaOffset).Hour, k.PeakFrom, k.PeakTo) ? k.PeakFactor : 1;
+        return InHours(Distrito.Shared.Life.BellmontClock.Hour(at), k.PeakFrom, k.PeakTo) ? k.PeakFactor : 1;
     }
 
-    /// <summary>El evento del día de cada rubro (mañana de feria, noche de fiesta): a qué hora empieza, igual para todos.</summary>
+    /// <summary>
+    /// El evento del día de cada rubro (mañana de feria, noche de fiesta): uno por día real, igual para todos, y a una
+    /// hora de Bellmont dentro de su horario (desde 2026-11-08; antes era la hora real de Argentina).
+    /// </summary>
     public static DateTimeOffset EventStart(GrowthConfig cfg, string kind, DateOnly day)
     {
         var k = KindOf(cfg, kind);
@@ -220,8 +228,11 @@ public static class BusinessGrowth
         if (span == 0) span = 24;
         var seed = (uint)(day.DayNumber * 2654435761u ^ (uint)kind.Length * 40503u);
         var hour = (k.EventFrom + (int)(seed % (uint)span)) % 24;
-        var local = new DateTimeOffset(day.Year, day.Month, day.Day, 0, 0, 0, TerritoryRules.ArgentinaOffset).AddHours(hour);
-        if (hour < k.EventFrom) local = local.AddDays(1); // pasó la medianoche: es la madrugada siguiente
+        var bellmontDay = (int)((seed >> 16) % 2); // cuál de los dos días de Bellmont de ese día real
+        var realDay = Distrito.Shared.Life.BellmontClock.RealSecondsPerDay;
+        var local = new DateTimeOffset(day.Year, day.Month, day.Day, 0, 0, 0, TerritoryRules.ArgentinaOffset)
+            .AddSeconds(bellmontDay * realDay + hour * 3600.0 / Distrito.Shared.Life.BellmontClock.Speed);
+        if (hour < k.EventFrom) local = local.AddSeconds(realDay); // pasó la medianoche de Bellmont: es la madrugada siguiente
         return local.ToUniversalTime();
     }
 
