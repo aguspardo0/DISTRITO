@@ -15,6 +15,25 @@ public class MarketShadowApiTests
     private const string Key = TestBackend.ServerKey;
     private static string Req() => Guid.NewGuid().ToString();
 
+    private static async Task Grant(DistritoApiClient api, Guid character, long cents)
+    {
+        await api.GetEconomyAsync(Key, character);
+        await using var db = NpgsqlDataSource.Create(TestBackend.ConnectionString);
+        await using var cmd = db.CreateCommand("""
+            WITH t AS (INSERT INTO distrito.ledger_transactions (id, idempotency_key, kind, description)
+                       VALUES (gen_random_uuid(), 'test-grant:' || gen_random_uuid(), 'test', 'Fondos para prueba') RETURNING id),
+                 mint AS (SELECT id FROM distrito.economic_accounts WHERE code = 'system:emision'),
+                 acc AS (SELECT id FROM distrito.economic_accounts WHERE character_id = @c)
+            INSERT INTO distrito.ledger_entries (transaction_id, account_id, amount_cents)
+            SELECT t.id, mint.id, -@amount FROM t, mint UNION ALL SELECT t.id, acc.id, @amount FROM t, acc;
+            UPDATE distrito.economic_accounts SET balance_cents = balance_cents - @amount WHERE code = 'system:emision';
+            UPDATE distrito.economic_accounts SET balance_cents = balance_cents + @amount WHERE character_id = @c;
+            """);
+        cmd.Parameters.AddWithValue("c", character);
+        cmd.Parameters.AddWithValue("amount", cents);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     private static async Task<(long Cash, int Stock)> BusinessOf(Guid owner)
     {
         await using var db = NpgsqlDataSource.Create(TestBackend.ConnectionString);
@@ -42,6 +61,7 @@ public class MarketShadowApiTests
 
         var economy = TestBackend.Economy();
         Assert.True((await api.BusinessActionAsync(Key, "license", new BusinessActionRequest(me, Req()))).Value!.Ok);
+        await Grant(api, me, 10_000);
         for (var i = 0; i < 5; i++)
             Assert.True((await api.BuyAsync(Key, new BuyItemRequest(me, EconomyCatalog.DepositNpc, EconomyCatalog.CoffeeBagItem, 1, Req()))).Value!.Ok);
         Assert.True((await api.BusinessActionAsync(Key, "restock", new BusinessActionRequest(me, Req()))).Value!.Ok);
