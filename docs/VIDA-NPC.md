@@ -82,3 +82,25 @@ qué hace cada uno, por qué y cómo está de hambre, cansancio y ganas de ver g
 - **Pruebas:** `CityNavigationTests` (ningún camino atraviesa edificios ni sale de la ciudad, todos los lugares y
   casas se alcanzan, y el cliente calcula la misma posición que el servidor). En la prueba de persistencia el log del
   bot muestra `VIDA_CLIENTE habitantes_cerca=…` si alguno pasó cerca.
+
+## Etapa 6 (2026-11-08): relaciones
+
+`LifeSociety` (compartido, determinista, sin plata: es ambientación):
+
+- **Qué se guarda:** cada habitante tiene, de los que conoce (hasta 12), un número de −1 a 1 (`Ties` en su estado).
+  Desde 0,25 se **conocen**, desde 0,6 son **amigos** y desde −0,4 para abajo **se llevan mal**.
+- **Al principio:** cada uno conoce un poco a dos o tres vecinos de su barrio y a sus compañeros de trabajo.
+- **Cómo cambia:** cada 15 minutos de Bellmont, los que están en el mismo lugar (trabajando, comiendo, charlando, de
+  visita) se acercan o se alejan según qué tan **compatibles** son: los sociables y los del mismo barrio se acercan,
+  los agresivos y los desconfiados chocan. Los compañeros de trabajo se acercan un poco más; los que salieron a
+  charlar, el doble. El **cliente** que come o compra donde atiende un comerciante le va tomando **confianza** (menos
+  los desconfiados). En la calle o durmiendo no se cruzan con nadie.
+- **Qué cambia en sus decisiones:** si un amigo está en el diner o el kiosco, va ahí («su amigo Sal está en el Diner La
+  Estrella»); si un amigo está en su casa, puede ir a **visitarlo** (actividad nueva «de visita»: entra a la casa y no
+  se ve); come y compra donde atiende alguien en quien confía; y no sale a charlar donde está alguien con quien se
+  lleva mal.
+- **Hechos importantes:** cuando dos se hacen amigos o empiezan a llevarse mal queda anotado en su historial y en el
+  log del servidor (`VIDA relacion amistad: …`). El resumen cuenta `amistades=… rivalidades=…`.
+- **Inspección:** el panel de administración muestra las relaciones de cada uno con nombre y valor.
+- **Pruebas:** `LifeSocietyTests` (cuatro días de Bellmont con los 30: se hacen amigos, las relaciones cambian las
+  decisiones, es determinista y se guarda igual).

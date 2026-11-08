@@ -18,6 +18,9 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
 
     public const string HomePlace = "casa";
 
+    /// <summary>De visita en la casa de otro: «visita:» + el id del dueño de casa.</summary>
+    public const string VisitPrefix = "visita:";
+
     /// <summary>Velocidad al caminar, en metros por segundo real.</summary>
     public const double WalkSpeed = 1.3;
 
@@ -32,10 +35,14 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
     public long DecisionsMade { get; private set; }
 
     private bool _catchingUp;
+    private LifeWorld? _world;
+    private DateTimeOffset _at;
 
     /// <summary>Avanza un habitante hasta <paramref name="now"/>: decide todas las veces que haga falta.</summary>
-    public ResidentState Advance(Resident r, ResidentState s, DateTimeOffset now)
+    /// <param name="world">Los demás habitantes (amigos, rivales, quién atiende cada local). Sin esto decide solo.</param>
+    public ResidentState Advance(Resident r, ResidentState s, DateTimeOffset now, LifeWorld? world = null)
     {
+        _world = world;
         for (var i = 0; i < MaxCatchUp; i++)
         {
             if (s.Until <= now)
@@ -64,7 +71,7 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
     }
 
     private static bool Interruptible(string activity) =>
-        activity is LifeActivities.AtHome or LifeActivities.Strolling or LifeActivities.Shopping or LifeActivities.Socializing;
+        activity is LifeActivities.AtHome or LifeActivities.Strolling or LifeActivities.Shopping or LifeActivities.Socializing or LifeActivities.Visiting;
 
     /// <summary>Lo que pasa al terminar una actividad: se cobra el turno, se paga la comida, etc.</summary>
     private ResidentState Finish(Resident r, ResidentState s, DateTimeOffset at)
@@ -99,7 +106,7 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
             case LifeActivities.Sleeping: fatigue -= 0.13 * hours; hunger -= 0.04 * hours; break;
             case LifeActivities.Working or LifeActivities.Patrolling: fatigue += 0.06 * hours * (1.3 - 0.6 * r.Trait("trabajador")); social -= 0.02 * hours; break;
             case LifeActivities.Eating: hunger -= 1.2 * hours; social -= 0.05 * hours; break;
-            case LifeActivities.Socializing: social -= 0.4 * hours; break;
+            case LifeActivities.Socializing or LifeActivities.Visiting: social -= 0.4 * hours; break;
             case LifeActivities.AtHome: fatigue -= 0.02 * hours; break;
             default: fatigue += 0.04 * hours; break;
         }
@@ -118,6 +125,7 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
     public ResidentState Decide(Resident r, ResidentState s, DateTimeOffset at)
     {
         s = Needs(r, s, at);
+        _at = at;
         DecisionsMade++;
         var options = Options(r, s, at).ToList();
         var noise = Noise(r.Id, s.Decisions);
@@ -153,7 +161,7 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
         return s with
         {
             Activity = best.Activity, Place = best.Place, X = toX, Z = toZ, FromX = fromX, FromZ = fromZ, Path = path,
-            Indoor = best.Place == HomePlace || cfg.Place(best.Place)?.Indoor == true,
+            Indoor = best.Place == HomePlace || best.Place.StartsWith(VisitPrefix, StringComparison.Ordinal) || cfg.Place(best.Place)?.Indoor == true,
             Since = at, ArrivesAt = arrives, Until = until, Money = Math.Max(0, money),
             Decision = Describe(best.Activity, best.Place), Reason = best.Reason, Decisions = s.Decisions + 1,
         };
@@ -190,20 +198,49 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
 
         // Comer: con hambre y si le alcanza.
         if (money >= c.Meal)
-            yield return new Option(LifeActivities.Eating, Nearest(s, cfg.EatPlaces), 2.4 * s.Hunger - 0.1,
-                45, $"hambre {s.Hunger:0.00} y le alcanza ({Money(money)})", c.Meal);
+        {
+            var trusted = Trusted(r, s, cfg.EatPlaces);
+            yield return new Option(LifeActivities.Eating, trusted?.Place ?? Nearest(s, cfg.EatPlaces), 2.4 * s.Hunger - 0.1 + (trusted is null ? 0 : 0.1),
+                45, $"hambre {s.Hunger:0.00} y le alcanza ({Money(money)}){(trusted is null ? "" : $"; le tiene confianza a {trusted.Value.Name}")}", c.Meal);
+        }
         else
             yield return new Option(LifeActivities.AtHome, HomePlace, 2.4 * s.Hunger - 0.3, 60, $"tiene hambre pero no le alcanza ({Money(money)}): come en casa");
 
         // Salir a ver gente: según qué tan sociable es, de día o a la nochecita.
         if (hour is >= 9 and < 24 && money >= c.Outing)
-            yield return new Option(LifeActivities.Socializing, Pick(cfg.SocialPlaces, r.Id, s.Decisions), 1.6 * s.Social * (0.4 + r.Trait("sociable")) * outdoorsAtNight,
-                75, $"ganas de ver gente {s.Social:0.00}, {(r.Trait("sociable") > 0.6 ? "es sociable" : "le cuesta un poco salir")}", c.Outing);
+        {
+            var baseScore = 1.6 * s.Social * (0.4 + r.Trait("sociable")) * outdoorsAtNight;
+            var why = $"ganas de ver gente {s.Social:0.00}, {(r.Trait("sociable") > 0.6 ? "es sociable" : "le cuesta un poco salir")}";
+            var friendOut = FriendAt(r, s, cfg.SocialPlaces);
+            if (friendOut is { } f)
+                yield return new Option(LifeActivities.Socializing, f.Place, baseScore + 0.5 * f.Tie, 75,
+                    $"{why}; su amigo {f.Name} está en {cfg.Place(f.Place)?.Name ?? f.Place}", c.Outing);
+            else
+            {
+                var place = Pick(cfg.SocialPlaces, r.Id, s.Decisions);
+                var rival = RivalAt(r, s, place);
+                if (rival is not null)
+                {
+                    var other = cfg.SocialPlaces.FirstOrDefault(p => p != place && RivalAt(r, s, p) is null);
+                    if (other is not null) { why += $"; no va a {cfg.Place(place)?.Name ?? place} porque está {rival}"; place = other; rival = null; }
+                }
+                yield return new Option(LifeActivities.Socializing, place, baseScore - (rival is null ? 0 : 0.6), 75,
+                    rival is null ? why : $"{why}, aunque está {rival}", c.Outing);
+            }
+        }
+
+        // Visitar a un amigo que está en su casa (de día y a la tarde).
+        if (hour is >= 10 and < 21 && FriendHome(r, s) is { } host)
+            yield return new Option(LifeActivities.Visiting, VisitPrefix + host.Id.ToString("N"), 1.3 * s.Social * host.Tie * (0.5 + r.Trait("sociable")) * outdoorsAtNight,
+                60, $"ganas de ver gente {s.Social:0.00} y su amigo {host.Name} está en casa");
 
         // Compras: con los negocios abiertos, si tiene plata de sobra.
         if (hour is >= 8 and < 20 && money >= c.Shopping * 3)
-            yield return new Option(LifeActivities.Shopping, Pick(cfg.ShopPlaces, r.Id, s.Decisions + 7), 0.45 + 0.3 * r.Trait("ambicioso"),
-                30, $"tiene plata ({Money(money)}) y los negocios están abiertos", c.Shopping);
+        {
+            var trusted = Trusted(r, s, cfg.ShopPlaces);
+            yield return new Option(LifeActivities.Shopping, trusted?.Place ?? Pick(cfg.ShopPlaces, r.Id, s.Decisions + 7), 0.45 + 0.3 * r.Trait("ambicioso") + (trusted is null ? 0 : 0.15),
+                30, $"tiene plata ({Money(money)}) y los negocios están abiertos{(trusted is null ? "" : $"; le compra a {trusted.Value.Name}, que le tiene confianza")}", c.Shopping);
+        }
 
         // Pasear: de día, los que no son miedosos.
         if (!night)
@@ -213,6 +250,53 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
         // Quedarse en casa: los reservados, o de noche los miedosos.
         yield return new Option(LifeActivities.AtHome, HomePlace, 0.45 + 0.35 * r.Trait("reservado") + (night ? 0.4 * fearful : 0),
             60, night && fearful > 0.6 ? "es de noche y prefiere no salir" : "se queda tranquilo en casa");
+    }
+
+    // --- Relaciones (etapa 6) ---
+
+    private IEnumerable<(Resident Other, ResidentState State, double Tie)> Known(ResidentState s, Func<double, bool> which)
+    {
+        if (_world is null || s.Ties is null)
+            yield break;
+        foreach (var (id, tie) in s.Ties.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key))
+            if (which(tie) && _world.People.TryGetValue(id, out var other) && _world.States.TryGetValue(id, out var state))
+                yield return (other, state, tie);
+    }
+
+    /// <summary>Un amigo que está ahora en alguno de estos lugares (comiendo o charlando).</summary>
+    private (string Place, string Name, double Tie)? FriendAt(Resident r, ResidentState s, List<string> places)
+    {
+        foreach (var (other, state, tie) in Known(s, t => t >= LifeSociety.Friend))
+            if (places.Contains(state.Place) && state.Activity is LifeActivities.Socializing or LifeActivities.Eating && state.Until > _at)
+                return (state.Place, other.FirstName, tie);
+        return null;
+    }
+
+    /// <summary>Un amigo que está en su casa despierto.</summary>
+    private (Guid Id, string Name, double Tie)? FriendHome(Resident r, ResidentState s)
+    {
+        foreach (var (other, state, tie) in Known(s, t => t >= LifeSociety.Friend))
+            if (state.Activity == LifeActivities.AtHome && state.Place == HomePlace && !state.Travelling(_at) && state.Until > _at.AddMinutes(20))
+                return (other.Id, other.FirstName, tie);
+        return null;
+    }
+
+    /// <summary>Alguien con quien se lleva mal y que está en ese lugar («X», para el motivo).</summary>
+    private string? RivalAt(Resident r, ResidentState s, string place)
+    {
+        foreach (var (other, state, _) in Known(s, t => t <= LifeSociety.Rival))
+            if (state.Place == place && state.Until > _at)
+                return other.FirstName;
+        return null;
+    }
+
+    /// <summary>Un local (de esta lista) donde atiende ahora alguien en quien confía.</summary>
+    private (string Place, string Name)? Trusted(Resident r, ResidentState s, List<string> places)
+    {
+        foreach (var (other, state, _) in Known(s, t => t >= 0.35))
+            if (other.Workplace is { } work && places.Contains(work) && state.Activity == LifeActivities.Working && state.Place == work && state.Until > _at)
+                return (work, other.FirstName);
+        return null;
     }
 
     /// <summary>A qué hora se levanta: los perezosos, más tarde.</summary>
@@ -234,6 +318,10 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
     {
         if (place == HomePlace)
             return (r.HomeX, r.HomeZ);
+        if (place.StartsWith(VisitPrefix, StringComparison.Ordinal))
+            return Guid.TryParse(place[VisitPrefix.Length..], out var hostId) && _world?.People.TryGetValue(hostId, out var host) == true
+                ? (host!.HomeX, host.HomeZ)
+                : (r.HomeX, r.HomeZ);
         var p = cfg.Place(place);
         if (p is null)
             return (r.HomeX, r.HomeZ);
@@ -271,6 +359,9 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
 
     private string Describe(string activity, string place)
     {
+        if (place.StartsWith(VisitPrefix, StringComparison.Ordinal))
+            return Guid.TryParse(place[VisitPrefix.Length..], out var hostId) && _world?.People.TryGetValue(hostId, out var host) == true
+                ? $"visitar a {host!.FullName}" : "visitar a un amigo";
         var name = place == HomePlace ? "su casa" : cfg.Place(place)?.Name ?? place;
         return activity switch
         {

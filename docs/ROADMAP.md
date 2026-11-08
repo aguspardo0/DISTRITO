@@ -150,6 +150,10 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
    - [x] Etapa 1 (2026-11-08): identidad y estado guardado de los 30 habitantes (`config/vida.json`, `ResidentGenerator`, `LifeStore`, `LifeNetwork`) y el reloj de Bellmont.
    - [x] Etapas 2 a 4 (2026-11-08): rutinas, necesidades y decisiones (`LifeSimulation`), con interrupciones, desplazamientos lógicos, patrullas y la inspección en el panel de administración.
    - [x] Etapa 5: navegación y los tres niveles (los cercanos se ven caminando por las veredas, entran a los locales y patrullan).
+   - [x] Etapa 6: relaciones (vecinos y compañeros que se conocen, amigos que se buscan y se visitan, confianza en el comerciante, gente que se lleva mal).
+   - [ ] Etapa 7: reacciones (huir, esconderse, avisar a la policía o seguir con lo suyo).
+   - [ ] Etapa 8: economía y jugadores (ambientación con la gente que compra; hablar con ellos).
+   - [ ] Etapa 9: optimización y prueba de población.
 
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.

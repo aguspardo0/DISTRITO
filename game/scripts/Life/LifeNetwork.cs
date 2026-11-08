@@ -95,6 +95,9 @@ public partial class LifeNetwork : Node
                 _residents[r.Identity.Id] = r.Identity;
                 _states[r.Identity.Id] = r.State ?? ResidentGenerator.InitialState(r.Identity, now);
             }
+            foreach (var (id, seeded) in LifeSociety.Seed(_residents.Values.ToList(), _states))
+                _states[id] = seeded; // la primera vez: conocen a algunos vecinos y a los compañeros
+            _lastMeet = now;
             _config = config;
             _sim = new LifeSimulation(config, CityNavigation.Route);
             Step(now); // se pone al día con lo que pasó mientras el servidor estaba apagado
@@ -118,15 +121,43 @@ public partial class LifeNetwork : Node
     {
         if (_sim is null)
             return;
+        var world = new LifeWorld(_residents, _states);
         foreach (var r in _residents.Values)
         {
             var before = _states[r.Id];
-            var after = _sim.Advance(r, before, now);
+            var after = _sim.Advance(r, before, now, world);
             if (before.Money > 0 && after.Money == 0)
                 Record(r.Id, "sin-plata", $"{r.FullName} se quedó sin plata.");
             _states[r.Id] = after;
         }
+        // Etapa 6: cada 15 minutos de Bellmont, los que coinciden en un lugar se conocen, se hacen amigos o se pelean.
+        var hours = (now - _lastMeet).TotalHours * BellmontClock.Speed;
+        if (hours >= LifeSimulation.CheckMinutes / 60)
+        {
+            _lastMeet = now;
+            var (changed, events) = LifeSociety.Meet(_residents, _states, now, hours);
+            foreach (var (id, state) in changed)
+                _states[id] = state;
+            _pendingEvents.AddRange(events);
+            foreach (var e in events.Where((_, i) => i % 2 == 0))
+                GD.Print($"[DISTRITO] VIDA relacion {e.Kind}: {e.Text}");
+        }
         SyncNearby(now);
+    }
+
+    private DateTimeOffset _lastMeet;
+
+    private (int Friends, int Rivals) CountTies()
+    {
+        int friends = 0, rivals = 0;
+        foreach (var (id, s) in _states)
+            foreach (var (other, tie) in s.Ties ?? new())
+                if (id.CompareTo(other) < 0)
+                {
+                    if (tie >= LifeSociety.Friend) friends++;
+                    else if (tie <= LifeSociety.Rival) rivals++;
+                }
+        return (friends, rivals);
     }
 
     // --- Etapa 5: los que están cerca de cada jugador ---
@@ -285,7 +316,7 @@ public partial class LifeNetwork : Node
     {
         var counts = _states.Values.GroupBy(s => s.Travelling(now) ? "caminando" : s.Activity).OrderBy(g => g.Key).Select(g => $"{g.Key.Replace(' ', '_')}={g.Count()}");
         return $"hora_bellmont={BellmontClock.TimeOfDay(now):hh\\:mm} {string.Join(" ", counts)} decisiones={_sim?.DecisionsMade ?? 0} " +
-               $"cerca={_near} intermedio={_middle} lejos={_states.Count - _near - _middle} celdas_caminables={CityNavigation.WalkableCells}";
+               $"amistades={CountTies().Friends} rivalidades={CountTies().Rivals} cerca={_near} intermedio={_middle} lejos={_states.Count - _near - _middle} celdas_caminables={CityNavigation.WalkableCells}";
     }
 
     /// <summary>Qué hace cada habitante y por qué (herramienta de inspección del panel de administración).</summary>
@@ -305,6 +336,7 @@ public partial class LifeNetwork : Node
             var doing = s.Travelling(now) ? $"va a {s.Decision}" : s.Decision ?? s.Activity;
             lines.Add($"{r.FullName} ({professions.GetValueOrDefault(r.Profession, r.Profession).ToLowerInvariant()}, {r.Age}): {doing}.");
             lines.Add($"    Por qué: {s.Reason}. Hambre {s.Hunger:0.00} · cansancio {s.Fatigue:0.00} · ganas de ver gente {s.Social:0.00}.");
+            lines.Add($"    Relaciones: {LifeSociety.Describe(s, _residents)}.");
         }
         return string.Join("\n", lines);
     }
