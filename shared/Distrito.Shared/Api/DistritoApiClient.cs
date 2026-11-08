@@ -219,6 +219,18 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<EconomyActionResult>> SetBusinessPriceAsync(string serverKey, BusinessPriceRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/economy/business/price", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    // ---------- Vida de los NPC ----------
+
+    public Task<ApiResult<Distrito.Shared.Life.LifeSnapshot>> GetResidentsAsync(string serverKey, CancellationToken ct = default) =>
+        SendAsync<Distrito.Shared.Life.LifeSnapshot>(HttpMethod.Get, "internal/life/residents", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<object>> SaveResidentsAsync(string serverKey, Distrito.Shared.Life.LifeStateBatch batch, CancellationToken ct = default) =>
+        SendAsync<object>(HttpMethod.Post, "internal/life/save", batch, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
+    public Task<ApiResult<List<Distrito.Shared.Life.ResidentEvent>>> GetResidentHistoryAsync(string serverKey, Guid resident, CancellationToken ct = default) =>
+        SendAsync<List<Distrito.Shared.Life.ResidentEvent>>(HttpMethod.Get, $"internal/life/residents/{resident}/history", null,
+            r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<List<PriceBoardView>>> GetMarketBoardsAsync(string serverKey, CancellationToken ct = default) =>
         SendAsync<List<PriceBoardView>>(HttpMethod.Get, "internal/market/boards", null, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

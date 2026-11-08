@@ -1,0 +1,35 @@
+{
+  "_ayuda": "Vida autónoma de los NPC (etapa 1: identidad y estado). Los habitantes se crean UNA vez desde este archivo (con la semilla) y quedan guardados en la base; cambiar el archivo después no los vuelve a crear. Horas = horas de Bellmont (el día de Bellmont dura 12 horas reales: 6 de día y 6 de noche). Plata en centavos y solo como estado de cada habitante: la clientela que mueve la economía sigue siendo la de los habitantes simulados (decisión del equipo 2026-11-08).",
+  "semilla": 1952,
+  "rasgos": ["sociable", "reservado", "desconfiado", "ambicioso", "agresivo", "pacifico", "trabajador", "perezoso", "temeroso"],
+  "opuestos": [["sociable", "reservado"], ["agresivo", "pacifico"], ["trabajador", "perezoso"]],
+  "barrios": [
+    { "codigo": "barrio-moretti", "nombre": "Barrio Moretti", "x": -104, "z": 0, "radio": 14 },
+    { "codigo": "barrio-valenti", "nombre": "Barrio Valenti", "x": 24, "z": -104, "radio": 14 },
+    { "codigo": "barrio-caruso", "nombre": "Barrio Caruso", "x": 13, "z": 104, "radio": 14 },
+    { "codigo": "los-muelles", "nombre": "Los Muelles", "x": 70, "z": 24, "radio": 10 }
+  ],
+  "lugares": [
+    { "codigo": "almacen-moretti", "nombre": "Almacén Moretti", "x": -8.5, "z": -8.5 },
+    { "codigo": "taller-caruso", "nombre": "Taller Caruso", "x": 10, "z": 3 },
+    { "codigo": "muelles", "nombre": "Los Muelles", "x": 70, "z": 0 },
+    { "codigo": "ramos-generales", "nombre": "Ramos generales La Esperanza", "x": 6, "z": -11.5 },
+    { "codigo": "botica", "nombre": "Botica Ferri", "x": -4, "z": -13.5 },
+    { "codigo": "sastreria", "nombre": "Sastrería Bianchi", "x": 16, "z": -7 },
+    { "codigo": "diner", "nombre": "Diner La Estrella", "x": 0, "z": 14.5 },
+    { "codigo": "kiosco", "nombre": "Kiosco de diarios", "x": -18.5, "z": -5.5 },
+    { "codigo": "comisaria", "nombre": "Comisaría del distrito", "x": 0, "z": -60 }
+  ],
+  "profesiones": [
+    { "codigo": "obrero", "nombre": "Trabajador", "cantidad": 8, "lugares": ["almacen-moretti", "muelles", "taller-caruso"], "desde": 6, "hasta": 15, "edadMin": 18, "edadMax": 58, "plataMin": 200, "plataMax": 1500 },
+    { "codigo": "comerciante", "nombre": "Comerciante", "cantidad": 6, "lugares": ["ramos-generales", "botica", "sastreria", "diner", "kiosco", "taller-caruso"], "desde": 8, "hasta": 20, "edadMin": 28, "edadMax": 70, "plataMin": 2000, "plataMax": 8000 },
+    { "codigo": "transportista", "nombre": "Transportista", "cantidad": 4, "lugares": ["almacen-moretti"], "desde": 5, "hasta": 14, "edadMin": 21, "edadMax": 55, "plataMin": 500, "plataMax": 2500 },
+    { "codigo": "vecino", "nombre": "Vecino", "cantidad": 8, "lugares": [], "desde": 0, "hasta": 0, "edadMin": 16, "edadMax": 80, "plataMin": 100, "plataMax": 3000 },
+    { "codigo": "policia", "nombre": "Policía", "cantidad": 4, "lugares": ["comisaria"], "desde": 6, "hasta": 18, "turnoNocheCada": 2, "edadMin": 23, "edadMax": 55, "plataMin": 500, "plataMax": 2000 }
+  ],
+  "nombres": {
+    "hombres": ["Salvatore", "Vincenzo", "Giuseppe", "Carmine", "Angelo", "Patrick", "Seamus", "Michael", "Thomas", "Frank", "Walter", "Harold", "Eddie", "Joe", "Louie", "Albert", "Raymond", "George", "Tony", "Sal"],
+    "mujeres": ["Rosa", "Concetta", "Lucia", "Maria", "Teresa", "Bridget", "Margaret", "Eileen", "Dorothy", "Betty", "Helen", "Ruth", "Gloria", "Mabel", "Agnes", "Irene", "Lorraine", "Peggy", "Carmela", "Nora"],
+    "apellidos": ["Russo", "Esposito", "Bianchi", "Romano", "Gallo", "Conti", "De Luca", "Mancini", "Ricci", "Lombardi", "O'Brien", "Murphy", "Kelly", "Sullivan", "Doyle", "Walsh", "Smith", "Johnson", "Miller", "Davis", "Brown", "Wilson", "Kowalski", "Novak"]
+  }
+}

@@ -146,6 +146,9 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
    - [ ] Etapa 3: el equipo revisa los números del modo sombra (una o dos semanas con jugadores) y decide si se activa y con qué valores.
 - [x] **Interiores del Mercado y física compartida** (2026-11-02): galpón Moretti, Taller Caruso, Oficina Valenti, ramos generales, botica, sastrería y diner, con puertas, mostradores adentro, arte provisorio reemplazable por modelos (.glb) y objetos con física (Jolt) que ven todos igual. Ver `docs/INTERIORES.md`. Pendiente: aprobar los productos de las tiendas; interiores del club de jazz, casino, cuarteles y barrios.
 2. [ ] **Vida autónoma de los NPC** (documento del equipo, 2026-11-01): habitantes con identidad, rutinas, necesidades, decisiones deterministas, relaciones y reacciones, simulados por niveles (cerca, intermedio, lejos), usando la economía de mercado sin duplicarla. Empieza con una auditoría y un ecosistema de prueba de 30 NPC.
+   - [x] Auditoría e integración (2026-11-08) y decisiones del equipo: NPC visibles como ambientación (la plata la mueven los habitantes simulados), día de Bellmont de 12 horas reales (6 de día y 6 de noche), policía sin arrestos, casas sin interior. Ver `docs/VIDA-NPC.md`.
+   - [x] Etapa 1 (2026-11-08): identidad y estado guardado de los 30 habitantes (`config/vida.json`, `ResidentGenerator`, `LifeStore`, `LifeNetwork`) y el reloj de Bellmont.
+   - [ ] Etapa 2: reloj, rutinas y horarios.
 
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.

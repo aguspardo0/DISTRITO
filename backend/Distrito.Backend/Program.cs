@@ -24,6 +24,7 @@ builder.Services.AddSingleton<AccountStore>();
 builder.Services.AddSingleton<CharacterStore>();
 builder.Services.AddSingleton<EconomyService>();
 builder.Services.AddSingleton<MarketShadowService>();
+builder.Services.AddSingleton<Distrito.Backend.Life.LifeStore>();
 builder.Services.AddHostedService<BusinessCycleWorker>();
 builder.Services.AddSingleton<CrewService>();
 

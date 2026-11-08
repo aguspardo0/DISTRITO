@@ -231,5 +231,10 @@ if grep -q "requiere iniciar sesión" persist-guest.log; then note "Invitado" "r
 
 note "Servidor" "$(grep -c 'Guardado ' persist-server.log) guardados registrados"
 
+# --- Vida de los NPC (etapa 1): el servidor cargó los habitantes que creó el backend ---
+life=$(grep -h "VIDA habitantes=" persist-server.log | tail -1)
+if echo "$life" | grep -q "habitantes=30"; then note "Vida de los NPC" "${life#*\] }"
+else error "Vida de los NPC" "el servidor no cargó los 30 habitantes (${life:-sin línea VIDA})"; fi
+
 kill "$server_pid" "$backend_pid" 2>/dev/null || true
 exit $fail
