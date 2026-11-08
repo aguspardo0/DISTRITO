@@ -177,9 +177,12 @@ public class NpcInteractionRulesTests
     [Fact]
     public void La_esquina_ofrece_reponer_y_retirar_segun_corresponda()
     {
-        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, State()).Options);
+        // Primera hora: siempre se puede trabajar un turno de empleado (es la primera opción).
+        var fresh = NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, State());
+        Assert.Equal(new[] { NpcInteractionRules.CoffeeShiftOption }, fresh.Options.Select(o => o.Id));
+        Assert.Contains("Don Aldo", fresh.Text);
         // El dueño también puede abrir su libro de cuentas en el local.
-        Assert.Equal(new[] { "hire:puesto-cafe", NpcInteractionRules.LedgerOption },
+        Assert.Equal(new[] { NpcInteractionRules.CoffeeShiftOption, "hire:puesto-cafe", NpcInteractionRules.LedgerOption },
             NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, WithBusiness()).Options.Select(o => o.Id));
 
         var both = NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, WithBusiness(cash: 400, carriedBags: 2)).Options;
@@ -219,7 +222,7 @@ public class NpcInteractionRulesTests
         Assert.Equal(EconomyCatalog.JazzClubKind,
             NpcInteractionRules.Resolve(EconomyCatalog.JazzClubNpc, $"restock:{EconomyCatalog.JazzClubKind}", crates)!.Code);
         // El club no aparece en la esquina del café.
-        Assert.Empty(NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, crates).Options);
+        Assert.DoesNotContain(NpcInteractionRules.DialogFor(EconomyCatalog.CoffeeCornerNpc, crates).Options, o => o.Id.Contains(EconomyCatalog.JazzClubKind));
         Assert.Contains(NpcInteractionRules.DialogFor(EconomyCatalog.DepositNpc, State()).Options, o => o.Id == $"buy:{EconomyCatalog.DrinksCrateItem}");
     }
 
