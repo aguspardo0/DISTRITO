@@ -47,7 +47,7 @@ public static class CityBuilder
         node.AddChild(ground);
 
         var paint = new StandardMaterial3D { VertexColorUseAsAlbedo = true, Roughness = 0.92f };
-        var glow = Glow(new Color(0.95f, 0.92f, 0.8f), 1.6f);
+        var glow = Glow(new Color(0.95f, 0.92f, 0.8f), 0.15f); // de día casi apagados
         var byBlock = CityLayout.DowntownBuildings.GroupBy(b => CityLayout.DowntownBlocks.First(k => k.Contains(b.Plan.X, b.Plan.Z, 0.01f))).ToDictionary(g => g.Key, g => g.ToList());
         var index = 0;
         foreach (var block in CityLayout.DowntownBlocks)
@@ -56,6 +56,9 @@ public static class CityBuilder
             st.Begin(Mesh.PrimitiveType.Triangles);
             var lamps = new SurfaceTool();
             lamps.Begin(Mesh.PrimitiveType.Triangles);
+            var lit = new SurfaceTool(); // ventanas que se encienden de noche
+            lit.Begin(Mesh.PrimitiveType.Triangles);
+            var anyLit = false;
             var body = new StaticBody3D { Name = $"Block{index++}" };
 
             // Vereda alrededor de la manzana (y el piso de la manzana, para baldíos y pasajes).
@@ -80,8 +83,12 @@ public static class CityBuilder
                 for (var floor = 1; floor < b.Stories; floor++)
                 {
                     var y = floor * 3.6f + 1.9f;
-                    Box(st, new Vector3(p.X, y, p.Z), new Vector3(p.Width + 0.08f, 1.5f, p.Depth - 1.4f), glass);
-                    Box(st, new Vector3(p.X, y, p.Z), new Vector3(p.Width - 1.4f, 1.5f, p.Depth + 0.08f), glass);
+                    // Algunos pisos tienen gente: de noche se ven las ventanas encendidas (siempre los mismos).
+                    var on = (uint)(((int)(p.X * 10) * 73856093) ^ ((int)(p.Z * 10) * 19349663) ^ (floor * 83492791)) % 100 < 40;
+                    var target = on ? lit : st;
+                    anyLit |= on;
+                    Box(target, new Vector3(p.X, y, p.Z), new Vector3(p.Width + 0.08f, 1.5f, p.Depth - 1.4f), glass);
+                    Box(target, new Vector3(p.X, y, p.Z), new Vector3(p.Width - 1.4f, 1.5f, p.Depth + 0.08f), glass);
                 }
                 // Planta baja: vidriera y puerta del lado del frente.
                 var front = new Vector3(p.X + b.FrontX * (p.Width / 2 + 0.04f), 1.6f, p.Z + b.FrontZ * (p.Depth / 2 + 0.04f));
@@ -101,6 +108,11 @@ public static class CityBuilder
             mesh.SurfaceSetMaterial(0, paint);
             lamps.Commit(mesh);
             mesh.SurfaceSetMaterial(1, glow);
+            if (anyLit)
+            {
+                lit.Commit(mesh);
+                mesh.SurfaceSetMaterial(2, DayNightCycle.LitWindows);
+            }
             body.AddChild(new MeshInstance3D { Mesh = mesh });
             node.AddChild(body);
         }
@@ -253,11 +265,11 @@ public static class CityBuilder
             node.AddChild(new MeshInstance3D
             {
                 Name = $"Lamp{lamp}", Mesh = new BoxMesh { Size = new Vector3(0.35f, 0.12f, 0.55f) },
-                MaterialOverride = Glow(new Color(0.92f, 0.95f, 1f), 2.4f),
+                MaterialOverride = Glow(new Color(0.92f, 0.95f, 1f), 0.2f),
                 Position = new Vector3(head.X, 4.5f, head.Y), Rotation = new Vector3(0, Mathf.Atan2(arm.X, arm.Y), 0),
             });
             if (lamp % 2 == 0)
-                node.AddChild(new OmniLight3D { Position = new Vector3(head.X, 4.2f, head.Y), LightColor = new Color(0.9f, 0.93f, 1f), LightEnergy = 1.5f, OmniRange = 12f });
+                node.AddChild(NightLamp(new Vector3(head.X, 4.2f, head.Y), new Color(0.9f, 0.93f, 1f), 1.5f, 12f));
             lamp++;
         }
 
@@ -398,7 +410,7 @@ public static class CityBuilder
                 Solid(node, "Crates2", new Vector3(1.2f, 1.2f, 1.2f), at + new Vector3(-2.6f, 0.6f, -1f), new Color(0.44f, 0.33f, 0.2f));
                 break;
         }
-        node.AddChild(new OmniLight3D { Position = at + new Vector3(0, 4f, 0), LightColor = new Color(1f, 0.85f, 0.6f), LightEnergy = 1.5f, OmniRange = 12f });
+        node.AddChild(NightLamp(at + new Vector3(0, 4f, 0), new Color(1f, 0.85f, 0.6f), 1.5f, 12f));
     }
 
     /// <summary>Paredes invisibles en todo el borde de la ciudad, del lado de afuera de la línea.</summary>
@@ -432,8 +444,21 @@ public static class CityBuilder
 
     private static StandardMaterial3D Material(Color color) => new() { AlbedoColor = color };
 
-    private static StandardMaterial3D Glow(Color color, float energy) =>
-        new() { AlbedoColor = color, EmissionEnabled = true, Emission = color, EmissionEnergyMultiplier = energy };
+    /// <summary>Material que brilla; de noche brilla más (lo maneja <see cref="DayNightCycle"/>).</summary>
+    private static StandardMaterial3D Glow(Color color, float energy)
+    {
+        var material = new StandardMaterial3D { AlbedoColor = color, EmissionEnabled = true, Emission = color, EmissionEnergyMultiplier = energy };
+        DayNightCycle.Glows.Add((material, energy));
+        return material;
+    }
+
+    /// <summary>Farol con luz de verdad: solo de noche.</summary>
+    private static OmniLight3D NightLamp(Vector3 position, Color color, float energy, float range)
+    {
+        var lamp = new OmniLight3D { Position = position, LightColor = color, LightEnergy = energy, OmniRange = range, Visible = false };
+        DayNightCycle.Lamps.Add(lamp);
+        return lamp;
+    }
 
     private static void Visual(Node3D parent, string name, Vector3 size, Vector3 position, Color color) =>
         parent.AddChild(new MeshInstance3D { Name = name, Mesh = new BoxMesh { Size = size }, MaterialOverride = Material(color), Position = position });

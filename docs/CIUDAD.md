@@ -68,3 +68,15 @@ con autos y veredas**, y **fachadas de época con locales vacíos** en planta ba
   400 × 400 celdas y marca los edificios de una (rápido aunque sean cientos).
 - **Borde:** paredes invisibles en el borde del cuadrado. La bahía, el puerto grande y el anillo para autos son la
   fase 2.
+
+## Día y noche visibles (2026-11-08)
+
+`DayNightCycle` (solo en los clientes) sigue el reloj de Bellmont (`BellmontClock`, el mismo de la vida de los NPC y de
+las horas pico): 6 horas reales de día y 6 de noche.
+
+- El sol sale a las 6 y se pone a las 18 de Bellmont y cruza de este a oeste; de noche hay una luna fría y tenue.
+- El cielo, la niebla y la luz ambiente pasan por amanecer anaranjado, día gris azulado, atardecer rojizo y noche azul
+  oscuro, con transiciones suaves.
+- Al oscurecer se prenden los faroles de los barrios (luz de verdad), brillan las cabezas de los faroles del Centro y
+  los carteles de neón, y se encienden las ventanas de algunos pisos del Centro (siempre los mismos).
+- Abajo a la derecha se ve la hora de Bellmont («Bellmont 19:40 · noche»).

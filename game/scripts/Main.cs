@@ -70,6 +70,7 @@ public partial class Main : Node3D
         Distrito.Game.World.DocksBuilder.Build(GetNode<Node3D>("World"));
         Distrito.Game.World.DocksBuilder.BuildCasino(GetNode<Node3D>("World"));
         Distrito.Game.World.CityBuilder.Build(GetNode<Node3D>("World"));
+        AddChild(new Distrito.Game.World.DayNightCycle { Name = "DayNight" });
         Distrito.Game.World.InteriorBuilder.Build(GetNode<Node3D>("World"));
         try
         {
