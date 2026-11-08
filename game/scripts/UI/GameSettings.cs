@@ -15,6 +15,11 @@ public static class GameSettings
     public static bool VSync { get; private set; } = true;
     public static float MouseSensitivity { get; private set; } = 0.003f;
 
+    /// <summary>Volumen de la música (0 a 1).</summary>
+    public static float MusicVolume { get; private set; } = 0.5f;
+
+    public static event Action? MusicVolumeChanged;
+
     public static bool IsHeadless => DisplayServer.GetName() == "headless";
 
     public static void Load()
@@ -25,6 +30,7 @@ public static class GameSettings
             Fullscreen = (bool)cfg.GetValue("pantalla", "completa", false);
             VSync = (bool)cfg.GetValue("pantalla", "vsync", true);
             MouseSensitivity = Mathf.Clamp((float)cfg.GetValue("controles", "sensibilidad", 0.003f), 0.0005f, 0.01f);
+            MusicVolume = Mathf.Clamp((float)cfg.GetValue("sonido", "musica", 0.5f), 0f, 1f);
         }
         ApplyDisplay();
     }
@@ -33,6 +39,7 @@ public static class GameSettings
     public static void ToggleFullscreen() => SetFullscreen(!Fullscreen);
     public static void SetVSync(bool on) { VSync = on; ApplyDisplay(); Save(); }
     public static void SetMouseSensitivity(float value) { MouseSensitivity = Mathf.Clamp(value, 0.0005f, 0.01f); Save(); }
+    public static void SetMusicVolume(float value) { MusicVolume = Mathf.Clamp(value, 0f, 1f); Save(); MusicVolumeChanged?.Invoke(); }
 
     private static void ApplyDisplay()
     {
@@ -63,6 +70,7 @@ public static class GameSettings
         cfg.SetValue("pantalla", "completa", Fullscreen);
         cfg.SetValue("pantalla", "vsync", VSync);
         cfg.SetValue("controles", "sensibilidad", MouseSensitivity);
+        cfg.SetValue("sonido", "musica", MusicVolume);
         cfg.Save(Path);
     }
 }

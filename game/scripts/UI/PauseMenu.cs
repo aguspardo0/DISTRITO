@@ -11,6 +11,7 @@ public partial class PauseMenu : Control
     private CheckButton _fullscreen = null!;
     private CheckButton _vsync = null!;
     private HSlider _sensitivity = null!;
+    private HSlider _music = null!;
 
     public event Action? LeaveRequested;
     public event Action? TutorialSkipRequested;
@@ -58,6 +59,11 @@ public partial class PauseMenu : Control
         _sensitivity.ValueChanged += v => GameSettings.SetMouseSensitivity((float)v);
         box.AddChild(_sensitivity);
 
+        box.AddChild(new Label { Text = "Volumen de la música" });
+        _music = new HSlider { MinValue = 0, MaxValue = 1, Step = 0.05, CustomMinimumSize = new Vector2(300, 0) };
+        _music.ValueChanged += v => GameSettings.SetMusicVolume((float)v);
+        box.AddChild(_music);
+
         box.AddChild(new HSeparator());
         var tutorial = new HBoxContainer();
         tutorial.AddChild(Button("Saltar el tutorial", () => { Close(); TutorialSkipRequested?.Invoke(); }));
@@ -72,6 +78,7 @@ public partial class PauseMenu : Control
         _fullscreen.SetPressedNoSignal(DisplayServer.WindowGetMode() is DisplayServer.WindowMode.Fullscreen or DisplayServer.WindowMode.ExclusiveFullscreen);
         _vsync.SetPressedNoSignal(GameSettings.VSync);
         _sensitivity.SetValueNoSignal(GameSettings.MouseSensitivity);
+        _music.SetValueNoSignal(GameSettings.MusicVolume);
         Visible = true;
         Input.MouseMode = Input.MouseModeEnum.Visible;
     }
