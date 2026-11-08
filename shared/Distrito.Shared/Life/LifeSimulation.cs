@@ -231,7 +231,7 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
 
         // Visitar a un amigo que está en su casa (de día y a la tarde).
         if (hour is >= 10 and < 21 && FriendHome(r, s) is { } host)
-            yield return new Option(LifeActivities.Visiting, VisitPrefix + host.Id.ToString("N"), 1.8 * s.Social * host.Tie * (0.5 + r.Trait("sociable")) * outdoorsAtNight,
+            yield return new Option(LifeActivities.Visiting, VisitPrefix + host.Id.ToString("N"), (1.6 * s.Social * (0.4 + r.Trait("sociable")) + 0.4 * host.Tie) * outdoorsAtNight,
                 60, $"ganas de ver gente {s.Social:0.00} y su amigo {host.Name} está en casa");
 
         // Compras: con los negocios abiertos, si tiene plata de sobra.
