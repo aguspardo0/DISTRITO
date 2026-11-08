@@ -137,7 +137,7 @@ public partial class LifeNetwork : Node
 
     private void SyncNearby(DateTimeOffset now)
     {
-        var peers = Multiplayer.GetPeers().ToHashSet();
+        var peers = Multiplayer.GetPeers().Select(p => (long)p).ToHashSet();
         var players = _network.AllPlayers.Where(p => p.IsInsideTree() && peers.Contains(p.PeerId)).ToList();
         var positions = _states.ToDictionary(kv => kv.Key, kv => kv.Value.PositionAt(now));
         _near = _middle = 0;
