@@ -154,6 +154,8 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
    - [x] Etapa 7: reacciones a tiros, heridos y asaltos (huir, esconderse, avisar a la policía, la policía acude sin arrestar, o seguir con lo suyo).
    - [x] Etapa 8: economía y jugadores como ambientación (la gente vuelve con la bolsa; hablar con ellos con E: quiénes son, qué vieron, rumores entre amigos, a quién conocen y dónde compran).
    - [ ] Etapa 9: optimización y prueba de población.
+- [x] Mapa, fase 1 (2026-11-08): El Centro, 600 × 600 m alrededor de lo que ya existía; grilla generada de manzanas de los 50, calles con autos y veredas, edificios de época sin interior, locales vacíos «SE ALQUILA» y muros en los barrios (solo se entra por su avenida). Ver `docs/CIUDAD.md`
+- [ ] Mapa, fase 2: la bahía, el puerto grande, la aduana, el barrio obrero y la estación; el anillo para autos
 
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.

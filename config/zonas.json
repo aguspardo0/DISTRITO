@@ -23,7 +23,9 @@
     "_barrios": "Barrios de las familias (cada una en el suyo, con su avenida). Por ahora tranquilos como el Mercado; alrededor de cada persona de la familia hay zona segura.",
     "barrio-moretti": {},
     "barrio-valenti": {},
-    "barrio-caruso": {}
+    "barrio-caruso": {},
+    "_el-centro": "El Centro (fase 1 del mapa): las calles nuevas alrededor del Mercado y los barrios. Tranquilo, como el Mercado.",
+    "el-centro": {}
   },
   "excepciones": {
     "disputa": { "pvp": true, "robos": true, "persecuciones": true },

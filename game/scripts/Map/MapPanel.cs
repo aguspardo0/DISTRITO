@@ -66,6 +66,9 @@ public partial class MapPanel : Control
         DrawRect(new Rect2(0, 0, WidthPx, HeightPx + 48), Paper);
 
         // Distritos: el Mercado (neutral), las avenidas, Los Muelles (zona libre, en rojo) y el barrio de cada familia con su color.
+        // El Centro (fase 1): primero, las calles; los distritos de antes van encima.
+        DrawRect(new Rect2(ToMap(CityLayout.Downtown.MinX, CityLayout.Downtown.MinZ),
+            new Vector2(CityLayout.Downtown.Width * MapScale, CityLayout.Downtown.Depth * MapScale)), AvenueColor);
         foreach (var d in CityLayout.Districts)
         {
             var rect = new Rect2(ToMap(d.MinX, d.MinZ), new Vector2(d.Width * MapScale, d.Depth * MapScale));
@@ -92,6 +95,10 @@ public partial class MapPanel : Control
             Plate(font, corner, b.Area.Name.ToUpperInvariant(), 13, Accent(b).Lightened(0.3f));
         }
         Plate(font, ToMap(CityLayout.Market.MinX, CityLayout.Market.MaxZ) + new Vector2(2, -17), "EL MERCADO", 11, Brass);
+        Plate(font, ToMap(CityLayout.Downtown.MinX, CityLayout.Downtown.MinZ) + new Vector2(6, 6), "EL CENTRO", 13, Brass);
+        // Locales vacíos del Centro: un cuadradito dorado (todavía no se alquilan).
+        foreach (var shop in CityLayout.EmptyShops)
+            DrawRect(new Rect2(ToMap(shop.X, shop.Z) - new Vector2(2, 2), new Vector2(4, 4)), Brass);
         Plate(font, ToMap(CityLayout.Docks.MinX, CityLayout.Docks.MaxZ) + new Vector2(2, -17), "LOS MUELLES", 11, new Color(0.95f, 0.55f, 0.4f));
 
         // Sedes de cuadrilla en Los Muelles.

@@ -59,6 +59,8 @@ public static class MapPresence
         Casino,
         .. DocksBuildings,
         .. CityLayout.BarrioBuildings.Select(b => b.Plan),
+        .. CityLayout.BarrioWalls,
+        .. CityLayout.DowntownBuildings.Select(b => b.Plan),
     ];
 
     public static bool InDocks(float x, float z) => CityLayout.Docks.Contains(x, z);

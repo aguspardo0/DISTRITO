@@ -4,7 +4,7 @@ using Distrito.Shared.Economy;
 namespace Distrito.Server.Core.World;
 
 /// <summary>Tipo de distrito: el Mercado (comercios), Los Muelles, el barrio de una familia o una avenida.</summary>
-public enum DistrictKind { Market, Docks, Barrio, Avenue }
+public enum DistrictKind { Market, Docks, Barrio, Avenue, Downtown }
 
 /// <summary>Un rectángulo caminable de la ciudad (en planta, metros).</summary>
 public sealed record District(string Code, string Name, DistrictKind Kind, float MinX, float MinZ, float MaxX, float MaxZ, string? Family = null)
@@ -18,6 +18,23 @@ public sealed record District(string Code, string Name, DistrictKind Kind, float
 
 /// <summary>Un edificio generado de un barrio, con su estilo (índice de la paleta del barrio) y altura.</summary>
 public sealed record CityBuilding(MapBuilding Plan, float Height, int Tone, bool Headquarters = false);
+
+/// <summary>Una manzana del Centro (fase 1 del mapa): rectángulo en planta, rodeado de calle con veredas.</summary>
+public sealed record DowntownBlock(float MinX, float MinZ, float MaxX, float MaxZ)
+{
+    public float Width => MaxX - MinX;
+    public float Depth => MaxZ - MinZ;
+    public bool Contains(float x, float z, float margin = 0) => x >= MinX - margin && x <= MaxX + margin && z >= MinZ - margin && z <= MaxZ + margin;
+}
+
+/// <summary>Edificio del Centro: planta, altura, pisos, tono (índice de la paleta) y hacia dónde da su frente (normal en planta).</summary>
+public sealed record DowntownBuilding(MapBuilding Plan, float Height, int Stories, int Tone, float FrontX, float FrontZ);
+
+/// <summary>
+/// Local vacío en planta baja de un edificio del Centro, listo para cuando se definan las reglas de los negocios físicos
+/// (alquiler o compra). Posición: el centro de la vidriera, sobre la vereda; (NX, NZ): hacia dónde mira.
+/// </summary>
+public sealed record EmptyShop(string Code, float X, float Z, float NX, float NZ, float Width);
 
 /// <summary>Tramo de pared invisible del borde de la ciudad (una línea horizontal o vertical en planta).</summary>
 public sealed record EdgeWall(float X1, float Z1, float X2, float Z2)
@@ -70,6 +87,11 @@ public sealed record BarrioPlan(District Area, District Avenue, Vector2 Inward, 
 ///                          │ Avenida Sur
 ///                    Barrio Caruso (sur)
 ///
+/// Fase 1 del mapa (decisión del equipo, 2026-11-08): alrededor de todo esto, <b>El Centro</b>, un cuadrado de 600 m
+/// con grilla de manzanas de los años 50 (generada, después se retoca a mano), calles con autos y veredas, edificios de
+/// época sin interior y locales vacíos en planta baja. Los barrios siguen cerrados por un muro: solo se entra por su
+/// avenida.
+///
 /// El mismo plano lo usan el mundo 3D (servidor y clientes), las paredes del borde, el mapa (M), las zonas de combate
 /// y los puntos de aparición. Los edificios de los barrios se generan con una semilla fija: son iguales en todos lados.
 /// </summary>
@@ -103,20 +125,36 @@ public static class CityLayout
 
     public static readonly IReadOnlyList<BarrioPlan> Barrios = [Moretti, Valenti, Caruso];
 
+    /// <summary>Los distritos de antes del Centro (el Mercado, Los Muelles, las avenidas y los barrios). No se pisan.</summary>
     public static readonly IReadOnlyList<District> Districts =
         [Market, Docks, WestAvenue, NorthAvenue, SouthAvenue, Moretti.Area, Valenti.Area, Caruso.Area];
 
+    // --- El Centro (fase 1 del mapa) ---
+
+    public const float DowntownHalf = 300f;
+    /// <summary>De eje a eje de calle (manzanas de 57 m con calles de 18 m: 11 m de calzada y dos veredas de 3,5 m).</summary>
+    public const float BlockPitch = 75f;
+    public const float StreetWidth = 18f;
+    public const float SidewalkWidth = 3.5f;
+
+    /// <summary>Todo el cuadrado de 600 m. Rodea a los distritos de antes (que tienen prioridad donde se superponen).</summary>
+    public static readonly District Downtown = new(TerritoryRules.Downtown, "El Centro", DistrictKind.Downtown, -DowntownHalf, -DowntownHalf, DowntownHalf, DowntownHalf);
+
     // Límites totales (para el mapa y validaciones rápidas).
-    public static readonly float MinX = Districts.Min(d => d.MinX), MaxX = Districts.Max(d => d.MaxX);
-    public static readonly float MinZ = Districts.Min(d => d.MinZ), MaxZ = Districts.Max(d => d.MaxZ);
+    public static readonly float MinX = Math.Min(Districts.Min(d => d.MinX), Downtown.MinX), MaxX = Math.Max(Districts.Max(d => d.MaxX), Downtown.MaxX);
+    public static readonly float MinZ = Math.Min(Districts.Min(d => d.MinZ), Downtown.MinZ), MaxZ = Math.Max(Districts.Max(d => d.MaxZ), Downtown.MaxZ);
 
     public static District? DistrictAt(float x, float z) =>
-        Districts.FirstOrDefault(d => d.Kind != DistrictKind.Avenue && d.Contains(x, z)) ?? Districts.FirstOrDefault(d => d.Contains(x, z));
+        Districts.FirstOrDefault(d => d.Kind != DistrictKind.Avenue && d.Contains(x, z)) ?? Districts.FirstOrDefault(d => d.Contains(x, z))
+        ?? (Downtown.Contains(x, z) ? Downtown : null);
+
+    /// <summary>¿Es calle del Centro (no de los distritos de antes)?</summary>
+    public static bool InDowntown(float x, float z) => Downtown.Contains(x, z) && !Districts.Any(d => d.Contains(x, z));
 
     /// <summary>¿Se puede estar ahí? Con margen: el punto y los cuatro que lo rodean a esa distancia (sirve en las uniones).</summary>
     public static bool IsWalkable(float x, float z, float margin = 0f)
     {
-        bool In(float px, float pz) => Districts.Any(d => d.Contains(px, pz)) || InteriorLayout.At(px, pz) is not null;
+        bool In(float px, float pz) => Downtown.Contains(px, pz) || Districts.Any(d => d.Contains(px, pz)) || InteriorLayout.At(px, pz) is not null;
         return In(x, z) && (margin <= 0 || (In(x - margin, z) && In(x + margin, z) && In(x, z - margin) && In(x, z + margin)));
     }
 
@@ -176,25 +214,172 @@ public static class CityLayout
     public static IReadOnlyList<Vector2> LampsOf(BarrioPlan b) =>
         [b.ToWorld(6, -9), b.ToWorld(6, 9), b.ToWorld(18, -9), b.ToWorld(18, 9), b.ToWorld(40, -10), b.ToWorld(40, 10), b.ToWorld(60, -10), b.ToWorld(60, 10)];
 
+    // --- El Centro: manzanas, edificios y locales vacíos ---
+
+    /// <summary>
+    /// Manzanas: grilla de calles cada 75 m en todo el cuadrado. Alrededor de cada distrito de antes queda una calle de
+    /// 18 m; donde una manzana lo pisaría, se recorta (y si queda muy chica, no va).
+    /// </summary>
+    public static readonly IReadOnlyList<DowntownBlock> DowntownBlocks = MakeBlocks();
+
+    private static List<DowntownBlock> MakeBlocks()
+    {
+        var half = StreetWidth / 2;
+        var lines = Enumerable.Range(0, (int)(2 * DowntownHalf / BlockPitch) + 1).Select(k => -DowntownHalf + k * BlockPitch).ToArray();
+        var keepOut = Districts.Select(d => new DowntownBlock(d.MinX - StreetWidth, d.MinZ - StreetWidth, d.MaxX + StreetWidth, d.MaxZ + StreetWidth)).ToList();
+        var blocks = new List<DowntownBlock>();
+        for (var j = 0; j + 1 < lines.Length; j++)
+        for (var i = 0; i + 1 < lines.Length; i++)
+        {
+            var pieces = new List<DowntownBlock> { new(lines[i] + half, lines[j] + half, lines[i + 1] - half, lines[j + 1] - half) };
+            foreach (var cut in keepOut)
+                pieces = pieces.SelectMany(p => Cut(p, cut)).ToList();
+            blocks.AddRange(pieces.Where(p => p.Width >= 16 && p.Depth >= 16));
+        }
+        return blocks;
+    }
+
+    /// <summary>Lo que queda de un rectángulo al sacarle otro (hasta cuatro pedazos).</summary>
+    private static IEnumerable<DowntownBlock> Cut(DowntownBlock p, DowntownBlock c)
+    {
+        if (c.MinX >= p.MaxX || c.MaxX <= p.MinX || c.MinZ >= p.MaxZ || c.MaxZ <= p.MinZ)
+        {
+            yield return p;
+            yield break;
+        }
+        if (c.MinX > p.MinX) yield return p with { MaxX = c.MinX };
+        if (c.MaxX < p.MaxX) yield return p with { MinX = c.MaxX };
+        var x1 = Math.Max(p.MinX, c.MinX);
+        var x2 = Math.Min(p.MaxX, c.MaxX);
+        if (c.MinZ > p.MinZ) yield return new DowntownBlock(x1, p.MinZ, x2, c.MinZ);
+        if (c.MaxZ < p.MaxZ) yield return new DowntownBlock(x1, c.MaxZ, x2, p.MaxZ);
+    }
+
+    /// <summary>Paleta del Centro: ladrillo, piedra caliza, brownstone, crema, gris y ladrillo oscuro.</summary>
+    public static readonly (float R, float G, float B)[] DowntownPalette =
+        [(0.55f, 0.3f, 0.22f), (0.74f, 0.7f, 0.6f), (0.42f, 0.3f, 0.24f), (0.8f, 0.74f, 0.6f), (0.5f, 0.5f, 0.5f), (0.38f, 0.22f, 0.18f)];
+
+    private static readonly (List<DowntownBuilding> Buildings, List<EmptyShop> Shops) Generated = MakeDowntown();
+    public static readonly IReadOnlyList<DowntownBuilding> DowntownBuildings = Generated.Buildings;
+    public static readonly IReadOnlyList<EmptyShop> EmptyShops = Generated.Shops;
+
+    /// <summary>
+    /// Cada manzana se llena de edificios pegados, de 9 a 18 m de frente, mirando a la calle; las manzanas hondas tienen
+    /// dos filas con un pasaje de 4 m en el medio. De 2 a 6 pisos, y cerca del medio alguna torre de hasta 15. Algún
+    /// baldío. En planta baja, uno de cada cinco o seis tiene un local vacío. Semilla fija: igual en todos lados.
+    /// </summary>
+    private static (List<DowntownBuilding>, List<EmptyShop>) MakeDowntown()
+    {
+        var buildings = new List<DowntownBuilding>();
+        var shops = new List<EmptyShop>();
+        var rng = new Random(1952);
+        foreach (var block in DowntownBlocks)
+        {
+            var alongX = block.Width >= block.Depth;
+            var length = alongX ? block.Width : block.Depth;
+            var depth = alongX ? block.Depth : block.Width;
+            var rows = depth >= 34 ? 2 : 1;
+            var rowDepth = rows == 2 ? (depth - 4) / 2 : depth;
+            for (var row = 0; row < rows; row++)
+            {
+                // Hacia dónde da el frente: en dos filas, cada una a su calle; en una sola, a cualquiera de las dos.
+                var side = rows == 2 ? (row == 0 ? -1 : 1) : (rng.NextDouble() < 0.5 ? -1 : 1);
+                var a0 = row == 0 ? 0 : depth - rowDepth;
+                var cursor = 0f;
+                while (cursor < length - 0.01f)
+                {
+                    var width = 9f + (float)rng.NextDouble() * 9f;
+                    if (length - cursor - width < 9f)
+                        width = length - cursor; // el último se estira hasta la esquina
+                    var empty = rng.NextDouble() < 0.06;
+                    var (u1, u2, v1, v2) = (cursor, cursor + width, a0, a0 + rowDepth);
+                    cursor += width;
+                    if (empty)
+                        continue; // baldío
+                    var plan = alongX
+                        ? new MapBuilding(block.MinX + (u1 + u2) / 2, block.MinZ + (v1 + v2) / 2, u2 - u1, v2 - v1)
+                        : new MapBuilding(block.MinX + (v1 + v2) / 2, block.MinZ + (u1 + u2) / 2, v2 - v1, u2 - u1);
+                    var far = Math.Max(Math.Abs(plan.X), Math.Abs(plan.Z));
+                    var stories = far < 190 && rng.NextDouble() < 0.12 ? 7 + rng.Next(0, 9) : 2 + rng.Next(0, 5);
+                    var (fx, fz) = alongX ? (0f, (float)side) : ((float)side, 0f);
+                    buildings.Add(new DowntownBuilding(plan, stories * 3.6f + 0.6f, stories, rng.Next(DowntownPalette.Length), fx, fz));
+                    if (width >= 9 && stories <= 6 && rng.NextDouble() < 0.18)
+                    {
+                        var frontX = plan.X + fx * (plan.Width / 2 + 0.6f);
+                        var frontZ = plan.Z + fz * (plan.Depth / 2 + 0.6f);
+                        shops.Add(new EmptyShop($"local-{shops.Count + 1:000}", MathF.Round(frontX, 2), MathF.Round(frontZ, 2), fx, fz, MathF.Min(width - 2, 8)));
+                    }
+                }
+            }
+        }
+        return (buildings, shops);
+    }
+
+    /// <summary>
+    /// Muros de los barrios: las familias no se mezclan, así que cada barrio queda cerrado por un muro de ladrillo y solo
+    /// se entra por su avenida (el hueco del ancho de la avenida, donde está el arco).
+    /// </summary>
+    public static IReadOnlyList<MapBuilding> WallsOf(BarrioPlan b)
+    {
+        const float t = 0.8f;
+        var a = b.Area;
+        var av = b.Avenue;
+        var walls = new List<MapBuilding>();
+        void Horizontal(float z, float x1, float x2)
+        {
+            foreach (var (p, q) in Subtract(x1, x2, av.MaxZ == z || av.MinZ == z ? new[] { (av.MinX, av.MaxX) } : Array.Empty<(float, float)>()))
+                walls.Add(new MapBuilding((p + q) / 2, z, q - p, t));
+        }
+        void Vertical(float x, float z1, float z2)
+        {
+            foreach (var (p, q) in Subtract(z1, z2, av.MaxX == x || av.MinX == x ? new[] { (av.MinZ, av.MaxZ) } : Array.Empty<(float, float)>()))
+                walls.Add(new MapBuilding(x, (p + q) / 2, t, q - p));
+        }
+        Horizontal(a.MinZ, a.MinX, a.MaxX);
+        Horizontal(a.MaxZ, a.MinX, a.MaxX);
+        Vertical(a.MinX, a.MinZ, a.MaxZ);
+        Vertical(a.MaxX, a.MinZ, a.MaxZ);
+        return walls;
+    }
+
+    public static readonly IReadOnlyList<MapBuilding> BarrioWalls = Barrios.SelectMany(WallsOf).ToList();
+
+    /// <summary>¿Hay muro de barrio entre dos puntos cercanos? (para las pruebas y las validaciones)</summary>
+    public static bool InsideWall(float x, float z) =>
+        BarrioWalls.Any(w => MathF.Abs(x - w.X) <= w.Width / 2 && MathF.Abs(z - w.Z) <= w.Depth / 2);
+
+    /// <summary>
+    /// Para los habitantes (vida de los NPC): en el Centro caminan por las veredas, cruzan en las esquinas y usan la
+    /// calle que rodea a los distritos de antes; no se meten en la calzada ni en los pasajes de las manzanas.
+    /// </summary>
+    public static bool NpcArea(float x, float z)
+    {
+        if (Districts.Any(d => d.Contains(x, z)))
+            return true;
+        if (!Downtown.Contains(x, z))
+            return false;
+        if (Districts.Any(d => x >= d.MinX - StreetWidth && x <= d.MaxX + StreetWidth && z >= d.MinZ - StreetWidth && z <= d.MaxZ + StreetWidth))
+            return true;
+        static float ToLine(float v) => MathF.Abs(v - (MathF.Round((v + DowntownHalf) / BlockPitch) * BlockPitch - DowntownHalf));
+        if (ToLine(x) <= StreetWidth / 2 && ToLine(z) <= StreetWidth / 2)
+            return true; // esquina (cruce peatonal)
+        return DowntownBlocks.Any(b => b.Contains(x, z, SidewalkWidth) && !b.Contains(x, z, -0.01f));
+    }
+
     // --- Bordes ---
 
     /// <summary>
-    /// Paredes invisibles: los lados de cada distrito que no están pegados a otro distrito (las uniones con las
-    /// avenidas quedan abiertas). Se calculan del plano, así que al agregar un distrito se cierran solas.
+    /// Paredes invisibles: el borde del Centro (el cuadrado de 600 m). Los muros de los barrios son de verdad (se ven) y
+    /// están en <see cref="BarrioWalls"/>.
     /// </summary>
     public static IReadOnlyList<EdgeWall> Edges()
     {
-        var walls = new List<EdgeWall>();
-        foreach (var d in Districts)
-        {
-            foreach (var (z, outward) in new[] { (d.MinZ, -1), (d.MaxZ, 1) })
-                foreach (var (a, b) in Subtract(d.MinX, d.MaxX, Districts.Where(o => o != d && (outward < 0 ? o.MaxZ == z : o.MinZ == z)).Select(o => (o.MinX, o.MaxX))))
-                    walls.Add(new EdgeWall(a, z, b, z));
-            foreach (var (x, outward) in new[] { (d.MinX, -1), (d.MaxX, 1) })
-                foreach (var (a, b) in Subtract(d.MinZ, d.MaxZ, Districts.Where(o => o != d && (outward < 0 ? o.MaxX == x : o.MinX == x)).Select(o => (o.MinZ, o.MaxZ))))
-                    walls.Add(new EdgeWall(x, a, x, b));
-        }
-        return walls;
+        var d = Downtown;
+        return
+        [
+            new EdgeWall(d.MinX, d.MinZ, d.MaxX, d.MinZ), new EdgeWall(d.MinX, d.MaxZ, d.MaxX, d.MaxZ),
+            new EdgeWall(d.MinX, d.MinZ, d.MinX, d.MaxZ), new EdgeWall(d.MaxX, d.MinZ, d.MaxX, d.MaxZ),
+        ];
     }
 
     /// <summary>Lo que queda del intervalo [from, to] al sacarle los tramos cubiertos.</summary>

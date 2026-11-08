@@ -25,8 +25,20 @@ public static class CityNavigation
         for (var gx = 0; gx < Width; gx++)
         {
             var (x, z) = Center(gx, gz);
-            grid[gz * Width + gx] = CityLayout.IsWalkable(x, z, 0.4f) && !MapPresence.Buildings.Any(b =>
-                MathF.Abs(x - b.X) < b.Width / 2 + BuildingMargin && MathF.Abs(z - b.Z) < b.Depth / 2 + BuildingMargin);
+            grid[gz * Width + gx] = CityLayout.NpcArea(x, z) && CityLayout.IsWalkable(x, z, 0.4f);
+        }
+        // Los edificios (y los muros de los barrios) se marcan de una: recorre solo las celdas que tapan.
+        foreach (var b in MapPresence.Buildings)
+        {
+            var (x1, z1) = CellOf(b.X - b.Width / 2 - BuildingMargin, b.Z - b.Depth / 2 - BuildingMargin);
+            var (x2, z2) = CellOf(b.X + b.Width / 2 + BuildingMargin, b.Z + b.Depth / 2 + BuildingMargin);
+            for (var gz = z1; gz <= z2; gz++)
+            for (var gx = x1; gx <= x2; gx++)
+            {
+                var (x, z) = Center(gx, gz);
+                if (MathF.Abs(x - b.X) < b.Width / 2 + BuildingMargin && MathF.Abs(z - b.Z) < b.Depth / 2 + BuildingMargin)
+                    grid[gz * Width + gx] = false;
+            }
         }
         return grid;
     }
@@ -121,7 +133,7 @@ public static class CityNavigation
                 path.Reverse();
                 return path;
             }
-            if (++steps > 60_000)
+            if (++steps > 250_000)
                 return null;
             for (var dz = -1; dz <= 1; dz++)
             for (var dx = -1; dx <= 1; dx++)

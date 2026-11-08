@@ -39,3 +39,32 @@ también se pueden firmar con el capo, una vez que te recibe.
   borde separa adentro de afuera, los edificios no tapan el bulevar y cada NPC está en un lugar libre.
 - En la prueba de escala, un bot va por la Avenida Oeste hasta la plaza Moretti y otro sube al Barrio Valenti y choca
   con el borde.
+
+## El Centro: fase 1 del mapa (2026-11-08)
+
+Decisiones del equipo: **grilla generada** (manzanas de los años 50 por código, después se retocan a mano), **calles
+con autos y veredas**, y **fachadas de época con locales vacíos** en planta baja.
+
+- **Tamaño:** un cuadrado de **600 × 600 m** (de −300 a 300 en x y en z) alrededor de todo lo que ya existía: el
+  Mercado sigue en el medio, Moretti al oeste, Valenti al norte, Caruso al sur y Los Muelles al este. Nada de lo de
+  antes se movió (las posiciones guardadas, los NPC y las misiones siguen igual).
+- **Calles:** grilla cada 75 m: manzanas de 57 m y calles de 18 m (11 m de calzada y dos veredas de 3,5 m). Alrededor
+  de cada distrito de antes queda una calle de 18 m; las manzanas que lo pisarían se recortan
+  (`CityLayout.DowntownBlocks`).
+- **Edificios** (`CityLayout.DowntownBuildings`, semilla fija 1952): pegados, de 9 a 18 m de frente, mirando a la
+  calle; en las manzanas hondas, dos filas con un pasaje de 4 m en el medio. De 2 a 6 pisos y, cerca del medio, alguna
+  torre de hasta 15. Algún baldío. Sin interior. Cornisa, línea de planta baja, una franja de ventanas por piso y la
+  vidriera del frente. Cada manzana es **una sola malla y un solo cuerpo de colisión**: cientos de edificios con pocas
+  llamadas de dibujo.
+- **Locales vacíos** (`CityLayout.EmptyShops`, códigos `local-001`…): uno de cada cinco o seis edificios bajos tiene
+  un local en planta baja con toldo y cartel «SE ALQUILA». Todavía no se alquilan: falta definir las reglas de los
+  negocios físicos (cuántos por jugador, alquiler o compra, qué pasa con los dueños inactivos). En el mapa (M) se ven
+  como cuadraditos dorados.
+- **Los barrios siguen cerrados:** un muro de ladrillo de 3,2 m del color de cada familia los rodea; solo se entra por
+  su avenida, por el arco. Las familias no se mezclan.
+- **Zona:** las calles nuevas son la zona **El Centro** (`el-centro` en `config/zonas.json`), tranquila como el Mercado.
+- **Habitantes:** en el Centro caminan por las veredas, cruzan en las esquinas y usan la calle que rodea a los
+  distritos de antes; no van por la calzada ni por los pasajes (`CityLayout.NpcArea`). La grilla de caminos pasó a
+  400 × 400 celdas y marca los edificios de una (rápido aunque sean cientos).
+- **Borde:** paredes invisibles en el borde del cuadrado. La bahía, el puerto grande y el anillo para autos son la
+  fase 2.

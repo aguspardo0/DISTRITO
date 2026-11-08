@@ -42,12 +42,100 @@ public class CityLayoutTests
     public void Las_uniones_quedan_abiertas(float x, float z) => Assert.True(CityLayout.IsWalkable(x, z, 0.4f));
 
     [Theory]
-    [InlineData(-45f, 10f)]   // al costado de la Avenida Oeste
-    [InlineData(-31f, -40f)]  // entre el Mercado y Valenti, fuera de la avenida
-    [InlineData(-55f, 55f)]   // entre Moretti y Caruso
-    [InlineData(80f, -45f)]   // al norte de Los Muelles
+    [InlineData(301f, 0f)]    // pasando el borde este del Centro
+    [InlineData(0f, -301f)]
+    [InlineData(-305f, 120f)]
     [InlineData(500f, 0f)]
     public void Afuera_de_la_ciudad_no_se_camina(float x, float z) => Assert.False(CityLayout.IsWalkable(x, z));
+
+    [Theory]
+    [InlineData(-45f, 10f)]   // al costado de la Avenida Oeste (antes era afuera)
+    [InlineData(-55f, 55f)]   // entre Moretti y Caruso
+    [InlineData(200f, 200f)]
+    [InlineData(-290f, -290f)]
+    public void El_centro_rodea_a_todo_y_se_camina(float x, float z)
+    {
+        Assert.True(CityLayout.IsWalkable(x, z));
+        Assert.Equal(DistrictKind.Downtown, CityLayout.DistrictAt(x, z)!.Kind);
+        Assert.Equal(TerritoryRules.Downtown, CombatRules.ZoneAt(new Vector3(x, 0, z)));
+    }
+
+    [Fact]
+    public void Los_barrios_quedan_cerrados_por_un_muro_salvo_por_su_avenida()
+    {
+        foreach (var b in CityLayout.Barrios)
+        {
+            var a = b.Area;
+            var sides = new (float X, float Z)[] { (a.CenterX, a.MinZ), (a.CenterX, a.MaxZ), (a.MinX, a.CenterZ), (a.MaxX, a.CenterZ) };
+            var entrance = (b.Entrance.X, b.Entrance.Y);
+            foreach (var p in sides)
+            {
+                if (MathF.Abs(p.X - entrance.X) < 0.01f && MathF.Abs(p.Z - entrance.Y) < 0.01f)
+                    Assert.False(CityLayout.InsideWall(p.X, p.Z), $"la entrada de {a.Code} quedó tapada");
+                else
+                    Assert.True(CityLayout.InsideWall(p.X, p.Z), $"{a.Code} está abierto en ({p.X}, {p.Z})");
+            }
+            // Las esquinas también están cerradas.
+            Assert.True(CityLayout.InsideWall(a.MinX, a.MinZ) && CityLayout.InsideWall(a.MaxX, a.MaxZ));
+        }
+    }
+
+    [Fact]
+    public void Las_manzanas_del_centro_dejan_calle_alrededor_de_lo_de_antes_y_no_se_pisan()
+    {
+        var blocks = CityLayout.DowntownBlocks;
+        Assert.True(blocks.Count >= 30, $"solo {blocks.Count} manzanas");
+        foreach (var k in blocks)
+        {
+            Assert.True(k.MinX >= -CityLayout.DowntownHalf && k.MaxX <= CityLayout.DowntownHalf && k.MinZ >= -CityLayout.DowntownHalf && k.MaxZ <= CityLayout.DowntownHalf);
+            foreach (var d in CityLayout.Districts)
+                Assert.False(k.MinX < d.MaxX + CityLayout.StreetWidth - 0.01f && d.MinX - CityLayout.StreetWidth + 0.01f < k.MaxX &&
+                             k.MinZ < d.MaxZ + CityLayout.StreetWidth - 0.01f && d.MinZ - CityLayout.StreetWidth + 0.01f < k.MaxZ,
+                    $"la manzana ({k.MinX}, {k.MinZ}) no deja calle con {d.Code}");
+        }
+        for (var i = 0; i < blocks.Count; i++)
+            for (var j = i + 1; j < blocks.Count; j++)
+                Assert.False(blocks[i].MinX < blocks[j].MaxX && blocks[j].MinX < blocks[i].MaxX && blocks[i].MinZ < blocks[j].MaxZ && blocks[j].MinZ < blocks[i].MaxZ);
+    }
+
+    [Fact]
+    public void Los_edificios_del_centro_estan_en_su_manzana_sin_pisarse_y_hay_locales_vacios_en_la_vereda()
+    {
+        var all = CityLayout.DowntownBuildings;
+        Assert.True(all.Count >= 300, $"solo {all.Count} edificios");
+        foreach (var b in all)
+        {
+            var p = b.Plan;
+            Assert.Contains(CityLayout.DowntownBlocks, k => k.Contains(p.X - p.Width / 2, p.Z - p.Depth / 2, 0.01f) && k.Contains(p.X + p.Width / 2, p.Z + p.Depth / 2, 0.01f));
+            Assert.InRange(b.Stories, 2, 15);
+            Assert.True(MathF.Abs(b.FrontX) + MathF.Abs(b.FrontZ) == 1);
+        }
+        var sorted = all.OrderBy(b => b.Plan.X).ToList();
+        for (var i = 0; i < sorted.Count; i++)
+            for (var j = i + 1; j < sorted.Count && sorted[j].Plan.X - sorted[i].Plan.X < 40; j++)
+                Assert.False(Intersects(Shrink(sorted[i].Plan), Shrink(sorted[j].Plan)), $"se pisan dos edificios en ({sorted[i].Plan.X}, {sorted[i].Plan.Z})");
+
+        var shops = CityLayout.EmptyShops;
+        Assert.True(shops.Count >= 30, $"solo {shops.Count} locales vacíos");
+        Assert.Equal(shops.Count, shops.Select(s => s.Code).Distinct().Count());
+        foreach (var s in shops)
+        {
+            Assert.True(CityLayout.IsWalkable(s.X, s.Z, 0.4f), $"{s.Code} no da a la calle");
+            Assert.True(CityLayout.NpcArea(s.X, s.Z), $"{s.Code} no está sobre la vereda");
+            Assert.DoesNotContain(MapPresence.Buildings, p => MathF.Abs(s.X - p.X) < p.Width / 2 && MathF.Abs(s.Z - p.Z) < p.Depth / 2);
+        }
+    }
+
+    [Fact]
+    public void Los_habitantes_van_por_la_vereda_y_no_por_la_calzada()
+    {
+        var k = CityLayout.DowntownBlocks.First(b => b.MinX > 100 && b.MinZ > 100);
+        Assert.True(CityLayout.NpcArea(k.MinX - 1.5f, (k.MinZ + k.MaxZ) / 2));  // vereda
+        Assert.False(CityLayout.NpcArea(k.MinX - 9f, (k.MinZ + k.MaxZ) / 2));   // calzada
+        Assert.True(CityLayout.IsWalkable(k.MinX - 9f, (k.MinZ + k.MaxZ) / 2)); // pero los jugadores y los autos sí
+    }
+
+    private static MapBuilding Shrink(MapBuilding b) => b with { Width = b.Width - 0.02f, Depth = b.Depth - 0.02f };
 
     [Fact]
     public void Cada_pared_del_borde_tiene_ciudad_de_un_lado_y_nada_del_otro()

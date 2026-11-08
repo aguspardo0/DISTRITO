@@ -40,6 +40,9 @@ public static class TerritoryRules
     public const string Docks = "los-muelles";
     public const string Corner = "la-esquina";
 
+    /// <summary>El Centro (fase 1 del mapa, 2026-11-08): las calles nuevas alrededor del Mercado y los barrios. Neutral, como el Mercado.</summary>
+    public const string Downtown = "el-centro";
+
     /// <summary>
     /// Barrios de las familias (pedido del equipo, 2026-11-01): cada familia en el suyo, separados y rivales.
     /// No son territorio en disputa entre cuadrillas: son de la familia. Las avenidas cuentan como parte del barrio.
@@ -56,7 +59,7 @@ public static class TerritoryRules
     ];
 
     /// <summary>Zonas válidas para las reglas de combate: las cuatro del Mercado, Los Muelles y los barrios.</summary>
-    public static bool IsKnownZone(string code) => code == Docks || Zones.Any(z => z.Code == code) || Barrios.Any(b => b.Code == code);
+    public static bool IsKnownZone(string code) => code == Docks || code == Downtown || Zones.Any(z => z.Code == code) || Barrios.Any(b => b.Code == code);
 
     public const int ContractPoints = 3;
     public const int SalesCyclePoints = 1;
@@ -74,7 +77,7 @@ public static class TerritoryRules
         (Warehouse, "Calle del Almacén"), (Workshops, "Los Talleres"), (Office, "La Oficina"), (Corner, "La Esquina"),
     ];
 
-    public static string NameOf(string zone) => zone == Docks ? "Los Muelles" : zone == "sede" ? "la sede de la cuadrilla"
+    public static string NameOf(string zone) => zone == Docks ? "Los Muelles" : zone == Downtown ? "El Centro" : zone == "sede" ? "la sede de la cuadrilla"
         : Barrios.FirstOrDefault(b => b.Code == zone).Name ?? Zones.FirstOrDefault(z => z.Code == zone).Name ?? zone;
 
     public static string? ZoneOfNpc(string npcCode) => npcCode switch
