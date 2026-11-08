@@ -23,6 +23,9 @@ public sealed partial class EconomyService
     /// </summary>
     private double GrowthCrowd => Math.Max(0, config.GetValue("Business:Crowd", 1.0));
 
+    /// <summary>Las reglas de crecimiento vigentes (las usa el modo sombra para la capacidad y la calidad reales de cada local).</summary>
+    internal GrowthConfig GrowthRules() => Growth();
+
     /// <summary>Reglas de crecimiento; se releen si cambia el archivo. Con el archivo roto se mantienen las anteriores.</summary>
     private GrowthConfig Growth()
     {

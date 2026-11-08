@@ -327,7 +327,8 @@ public sealed partial class EconomyService
 }
 
 /// <summary>Corre los ciclos económicos de los negocios en segundo plano: la economía sigue sin jugadores conectados.</summary>
-public sealed class BusinessCycleWorker(EconomyService economy, IConfiguration config, ILogger<BusinessCycleWorker> logger) : BackgroundService
+public sealed class BusinessCycleWorker(EconomyService economy, MarketShadowService shadow, IConfiguration config, ILogger<BusinessCycleWorker> logger)
+    : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -356,6 +357,16 @@ public sealed class BusinessCycleWorker(EconomyService economy, IConfiguration c
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogError(ex, "Falló el ciclo económico de negocios");
+            }
+
+            // Modo sombra: aparte, para que un error del mercado nuevo nunca frene la economía real.
+            try
+            {
+                await shadow.ObserveAsync(economy.CurrentCycle(), stoppingToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "Falló el modo sombra (la economía real sigue igual)");
             }
         }
     }

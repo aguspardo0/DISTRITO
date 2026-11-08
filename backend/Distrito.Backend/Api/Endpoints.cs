@@ -109,6 +109,7 @@ public static class Endpoints
         internalApi.MapPost("/economy/business/withdraw", (BusinessActionRequest r, EconomyService e, CancellationToken ct) => e.WithdrawAsync(r, ct));
         internalApi.MapPost("/economy/business/upgrade", (BusinessUpgradeRequest r, EconomyService e, CancellationToken ct) => e.UpgradeBusinessAsync(r, ct));
         internalApi.MapPost("/economy/business/price", (BusinessPriceRequest r, EconomyService e, CancellationToken ct) => e.SetBusinessPriceAsync(r, ct));
+        internalApi.MapGet("/market/shadow", (int? days, MarketShadowService s, CancellationToken ct) => s.ReportAsync(days ?? 7, ct));
         internalApi.MapGet("/market/boards", (EconomyService e, CancellationToken ct) => e.MarketBoardsAsync(ct));
         internalApi.MapPost("/market/look", async (MarketLookRequest r, EconomyService e, CancellationToken ct) => { await e.LookAtBoardAsync(r, ct); return Results.NoContent(); });
         internalApi.MapGet("/market/info/{characterId:guid}", (Guid characterId, EconomyService e, CancellationToken ct) => e.MarketInfoAsync(characterId, ct));

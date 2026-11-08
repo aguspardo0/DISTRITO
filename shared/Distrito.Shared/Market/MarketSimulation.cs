@@ -152,6 +152,23 @@ public sealed class MarketSimulation
     public int Day => _cycle / _cfg.CyclesPerDay;
 
     public long ZoneBudget(string zone) => _zones[zone].Budget;
+
+    public IEnumerable<string> ZoneCodes => _zones.Keys;
+
+    /// <summary>Modo sombra: plata que pasa entre la gente de una zona y un local que entra o sale (la plata se conserva).</summary>
+    internal void MoveZoneBudget(string zone, long cents) => _zones[zone].Budget += cents;
+
+    /// <summary>Modo sombra: al reiniciar el backend, retoma la plata y los precios de referencia que tenía cada zona.</summary>
+    public void RestoreZone(string zone, long budgetCents, IReadOnlyDictionary<string, double> reference)
+    {
+        if (!_zones.TryGetValue(zone, out var z))
+            return;
+        ExteriorCents -= budgetCents - z.Budget; // lo que se agrega o se saca viene de afuera: el total conservado no cambia
+        z.Budget = budgetCents;
+        foreach (var (product, price) in reference)
+            if (z.Reference.ContainsKey(product) && price > 0)
+                z.Reference[product] = price;
+    }
     public double ReferencePrice(string zone, string product) => _zones[zone].Reference[product];
 
     /// <summary>Toda la plata adentro de Bellmont (zonas, comercios, proveedor, fábrica, camión y familias).</summary>
