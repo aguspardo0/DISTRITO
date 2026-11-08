@@ -33,6 +33,26 @@ public partial class AdminNetwork : Node
     private CombatNetwork _combat = null!;
     private Distrito.Game.Pve.PveNetwork? _pve;
     public void UsePve(Distrito.Game.Pve.PveNetwork pve) => _pve = pve;
+    private Distrito.Game.Life.LifeNetwork? _life;
+    public void UseLife(Distrito.Game.Life.LifeNetwork life) => _life = life;
+
+    /// <summary>Llegó el informe de qué hace cada habitante y por qué.</summary>
+    public event Action<string>? ResidentsReceived;
+    public void RequestResidents() => Send(MethodName.ServerResidents);
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerResidents()
+    {
+        if (Multiplayer.IsServer())
+            _ = AsAdminAsync(Multiplayer.GetRemoteSenderId(), (peer, _) =>
+            {
+                if (Multiplayer.GetPeers().Contains((int)peer))
+                    RpcId(peer, MethodName.ReceiveResidents, _life?.Report(DateTimeOffset.UtcNow) ?? "La vida de los NPC no está disponible.");
+            });
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ReceiveResidents(string text) => ResidentsReceived?.Invoke(text);
 
     public event Action? StatusReceived;
     public event Action<string>? MessageReceived;

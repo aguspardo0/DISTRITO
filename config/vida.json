@@ -21,12 +21,16 @@
     { "codigo": "comisaria", "nombre": "Comisaría del distrito", "x": 0, "z": -60 }
   ],
   "profesiones": [
-    { "codigo": "obrero", "nombre": "Trabajador", "cantidad": 8, "lugares": ["almacen-moretti", "muelles", "taller-caruso"], "desde": 6, "hasta": 15, "edadMin": 18, "edadMax": 58, "plataMin": 200, "plataMax": 1500 },
-    { "codigo": "comerciante", "nombre": "Comerciante", "cantidad": 6, "lugares": ["ramos-generales", "botica", "sastreria", "diner", "kiosco", "taller-caruso"], "desde": 8, "hasta": 20, "edadMin": 28, "edadMax": 70, "plataMin": 2000, "plataMax": 8000 },
-    { "codigo": "transportista", "nombre": "Transportista", "cantidad": 4, "lugares": ["almacen-moretti"], "desde": 5, "hasta": 14, "edadMin": 21, "edadMax": 55, "plataMin": 500, "plataMax": 2500 },
-    { "codigo": "vecino", "nombre": "Vecino", "cantidad": 8, "lugares": [], "desde": 0, "hasta": 0, "edadMin": 16, "edadMax": 80, "plataMin": 100, "plataMax": 3000 },
-    { "codigo": "policia", "nombre": "Policía", "cantidad": 4, "lugares": ["comisaria"], "desde": 6, "hasta": 18, "turnoNocheCada": 2, "edadMin": 23, "edadMax": 55, "plataMin": 500, "plataMax": 2000 }
+    { "codigo": "obrero", "ingreso": 400, "nombre": "Trabajador", "cantidad": 8, "lugares": ["almacen-moretti", "muelles", "taller-caruso"], "desde": 6, "hasta": 15, "edadMin": 18, "edadMax": 58, "plataMin": 200, "plataMax": 1500 },
+    { "codigo": "comerciante", "ingreso": 600, "nombre": "Comerciante", "cantidad": 6, "lugares": ["ramos-generales", "botica", "sastreria", "diner", "kiosco", "taller-caruso"], "desde": 8, "hasta": 20, "edadMin": 28, "edadMax": 70, "plataMin": 2000, "plataMax": 8000 },
+    { "codigo": "transportista", "ingreso": 450, "nombre": "Transportista", "cantidad": 4, "lugares": ["almacen-moretti"], "desde": 5, "hasta": 14, "edadMin": 21, "edadMax": 55, "plataMin": 500, "plataMax": 2500 },
+    { "codigo": "vecino", "ingreso": 250, "nombre": "Vecino", "cantidad": 8, "lugares": [], "desde": 0, "hasta": 0, "edadMin": 16, "edadMax": 80, "plataMin": 100, "plataMax": 3000 },
+    { "codigo": "policia", "ingreso": 500, "nombre": "Policía", "cantidad": 4, "lugares": ["comisaria"], "desde": 6, "hasta": 18, "turnoNocheCada": 2, "edadMin": 23, "edadMax": 55, "plataMin": 500, "plataMax": 2000 }
   ],
+  "gastos": { "comida": 80, "compras": 150, "salida": 50 },
+  "paraComer": ["diner", "ramos-generales"],
+  "paraComprar": ["ramos-generales", "botica", "kiosco", "sastreria"],
+  "paraSalir": ["diner", "kiosco"],
   "nombres": {
     "hombres": ["Salvatore", "Vincenzo", "Giuseppe", "Carmine", "Angelo", "Patrick", "Seamus", "Michael", "Thomas", "Frank", "Walter", "Harold", "Eddie", "Joe", "Louie", "Albert", "Raymond", "George", "Tony", "Sal"],
     "mujeres": ["Rosa", "Concetta", "Lucia", "Maria", "Teresa", "Bridget", "Margaret", "Eileen", "Dorothy", "Betty", "Helen", "Ruth", "Gloria", "Mabel", "Agnes", "Irene", "Lorraine", "Peggy", "Carmela", "Nora"],

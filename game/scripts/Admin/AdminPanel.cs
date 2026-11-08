@@ -28,6 +28,7 @@ public partial class AdminPanel : PanelContainer
         _admin = admin;
         _admin.StatusReceived += () => { if (Visible) Rebuild(); };
         _admin.MessageReceived += text => _message.Text = text;
+        _admin.ResidentsReceived += ShowResidents;
     }
 
     public override void _Ready()
@@ -184,6 +185,11 @@ public partial class AdminPanel : PanelContainer
         time.AddChild(orders);
         _content.AddChild(time);
 
+        Section("Habitantes");
+        var residents = new Button { Text = "Ver qué hace cada uno y por qué" };
+        residents.Pressed += _admin.RequestResidents;
+        _content.AddChild(residents);
+
         Section("Eventos ahora");
         var events = new HFlowContainer();
         foreach (var (label, code) in new[] { ("Camión de reparto", "camion"), ("Cobrador", "cobrador"), ("Contrabando", "contrabando") })
@@ -193,6 +199,20 @@ public partial class AdminPanel : PanelContainer
             events.AddChild(b);
         }
         _content.AddChild(events);
+    }
+
+    private void ShowResidents(string text)
+    {
+        var dialog = new AcceptDialog { Title = "Habitantes de Bellmont", OkButtonText = "Cerrar", Size = new Vector2I(900, 620) };
+        var scroll = new ScrollContainer { CustomMinimumSize = new Vector2(860, 540) };
+        var label = new Label { Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(840, 0) };
+        label.AddThemeFontSizeOverride("font_size", 14);
+        scroll.AddChild(label);
+        dialog.AddChild(scroll);
+        dialog.Confirmed += dialog.QueueFree;
+        dialog.Canceled += dialog.QueueFree;
+        AddChild(dialog);
+        dialog.PopupCentered();
     }
 
     private void Section(string text)

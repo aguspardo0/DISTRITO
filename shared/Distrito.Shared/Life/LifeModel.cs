@@ -35,6 +35,16 @@ public sealed class LifeProfession
     [JsonPropertyName("edadMax")] public int AgeMax { get; set; } = 70;
     [JsonPropertyName("plataMin")] public long MoneyMin { get; set; }
     [JsonPropertyName("plataMax")] public long MoneyMax { get; set; }
+    /// <summary>Lo que cobra al terminar el turno (o, sin turno, al levantarse: jubilación, changas). Solo estado del habitante.</summary>
+    [JsonPropertyName("ingreso")] public long Income { get; set; }
+}
+
+/// <summary>Cuánto gasta un habitante en cada cosa (solo su estado: no es plata del libro de cuentas).</summary>
+public sealed class LifeCosts
+{
+    [JsonPropertyName("comida")] public long Meal { get; set; } = 80;
+    [JsonPropertyName("compras")] public long Shopping { get; set; } = 150;
+    [JsonPropertyName("salida")] public long Outing { get; set; } = 50;
 }
 
 public sealed class LifeNames
@@ -54,6 +64,13 @@ public sealed class LifeConfig
     [JsonPropertyName("lugares")] public List<LifePlace> Places { get; set; } = new();
     [JsonPropertyName("profesiones")] public List<LifeProfession> Professions { get; set; } = new();
     [JsonPropertyName("nombres")] public LifeNames Names { get; set; } = new();
+    [JsonPropertyName("gastos")] public LifeCosts Costs { get; set; } = new();
+    /// <summary>Dónde se come, se compra y se sale (códigos de <see cref="Places"/>).</summary>
+    [JsonPropertyName("paraComer")] public List<string> EatPlaces { get; set; } = new();
+    [JsonPropertyName("paraComprar")] public List<string> ShopPlaces { get; set; } = new();
+    [JsonPropertyName("paraSalir")] public List<string> SocialPlaces { get; set; } = new();
+
+    public LifePlace? Place(string code) => Places.FirstOrDefault(p => p.Code == code);
 
     public int Population => Professions.Sum(p => p.Count);
 
@@ -82,6 +99,12 @@ public sealed class LifeConfig
         }
         if (Professions.Select(p => p.Code).Distinct().Count() != Professions.Count) errors.Add("Hay profesiones repetidas.");
         if (Names.Men.Count == 0 || Names.Women.Count == 0 || Names.Surnames.Count == 0) errors.Add("Faltan nombres o apellidos.");
+        foreach (var (list, name) in new[] { (EatPlaces, "paraComer"), (ShopPlaces, "paraComprar"), (SocialPlaces, "paraSalir") })
+        {
+            if (list.Count == 0) errors.Add($"{name}: falta al menos un lugar.");
+            foreach (var code in list.Where(c => Places.All(l => l.Code != c)))
+                errors.Add($"{name}: el lugar «{code}» no está en la lista de lugares.");
+        }
         return errors;
     }
 }
@@ -113,8 +136,27 @@ public sealed record Resident(
     public double Trait(string code) => Traits.TryGetValue(code, out var v) ? v : 0.5;
 }
 
-/// <summary>Qué está haciendo y dónde (lo que se guarda cada tanto, no cada paso).</summary>
-public sealed record ResidentState(Guid ResidentId, string Activity, string Place, double X, double Z, DateTimeOffset Since);
+/// <summary>
+/// Qué está haciendo y dónde (lo que se guarda cada tanto, no cada paso). Si está yendo a algún lado, salió de
+/// (FromX, FromZ) en <c>Since</c>, llega a (X, Z) en <c>ArrivesAt</c> y ahí hace <c>Activity</c> hasta <c>Until</c>.
+/// Necesidades de 0 (nada) a 1 (urgente).
+/// </summary>
+public sealed record ResidentState(Guid ResidentId, string Activity, string Place, double X, double Z, DateTimeOffset Since,
+    DateTimeOffset ArrivesAt = default, DateTimeOffset Until = default, double FromX = 0, double FromZ = 0,
+    double Hunger = 0.2, double Fatigue = 0.2, double Social = 0.3, long? Money = null,
+    string? Decision = null, string? Reason = null, long Decisions = 0, DateTimeOffset NeedsAt = default)
+{
+    public bool Travelling(DateTimeOffset now) => now < ArrivesAt;
+
+    /// <summary>Dónde está ahora (si va caminando, en algún punto del camino).</summary>
+    public (double X, double Z) PositionAt(DateTimeOffset now)
+    {
+        if (!Travelling(now) || ArrivesAt <= Since)
+            return (X, Z);
+        var t = (now - Since).TotalSeconds / (ArrivesAt - Since).TotalSeconds;
+        return (FromX + (X - FromX) * t, FromZ + (Z - FromZ) * t);
+    }
+}
 
 /// <summary>Un hecho importante de su vida (no cada movimiento).</summary>
 public sealed record ResidentEvent(Guid ResidentId, DateTimeOffset At, string Kind, string Text);
@@ -130,5 +172,11 @@ public sealed record LifeStateBatch(List<ResidentState> States, List<ResidentEve
 public static class LifeActivities
 {
     public const string AtHome = "en casa";
+    public const string Sleeping = "durmiendo";
     public const string Working = "trabajando";
+    public const string Patrolling = "patrullando";
+    public const string Eating = "comiendo";
+    public const string Shopping = "comprando";
+    public const string Socializing = "charlando";
+    public const string Strolling = "paseando";
 }

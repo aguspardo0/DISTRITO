@@ -173,6 +173,7 @@ public partial class Main : Node3D
         var life = new Distrito.Game.Life.LifeNetwork { Name = "Life" };
         AddChild(life);
         life.Initialize(_network);
+        _admin.UseLife(life);
         SpawnNpcs();
 
         if (Options.Mode == LaunchMode.Server)

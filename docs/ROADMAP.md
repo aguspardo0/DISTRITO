@@ -148,7 +148,8 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
 2. [ ] **Vida autónoma de los NPC** (documento del equipo, 2026-11-01): habitantes con identidad, rutinas, necesidades, decisiones deterministas, relaciones y reacciones, simulados por niveles (cerca, intermedio, lejos), usando la economía de mercado sin duplicarla. Empieza con una auditoría y un ecosistema de prueba de 30 NPC.
    - [x] Auditoría e integración (2026-11-08) y decisiones del equipo: NPC visibles como ambientación (la plata la mueven los habitantes simulados), día de Bellmont de 12 horas reales (6 de día y 6 de noche), policía sin arrestos, casas sin interior. Ver `docs/VIDA-NPC.md`.
    - [x] Etapa 1 (2026-11-08): identidad y estado guardado de los 30 habitantes (`config/vida.json`, `ResidentGenerator`, `LifeStore`, `LifeNetwork`) y el reloj de Bellmont.
-   - [ ] Etapa 2: reloj, rutinas y horarios.
+   - [x] Etapas 2 a 4 (2026-11-08): rutinas, necesidades y decisiones (`LifeSimulation`), con interrupciones, desplazamientos lógicos, patrullas y la inspección en el panel de administración.
+   - [ ] Etapa 5: navegación y los tres niveles (los cercanos se ven caminando).
 
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.

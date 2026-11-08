@@ -234,6 +234,7 @@ note "Servidor" "$(grep -c 'Guardado ' persist-server.log) guardados registrados
 # --- Vida de los NPC (etapa 1): el servidor cargó los habitantes que creó el backend ---
 life=$(grep -h "VIDA habitantes=" persist-server.log | tail -1)
 if echo "$life" | grep -q "habitantes=30"; then note "Vida de los NPC" "${life#*\] }"
+  grep -h "VIDA hora_bellmont=" persist-server.log | tail -1 | while IFS= read -r l; do note "Vida de los NPC (qué hacen)" "${l#*\] }"; done
 else error "Vida de los NPC" "el servidor no cargó los 30 habitantes (${life:-sin línea VIDA})"; fi
 
 kill "$server_pid" "$backend_pid" 2>/dev/null || true

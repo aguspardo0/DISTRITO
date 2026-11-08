@@ -30,3 +30,25 @@ Documento del equipo (2026-11-01) e informe «DISTRITO — Vida autónoma de los
   guarda su estado cada 5 minutos. Todavía no se mueven: eso viene con las rutinas y la navegación.
 
 La plata de cada habitante es solo un estado para sus decisiones (si le alcanza para algo), no una cuenta del libro.
+
+## Etapas 2 a 4 (2026-11-08): rutinas, necesidades y decisiones
+
+`LifeSimulation` (compartido, lógica pura y determinista):
+
+- **Necesidades** de 0 a 1: hambre, cansancio y ganas de ver gente. Suben con las horas de Bellmont y bajan comiendo,
+  durmiendo o charlando; trabajar cansa (menos a los trabajadores).
+- **Decisiones con puntaje:** trabajar o patrullar (si le toca el turno), dormir, comer, ver gente, comprar, pasear o
+  quedarse en casa. Cada opción suma según necesidades, personalidad (sociable, reservado, temeroso, ambicioso,
+  trabajador, perezoso), hora, día o noche y plata; un azar controlado por habitante desempata. Siempre queda anotado
+  el motivo («hambre 0,82 y le alcanza ($12,30)»).
+- **Interrupciones:** cada 15 minutos de Bellmont se revisa si algo urgente corta lo que hace (mucha hambre o cansancio).
+- **Desplazamientos lógicos:** sale de donde está, camina a 1,3 m/s hasta el lugar y ahí hace la actividad. Los
+  policías van de parada en parada durante el turno. Todavía no se dibujan (nivel «lejos»).
+- **Plata del habitante:** cobra al terminar el turno (o al levantarse, si no trabaja) y gasta en comer, salir y
+  comprar (`gastos` en `config/vida.json`). Es solo su estado: no toca la economía.
+- **Ponerse al día:** como cada uno tiene la hora en la que termina lo que hace, después de un reinicio se recalcula
+  lo que pasó mientras tanto.
+
+En el servidor del juego, `LifeNetwork` los avanza cada segundo y cada 5 minutos escribe en el log qué hacen
+(`VIDA hora_bellmont=… trabajando=… durmiendo=…`). **Inspección:** panel de administración (F10) → «Habitantes» →
+qué hace cada uno, por qué y cómo está de hambre, cansancio y ganas de ver gente.
