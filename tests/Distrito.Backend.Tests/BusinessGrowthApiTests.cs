@@ -38,11 +38,26 @@ public class BusinessGrowthApiTests
         await cmd.ExecuteNonQueryAsync();
     }
 
-    private static async Task<long> Balance(string code)
+    /// <summary>
+    /// ¿Recibió <paramref name="code"/> un movimiento exacto de <paramref name="amount"/> después de <paramref name="afterId"/>?
+    /// Se mira el movimiento y no el saldo, porque otras pruebas en paralelo también le pagan o le cobran al taller.
+    /// </summary>
+    private static async Task<bool> Received(string code, long afterId, long amount)
     {
         await using var db = NpgsqlDataSource.Create(TestBackend.ConnectionString);
-        await using var cmd = db.CreateCommand("SELECT balance_cents FROM distrito.economic_accounts WHERE code = @c");
+        await using var cmd = db.CreateCommand(
+            "SELECT count(*) FROM distrito.ledger_entries e JOIN distrito.economic_accounts a ON a.id = e.account_id " +
+            "WHERE a.code = @c AND e.id > @after AND e.amount_cents = @amount");
         cmd.Parameters.AddWithValue("c", code);
+        cmd.Parameters.AddWithValue("after", afterId);
+        cmd.Parameters.AddWithValue("amount", amount);
+        return (long)(await cmd.ExecuteScalarAsync())! > 0;
+    }
+
+    private static async Task<long> LastEntryId()
+    {
+        await using var db = NpgsqlDataSource.Create(TestBackend.ConnectionString);
+        await using var cmd = db.CreateCommand("SELECT COALESCE(max(id), 0) FROM distrito.ledger_entries");
         return (long)(await cmd.ExecuteScalarAsync())!;
     }
 
@@ -66,14 +81,14 @@ public class BusinessGrowthApiTests
         Assert.Equal("Puesto", info.Category);
 
         await Grant(api, me, cost + 2_000);
-        var caruso = await Balance(EconomyCatalog.WorkshopNpc);
+        var lastEntry = await LastEntryId();
         var before = (await api.GetEconomyAsync(Key, me)).Value!.BalanceCents;
         var upgraded = (await api.UpgradeBusinessAsync(Key, new BusinessUpgradeRequest(me, cafe, BusinessGrowth.Capacity, Req()))).Value!;
         Assert.True(upgraded.Ok, upgraded.Message);
         Assert.Contains("Mostrador grande", upgraded.Message);
         Assert.Equal(1, upgraded.Snapshot.Business!.LevelCapacity);
         Assert.Equal(before - cost, upgraded.Snapshot.BalanceCents);
-        Assert.Equal(caruso + cost, await Balance(EconomyCatalog.WorkshopNpc));
+        Assert.True(await Received(EconomyCatalog.WorkshopNpc, lastEntry, cost), "la mejora la cobra el Taller Caruso");
 
         var next = (await api.GetMarketInfoAsync(Key, me)).Value!.Ledgers.Single().Growth!;
         Assert.Equal(4, next.Capacity);
