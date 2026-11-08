@@ -42,7 +42,7 @@ public static class ResidentTalk
             ("policía", _) => "agente de policía",
             _ => profession,
         };
-        var district = cfg.Districts.FirstOrDefault(d => d.Code == r.District)?.Name ?? r.District;
+        var district = cfg.District(r.District)?.Name ?? r.District;
         var of = district.StartsWith("Barrio", StringComparison.Ordinal) ? $"del {district}" : $"de {district}";
         var doing = s.Activity switch
         {
@@ -135,7 +135,7 @@ public static class ResidentTalk
     public static string NearestPlaceName(LifeConfig cfg, double x, double z)
     {
         var place = cfg.Places.OrderBy(p => (p.X - x) * (p.X - x) + (p.Z - z) * (p.Z - z)).FirstOrDefault();
-        var district = cfg.Districts.OrderBy(d => (d.X - x) * (d.X - x) + (d.Z - z) * (d.Z - z)).FirstOrDefault();
+        var district = cfg.AllDistricts.OrderBy(d => (d.X - x) * (d.X - x) + (d.Z - z) * (d.Z - z)).FirstOrDefault();
         if (place is null)
             return district?.Name ?? "el centro";
         var placeDist = Math.Sqrt((place.X - x) * (place.X - x) + (place.Z - z) * (place.Z - z));

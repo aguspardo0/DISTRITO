@@ -70,7 +70,7 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
         return s;
     }
 
-    private static bool Interruptible(string activity) =>
+    public static bool Interruptible(string activity) =>
         activity is LifeActivities.AtHome or LifeActivities.Strolling or LifeActivities.Shopping or LifeActivities.Socializing or LifeActivities.Visiting;
 
     /// <summary>Lo que pasa al terminar una actividad: se cobra el turno, se paga la comida, etc.</summary>

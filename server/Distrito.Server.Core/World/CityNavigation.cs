@@ -103,9 +103,10 @@ public static class CityNavigation
         var anchor = 0;
         while (anchor < cells.Count - 1)
         {
+            // Avanza mientras se siga viendo en línea recta (lineal, no cuadrático: los caminos largos del Centro son de cientos de celdas).
             var next = anchor + 1;
-            for (var j = cells.Count - 1; j > anchor + 1; j--)
-                if (LineFree(cells[anchor], cells[j])) { next = j; break; }
+            while (next + 1 < cells.Count && LineFree(cells[anchor], cells[next + 1]))
+                next++;
             if (next < cells.Count - 1)
             {
                 var (x, z) = Center(cells[next].X, cells[next].Z);
@@ -117,38 +118,82 @@ public static class CityNavigation
         return corners;
     }
 
+    // A* con arreglos reutilizados (etapa 9: cientos de habitantes y una grilla de 400 × 400): sin diccionarios ni
+    // basura por búsqueda. Una búsqueda a la vez (el servidor del juego tiene un solo hilo; el candado es por las pruebas).
+    private static readonly object Gate = new();
+    private static float[]? _cost;
+    private static int[]? _came, _seen;
+    private static int _stamp;
+    private static readonly Dictionary<(int, int), List<(int X, int Z)>?> Cache = new();
+    private const int CacheSize = 4096;
+
+    public static int CachedRoutes { get { lock (Gate) return Cache.Count; } }
+
     private static List<(int X, int Z)>? AStar((int X, int Z) start, (int X, int Z) goal)
     {
-        var open = new PriorityQueue<(int X, int Z), float>();
-        var came = new Dictionary<(int, int), (int, int)>();
-        var cost = new Dictionary<(int, int), float> { [start] = 0 };
-        open.Enqueue(start, 0);
+        lock (Gate)
+        {
+            var key = (start.Z * Width + start.X, goal.Z * Width + goal.X);
+            if (Cache.TryGetValue(key, out var hit))
+                return hit; // los caminos más usados (de la casa al trabajo) se guardan
+            var path = Search(start, goal);
+            if (Cache.Count >= CacheSize)
+                Cache.Clear();
+            Cache[key] = path;
+            return path;
+        }
+    }
+
+    private static List<(int X, int Z)>? Search((int X, int Z) start, (int X, int Z) goal)
+    {
+        var size = Width * Depth;
+        _cost ??= new float[size];
+        _came ??= new int[size];
+        _seen ??= new int[size];
+        if (++_stamp == int.MaxValue)
+        {
+            Array.Clear(_seen);
+            _stamp = 1;
+        }
+        var startIndex = start.Z * Width + start.X;
+        var goalIndex = goal.Z * Width + goal.X;
+        var open = new PriorityQueue<int, float>();
+        _seen[startIndex] = _stamp;
+        _cost[startIndex] = 0;
+        _came[startIndex] = -1;
+        open.Enqueue(startIndex, 0);
         var steps = 0;
         while (open.TryDequeue(out var current, out _))
         {
-            if (current == goal)
+            if (current == goalIndex)
             {
-                var path = new List<(int X, int Z)> { current };
-                while (came.TryGetValue(current, out var prev)) { current = prev; path.Add(current); }
+                var path = new List<(int X, int Z)>();
+                for (var c = current; c >= 0; c = _came[c])
+                    path.Add((c % Width, c / Width));
                 path.Reverse();
                 return path;
             }
             if (++steps > 250_000)
                 return null;
+            int cx = current % Width, cz = current / Width;
+            var g0 = _cost[current];
             for (var dz = -1; dz <= 1; dz++)
             for (var dx = -1; dx <= 1; dx++)
             {
                 if (dx == 0 && dz == 0) continue;
-                var n = (X: current.X + dx, Z: current.Z + dz);
-                if (!Free(n.X, n.Z)) continue;
-                if (dx != 0 && dz != 0 && (!Free(current.X + dx, current.Z) || !Free(current.X, current.Z + dz))) continue; // sin cortar esquinas
-                var step = dx != 0 && dz != 0 ? 1.4142f : 1f;
-                var g = cost[current] + step;
-                if (cost.TryGetValue(n, out var old) && old <= g) continue;
-                cost[n] = g;
-                came[n] = current;
-                var h = MathF.Sqrt((n.X - goal.X) * (n.X - goal.X) + (n.Z - goal.Z) * (n.Z - goal.Z));
-                open.Enqueue(n, g + h);
+                int nx = cx + dx, nz = cz + dz;
+                if (!Free(nx, nz)) continue;
+                if (dx != 0 && dz != 0 && (!Free(cx + dx, cz) || !Free(cx, cz + dz))) continue; // sin cortar esquinas
+                var g = g0 + (dx != 0 && dz != 0 ? 1.4142f : 1f);
+                var n = nz * Width + nx;
+                if (_seen[n] == _stamp && _cost[n] <= g) continue;
+                _seen[n] = _stamp;
+                _cost[n] = g;
+                _came[n] = current;
+                // Distancia octogonal, un poco inflada: encuentra un camino bueno revisando muchas menos celdas.
+                int ax = Math.Abs(nx - goal.X), az = Math.Abs(nz - goal.Z);
+                var h = Math.Max(ax, az) + 0.4142f * Math.Min(ax, az);
+                open.Enqueue(n, g + 1.15f * h);
             }
         }
         return null;

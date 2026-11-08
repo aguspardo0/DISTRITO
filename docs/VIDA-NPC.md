@@ -145,3 +145,20 @@ Sigue siendo **ambientación** (decisión del equipo): la plata la mueven los ha
 - **Pruebas:** `ResidentTalkTests`.
 - **Queda para más adelante:** que la fila de los locales del Mercado la formen habitantes con nombre (hoy son
   figuras genéricas) y que el habitante se frene mientras le hablás.
+
+## Etapa 9 (2026-11-08): la gente del Centro y la prueba de población
+
+- **De 30 a 278 habitantes.** `config/vida.json` tiene ahora `ampliaciones`: gente que llega después, cada ampliación
+  con su propia semilla, así los 30 que ya vivían no cambian (mismos ids, nombres y casas) y los nuevos se suman. El
+  backend crea solo los que faltan. La primera ampliación, **El Centro**, trae 248: 50 trabajadores, 18 comerciantes,
+  14 transportistas, 40 oficinistas (profesión nueva, de 8 a 17), 118 vecinos y 8 policías, que viven en ocho zonas
+  del Centro.
+- **Lugares nuevos en el Centro:** el Edificio Bellmont (oficinas), el Banco de Bellmont, la Fábrica de conservas
+  Lombardi, la Imprenta de La Gaceta, dos almacenes de barrio, el Cine Rex, el Bar O'Brien y la Plazoleta del Centro.
+  Se suman a donde se come, se compra y se sale, así la gente cruza toda la ciudad.
+- **Para que el servidor de 1 núcleo aguante:**
+  - como mucho **25 deciden por segundo** (buscar el camino es lo que cuesta); los demás esperan su turno al segundo
+    siguiente, en ronda;
+  - la búsqueda de caminos usa arreglos reutilizados (sin basura) y **guarda los caminos más usados** (hasta 4.096);
+  - a cada jugador le llegan como mucho los **40 habitantes más cercanos**;
+  - el resumen del servidor muestra `vida_ms_max` (lo que más tardó un segundo de vida).

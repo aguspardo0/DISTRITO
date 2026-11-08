@@ -42,9 +42,12 @@ public partial class VisualStock : Node3D
             _instance._nextPoll = Math.Min(_instance._nextPoll, _instance._clock + 0.3);
     }
 
-    /// <summary>¿Está en una bahía del galpón de depósitos? (también vale para guardar y retirar)</summary>
+    /// <summary>
+    /// ¿Está donde se atienden los depósitos de cuadrilla? Desde 2026-11-08 (pedido del equipo) ya no hay galpón con
+    /// bahías al costado del Mercado: los depósitos se manejan en el mostrador de la Oficina Valenti.
+    /// </summary>
     public static bool AtShed(Vector3 p) =>
-        p.X > ShedX - BayDepth / 2 - 1 && p.X < ShedX + BayDepth / 2 + 2 && p.Z > BayZ(0) - 2 && p.Z < BayZ(StockVisualRules.WarehouseBays - 1) + 2;
+        Distrito.Server.Core.Npcs.NpcInteractionRules.InRange(new System.Numerics.Vector3(p.X, p.Y, p.Z), Distrito.Server.Core.Npcs.NpcInteractionRules.ValentiOffice);
 
     public void Initialize(GameNetwork network)
     {
@@ -72,35 +75,15 @@ public partial class VisualStock : Node3D
     private static MeshInstance3D Box(Vector3 size, Vector3 at, Color color) =>
         new() { Mesh = new BoxMesh { Size = size }, MaterialOverride = new StandardMaterial3D { AlbedoColor = color }, Position = at };
 
+    /// <summary>Las bahías ya no se dibujan (se sacó el galpón): quedan como nodos ocultos para no tocar el resto.</summary>
     private void BuildShed()
     {
-        var shed = new Node3D { Name = "DepositosValenti" };
+        var shed = new Node3D { Name = "DepositosValenti", Visible = false };
         AddChild(shed);
-        var length = 3f * StockVisualRules.WarehouseBays + 1;
-        var centerZ = (BayZ(0) + BayZ(StockVisualRules.WarehouseBays - 1)) / 2;
-        var wood = new Color(0.33f, 0.24f, 0.16f);
-        shed.AddChild(Box(new Vector3(BayDepth + 1, 0.04f, length), new Vector3(ShedX, 0.02f, centerZ), new Color(0.24f, 0.23f, 0.21f)));
-        shed.AddChild(Box(new Vector3(BayDepth + 1.4f, 0.15f, length + 0.4f), new Vector3(ShedX, 4f, centerZ), new Color(0.2f, 0.18f, 0.16f)));
-        foreach (var dx in new[] { -BayDepth / 2 - 0.3f, BayDepth / 2 + 0.3f })
-            for (var i = 0; i <= StockVisualRules.WarehouseBays; i++)
-                shed.AddChild(Box(new Vector3(0.18f, 4f, 0.18f), new Vector3(ShedX + dx, 2f, BayZ(0) - 1.5f + 3f * i), wood));
-        shed.AddChild(Box(new Vector3(0.12f, 3.9f, length), new Vector3(ShedX - BayDepth / 2 - 0.4f, 1.95f, centerZ), new Color(0.29f, 0.21f, 0.15f)));
-        shed.AddChild(new Label3D
-        {
-            Text = "DEPÓSITOS VALENTI", Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, FontSize = 52, OutlineSize = 10,
-            Modulate = new Color(0.95f, 0.8f, 0.45f), Position = new Vector3(ShedX + BayDepth / 2 + 0.5f, 4.6f, centerZ),
-        });
         for (var i = 0; i < StockVisualRules.WarehouseBays; i++)
         {
-            // Separadores pintados en el piso entre bahías.
-            shed.AddChild(Box(new Vector3(BayDepth, 0.02f, 0.08f), new Vector3(ShedX, 0.05f, BayZ(i) - 1.5f), new Color(0.75f, 0.68f, 0.45f)));
-            _bays[i] = new Node3D { Name = $"Bay{i}", Position = new Vector3(ShedX, 0.05f, BayZ(i)) };
+            _bays[i] = new Node3D { Name = $"Bay{i}" };
             shed.AddChild(_bays[i]);
-            // Una lamparita por bahía: luz cálida bajo el techo.
-            shed.AddChild(new OmniLight3D
-            {
-                Position = new Vector3(ShedX, 3.6f, BayZ(i)), LightColor = new Color(1f, 0.82f, 0.55f), LightEnergy = 1.4f, OmniRange = 5.5f,
-            });
         }
     }
 

@@ -16,7 +16,7 @@ public class LifeApiTests
 
         var first = (await api.GetResidentsAsync(Key)).Value!;
         var again = (await api.GetResidentsAsync(Key)).Value!;
-        Assert.Equal(30, first.Residents.Count);
+        Assert.Equal(LifeConfig.Parse(first.ConfigJson).Population, first.Residents.Count);
         Assert.Equal(first.Residents.Select(r => r.Identity.Id).Order(), again.Residents.Select(r => r.Identity.Id).Order());
         Assert.Contains("profesiones", first.ConfigJson);
         Assert.All(first.Residents, r => Assert.NotNull(r.State));

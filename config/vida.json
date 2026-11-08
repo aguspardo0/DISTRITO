@@ -18,19 +18,53 @@
     { "codigo": "sastreria", "nombre": "Sastrería Bianchi", "x": 16, "z": -7, "adentro": true },
     { "codigo": "diner", "nombre": "Diner La Estrella", "x": 0, "z": 14.5, "adentro": true },
     { "codigo": "kiosco", "nombre": "Kiosco de diarios", "x": -18.5, "z": -5.5 },
-    { "codigo": "comisaria", "nombre": "Puesto de policía de la Avenida Norte", "x": 24.5, "z": -33 }
+    { "codigo": "comisaria", "nombre": "Puesto de policía de la Avenida Norte", "x": 24.5, "z": -33 },
+    { "codigo": "oficinas-centro", "nombre": "Edificio Bellmont (oficinas)", "x": 121, "z": -121, "adentro": true },
+    { "codigo": "banco", "nombre": "Banco de Bellmont", "x": -121, "z": -121, "adentro": true },
+    { "codigo": "fabrica-conservas", "nombre": "Fábrica de conservas Lombardi", "x": -196, "z": 121, "adentro": true },
+    { "codigo": "imprenta", "nombre": "Imprenta de La Gaceta", "x": 121, "z": 196, "adentro": true },
+    { "codigo": "almacen-norte", "nombre": "Almacén de barrio El Norte", "x": 196, "z": -121, "adentro": true },
+    { "codigo": "almacen-sur", "nombre": "Almacén de barrio La Esquina", "x": -121, "z": 196, "adentro": true },
+    { "codigo": "cine", "nombre": "Cine Rex", "x": 121, "z": 121, "adentro": true },
+    { "codigo": "bar-oeste", "nombre": "Bar O'Brien", "x": -196, "z": -121, "adentro": true },
+    { "codigo": "plazoleta", "nombre": "Plazoleta del Centro", "x": 196, "z": 196 }
   ],
   "profesiones": [
     { "codigo": "obrero", "ingreso": 400, "nombre": "Trabajador", "cantidad": 8, "lugares": ["almacen-moretti", "muelles", "taller-caruso"], "desde": 6, "hasta": 15, "edadMin": 18, "edadMax": 58, "plataMin": 200, "plataMax": 1500 },
     { "codigo": "comerciante", "ingreso": 600, "nombre": "Comerciante", "cantidad": 6, "lugares": ["ramos-generales", "botica", "sastreria", "diner", "kiosco", "taller-caruso"], "desde": 8, "hasta": 20, "edadMin": 28, "edadMax": 70, "plataMin": 2000, "plataMax": 8000 },
     { "codigo": "transportista", "ingreso": 450, "nombre": "Transportista", "cantidad": 4, "lugares": ["almacen-moretti"], "desde": 5, "hasta": 14, "edadMin": 21, "edadMax": 55, "plataMin": 500, "plataMax": 2500 },
     { "codigo": "vecino", "ingreso": 250, "nombre": "Vecino", "cantidad": 8, "lugares": [], "desde": 0, "hasta": 0, "edadMin": 16, "edadMax": 80, "plataMin": 100, "plataMax": 3000 },
-    { "codigo": "policia", "ingreso": 500, "nombre": "Policía", "cantidad": 4, "lugares": ["comisaria"], "desde": 6, "hasta": 18, "turnoNocheCada": 2, "edadMin": 23, "edadMax": 55, "plataMin": 500, "plataMax": 2000 }
+    { "codigo": "policia", "ingreso": 500, "nombre": "Policía", "cantidad": 4, "lugares": ["comisaria"], "desde": 6, "hasta": 18, "turnoNocheCada": 2, "edadMin": 23, "edadMax": 55, "plataMin": 500, "plataMax": 2000 },
+    { "codigo": "oficinista", "ingreso": 550, "nombre": "Oficinista", "cantidad": 0, "lugares": ["oficinas-centro", "banco"], "desde": 8, "hasta": 17, "edadMin": 20, "edadMax": 62, "plataMin": 800, "plataMax": 4000 }
+  ],
+  "_ampliaciones": "Gente que llega a Bellmont después (etapa 9, El Centro): cada ampliación tiene su semilla, así los que ya viven no cambian; los nuevos se suman al arrancar.",
+  "ampliaciones": [
+    {
+      "semilla": 1953, "nombre": "El Centro",
+      "barrios": [
+        { "codigo": "centro-noroeste", "nombre": "Centro noroeste", "x": -226, "z": -226, "radio": 28 },
+        { "codigo": "centro-oeste", "nombre": "Centro oeste", "x": -226, "z": 0, "radio": 28 },
+        { "codigo": "centro-suroeste", "nombre": "Centro suroeste", "x": -226, "z": 226, "radio": 28 },
+        { "codigo": "centro-norte", "nombre": "Centro norte", "x": 0, "z": -226, "radio": 28 },
+        { "codigo": "centro-sur", "nombre": "Centro sur", "x": 0, "z": 226, "radio": 28 },
+        { "codigo": "centro-noreste", "nombre": "Centro noreste", "x": 226, "z": -226, "radio": 28 },
+        { "codigo": "centro-este", "nombre": "Centro este", "x": 226, "z": 0, "radio": 28 },
+        { "codigo": "centro-sureste", "nombre": "Centro sureste", "x": 226, "z": 226, "radio": 28 }
+      ],
+      "profesiones": [
+        { "codigo": "obrero", "cantidad": 50, "lugares": ["fabrica-conservas", "imprenta", "muelles", "almacen-moretti"] },
+        { "codigo": "comerciante", "cantidad": 18, "lugares": ["almacen-norte", "almacen-sur", "cine", "bar-oeste", "ramos-generales", "diner"] },
+        { "codigo": "transportista", "cantidad": 14, "lugares": ["almacen-moretti", "fabrica-conservas"] },
+        { "codigo": "oficinista", "cantidad": 40 },
+        { "codigo": "vecino", "cantidad": 118 },
+        { "codigo": "policia", "cantidad": 8 }
+      ]
+    }
   ],
   "gastos": { "comida": 80, "compras": 150, "salida": 50 },
-  "paraComer": ["diner", "ramos-generales"],
-  "paraComprar": ["ramos-generales", "botica", "kiosco", "sastreria"],
-  "paraSalir": ["diner", "kiosco"],
+  "paraComer": ["diner", "ramos-generales", "bar-oeste"],
+  "paraComprar": ["ramos-generales", "botica", "kiosco", "sastreria", "almacen-norte", "almacen-sur"],
+  "paraSalir": ["diner", "kiosco", "cine", "bar-oeste", "plazoleta"],
   "nombres": {
     "hombres": ["Salvatore", "Vincenzo", "Giuseppe", "Carmine", "Angelo", "Patrick", "Seamus", "Michael", "Thomas", "Frank", "Walter", "Harold", "Eddie", "Joe", "Louie", "Albert", "Raymond", "George", "Tony", "Sal"],
     "mujeres": ["Rosa", "Concetta", "Lucia", "Maria", "Teresa", "Bridget", "Margaret", "Eileen", "Dorothy", "Betty", "Helen", "Ruth", "Gloria", "Mabel", "Agnes", "Irene", "Lorraine", "Peggy", "Carmela", "Nora"],

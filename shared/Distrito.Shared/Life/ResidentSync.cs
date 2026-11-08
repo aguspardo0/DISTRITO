@@ -147,6 +147,9 @@ public static class ResidentLevels
     public const double KeepNear = 75;
     public const double Middle = 150;
 
+    /// <summary>Como mucho, cuántos se dibujan cerca de un jugador (los más cercanos).</summary>
+    public const int MaxDrawn = 40;
+
     public static bool InRange(double dx, double dz, bool alreadySeen) =>
         dx * dx + dz * dz <= (alreadySeen ? KeepNear * KeepNear : Near * Near);
 }

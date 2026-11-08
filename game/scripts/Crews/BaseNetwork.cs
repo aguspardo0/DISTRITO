@@ -235,7 +235,7 @@ public partial class BaseNetwork : Node
                 var atBase = board.Shed is { } own && CrewBaseRules.AtBase(own, p.GlobalPosition.X, p.GlobalPosition.Z);
                 if (!atBase && !Distrito.Game.World.VisualStock.AtShed(p.GlobalPosition))
                 {
-                    SendMessage(peer, "El acopio se entrega desde la sede (o desde el galpón de depósitos de Valenti).");
+                    SendMessage(peer, "El acopio se entrega desde la sede (o en el mostrador de la Oficina Valenti).");
                     return;
                 }
                 break;

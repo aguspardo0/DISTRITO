@@ -132,7 +132,7 @@ public static class CityLayout
     // --- El Centro (fase 1 del mapa) ---
 
     public const float DowntownHalf = 300f;
-    /// <summary>De eje a eje de calle (manzanas de 57 m con calles de 18 m: 11 m de calzada y dos veredas de 3,5 m).</summary>
+    /// <summary>De eje a eje de calle (manzanas de 57 m con calles de 18 m: 11 m de calzada y dos veredas de 3,5 m). Ver <see cref="StreetLines"/>.</summary>
     public const float BlockPitch = 75f;
     public const float StreetWidth = 18f;
     public const float SidewalkWidth = 3.5f;
@@ -217,21 +217,45 @@ public static class CityLayout
     // --- El Centro: manzanas, edificios y locales vacíos ---
 
     /// <summary>
-    /// Manzanas: grilla de calles cada 75 m en todo el cuadrado. Alrededor de cada distrito de antes queda una calle de
-    /// 18 m; donde una manzana lo pisaría, se recorta (y si queda muy chica, no va).
+    /// Ejes de las calles del Centro (en x y en z), centrados en el Mercado (pedido del equipo, 2026-11-08): la primera
+    /// calle rodea al Mercado (eje a ±39 m, justo pegada a su borde) y de ahí sigue la grilla cada 75 m hasta el borde.
+    /// Así el Mercado queda como la manzana del medio y sus calles siguen derecho por toda la ciudad. En el borde
+    /// (±300) no hay calle: la última fila de edificios da contra la pared.
+    /// </summary>
+    public static readonly float[] StreetLines = MakeLines();
+
+    private static float[] MakeLines()
+    {
+        var first = Market.MaxX + StreetWidth / 2;
+        var lines = new List<float> { -DowntownHalf, DowntownHalf };
+        for (var v = first; v < DowntownHalf - StreetWidth; v += BlockPitch)
+        {
+            lines.Add(v);
+            lines.Add(-v);
+        }
+        return lines.OrderBy(v => v).ToArray();
+    }
+
+    /// <summary>Distancia al eje de calle más cercano (sin contar el borde de la ciudad).</summary>
+    public static float ToStreetLine(float v) =>
+        StreetLines.Where(l => MathF.Abs(l) < DowntownHalf).Min(l => MathF.Abs(v - l));
+
+    /// <summary>
+    /// Manzanas: entre los ejes de calle. Alrededor de cada distrito de antes queda una calle de 18 m; donde una
+    /// manzana lo pisaría, se recorta (y si queda muy chica, no va).
     /// </summary>
     public static readonly IReadOnlyList<DowntownBlock> DowntownBlocks = MakeBlocks();
 
     private static List<DowntownBlock> MakeBlocks()
     {
-        var half = StreetWidth / 2;
-        var lines = Enumerable.Range(0, (int)(2 * DowntownHalf / BlockPitch) + 1).Select(k => -DowntownHalf + k * BlockPitch).ToArray();
+        var lines = StreetLines;
+        float HalfAt(float line) => MathF.Abs(line) >= DowntownHalf ? 0 : StreetWidth / 2;
         var keepOut = Districts.Select(d => new DowntownBlock(d.MinX - StreetWidth, d.MinZ - StreetWidth, d.MaxX + StreetWidth, d.MaxZ + StreetWidth)).ToList();
         var blocks = new List<DowntownBlock>();
         for (var j = 0; j + 1 < lines.Length; j++)
         for (var i = 0; i + 1 < lines.Length; i++)
         {
-            var pieces = new List<DowntownBlock> { new(lines[i] + half, lines[j] + half, lines[i + 1] - half, lines[j + 1] - half) };
+            var pieces = new List<DowntownBlock> { new(lines[i] + HalfAt(lines[i]), lines[j] + HalfAt(lines[j]), lines[i + 1] - HalfAt(lines[i + 1]), lines[j + 1] - HalfAt(lines[j + 1])) };
             foreach (var cut in keepOut)
                 pieces = pieces.SelectMany(p => Cut(p, cut)).ToList();
             blocks.AddRange(pieces.Where(p => p.Width >= 16 && p.Depth >= 16));
@@ -366,8 +390,7 @@ public static class CityLayout
             return false;
         if (Districts.Any(d => x >= d.MinX - StreetWidth && x <= d.MaxX + StreetWidth && z >= d.MinZ - StreetWidth && z <= d.MaxZ + StreetWidth))
             return true;
-        static float ToLine(float v) => MathF.Abs(v - (MathF.Round((v + DowntownHalf) / BlockPitch) * BlockPitch - DowntownHalf));
-        if (ToLine(x) <= StreetWidth / 2 && ToLine(z) <= StreetWidth / 2)
+        if (ToStreetLine(x) <= StreetWidth / 2 && ToStreetLine(z) <= StreetWidth / 2)
             return true; // esquina (cruce peatonal)
         return DowntownBlocks.Any(b => b.Contains(x, z, SidewalkWidth) && !b.Contains(x, z, -0.01f));
     }

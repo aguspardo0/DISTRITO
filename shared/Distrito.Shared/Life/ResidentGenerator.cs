@@ -9,44 +9,61 @@ public static class ResidentGenerator
 {
     public static List<Resident> Generate(LifeConfig cfg)
     {
-        var rng = new Random(cfg.Seed);
         var residents = new List<Resident>();
         var usedNames = new HashSet<string>();
+        // La primera población: igual que siempre (mismo orden de sorteo, mismos ids).
+        var rng = new Random(cfg.Seed);
         var index = 0;
         foreach (var profession in cfg.Professions)
             for (var i = 0; i < profession.Count; i++, index++)
+                residents.Add(Make(cfg, rng, usedNames, profession, profession.Places, i, cfg.Districts, IdFor(cfg.Seed, index)));
+        // Las ampliaciones: cada una con su semilla, así no cambian los que ya existían.
+        foreach (var expansion in cfg.Expansions)
+        {
+            var more = new Random(expansion.Seed);
+            var n = 0;
+            foreach (var headcount in expansion.Professions)
             {
-                var woman = profession.Code != "policia" && rng.NextDouble() < 0.45; // la policía de 1952: solo hombres
-                string first, last;
-                var attempts = 0;
-                do
-                {
-                    first = Pick(rng, woman ? cfg.Names.Women : cfg.Names.Men);
-                    last = Pick(rng, cfg.Names.Surnames);
-                } while (!usedNames.Add($"{first} {last}") && ++attempts < 50); // con pocos nombres, se repiten
-
-                var district = cfg.Districts[rng.Next(cfg.Districts.Count)];
-                var angle = rng.NextDouble() * Math.Tau;
-                var distance = Math.Sqrt(rng.NextDouble()) * district.Radius;
-                var workplace = profession.Places.Count == 0 ? null : profession.Places[i % profession.Places.Count];
-
-                var (from, to) = (profession.ShiftFrom, profession.ShiftTo);
-                if (profession.NightShiftEvery > 0 && i % profession.NightShiftEvery == profession.NightShiftEvery - 1)
-                    (from, to) = (to, from); // turno noche: el mismo horario al revés
-
-                residents.Add(new Resident(
-                    IdFor(cfg.Seed, index),
-                    first, last, woman,
-                    rng.Next(profession.AgeMin, profession.AgeMax + 1),
-                    profession.Code,
-                    district.Code,
-                    Math.Round(district.X + Math.Cos(angle) * distance, 2),
-                    Math.Round(district.Z + Math.Sin(angle) * distance, 2),
-                    workplace, from, to,
-                    Personality(rng, cfg),
-                    profession.MoneyMin + (long)(rng.NextDouble() * (profession.MoneyMax - profession.MoneyMin))));
+                var profession = cfg.Professions.First(p => p.Code == headcount.Code);
+                for (var i = 0; i < headcount.Count; i++, n++)
+                    residents.Add(Make(cfg, more, usedNames, profession, headcount.Places ?? profession.Places, i, expansion.Districts, IdFor(expansion.Seed, n)));
             }
+        }
         return residents;
+    }
+
+    private static Resident Make(LifeConfig cfg, Random rng, HashSet<string> usedNames, LifeProfession profession, List<string> places,
+        int i, List<LifeDistrict> districts, Guid id)
+    {
+        var woman = profession.Code != "policia" && rng.NextDouble() < 0.45; // la policía de 1952: solo hombres
+        string first, last;
+        var attempts = 0;
+        do
+        {
+            first = Pick(rng, woman ? cfg.Names.Women : cfg.Names.Men);
+            last = Pick(rng, cfg.Names.Surnames);
+        } while (!usedNames.Add($"{first} {last}") && ++attempts < 50); // con pocos nombres, se repiten
+
+        var district = districts[rng.Next(districts.Count)];
+        var angle = rng.NextDouble() * Math.Tau;
+        var distance = Math.Sqrt(rng.NextDouble()) * district.Radius;
+        var workplace = places.Count == 0 ? null : places[i % places.Count];
+
+        var (from, to) = (profession.ShiftFrom, profession.ShiftTo);
+        if (profession.NightShiftEvery > 0 && i % profession.NightShiftEvery == profession.NightShiftEvery - 1)
+            (from, to) = (to, from); // turno noche: el mismo horario al revés
+
+        return new Resident(
+            id,
+            first, last, woman,
+            rng.Next(profession.AgeMin, profession.AgeMax + 1),
+            profession.Code,
+            district.Code,
+            Math.Round(district.X + Math.Cos(angle) * distance, 2),
+            Math.Round(district.Z + Math.Sin(angle) * distance, 2),
+            workplace, from, to,
+            Personality(rng, cfg),
+            profession.MoneyMin + (long)(rng.NextDouble() * (profession.MoneyMax - profession.MoneyMin)));
     }
 
     /// <summary>Rasgos de 0 a 1. Los opuestos se complementan (muy sociable = poco reservado).</summary>

@@ -45,7 +45,7 @@ public class ResidentTalkTests
         var text = ResidentTalk.Greeting(vecina, s, t.Cfg, Afternoon);
         Assert.Contains($"Soy {vecina.FullName}, vecina ", text);
         Assert.Contains("compras", text);
-        var district = t.Cfg.Districts.First(d => d.Code == vecina.District).Name;
+        var district = t.Cfg.District(vecina.District)!.Name;
         Assert.Contains(district, text);
         Assert.DoesNotContain("del Los", text);
 

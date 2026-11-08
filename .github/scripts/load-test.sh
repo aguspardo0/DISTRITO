@@ -30,14 +30,14 @@ for x in a b; do
 done
 
 # ---------- 1b. Colisiones: un bot intenta atravesar un edificio, otro salir del barrio ----------
-# Edificio 0 ocupa x,z en [-18,-10]. El otro bot camina hacia el este por la calle z = 0 (cruza Los Muelles y el
-# Centro) hasta el borde de la ciudad, en x = 300 (pared invisible).
+# Edificio 0 ocupa x,z en [-18,-10]. El otro bot cruza Los Muelles, dobla por la calle que los rodea y sigue por la calle
+# z = 39 (la que rodea al Mercado y cruza todo el Centro) hasta el borde de la ciudad, en x = 300 (pared invisible).
 PORT=7803
 "$GODOT" --headless --path game -- --server --port $PORT > walls-server.log 2>&1 &
 srv=$!
 sleep 4
 client walls-a.log $PORT --bot-goto -14,-14 --test-seconds 20 --expect-players 2 & a=$!
-client walls-b.log $PORT --bot-goto 400,0 --test-seconds 95 --expect-players 2 & b=$!
+client walls-b.log $PORT --bot-route "0,-1;60,-1;100,-1;100,39;400,39" --test-seconds 110 --expect-players 2 & b=$!
 wait $a; wait $b
 kill $srv 2>/dev/null; wait $srv 2>/dev/null
 pos_of() { grep -h NET_TEST_ "$1" | tail -1 | grep -o ' pos=[-0-9.,]*' | cut -d= -f2; }

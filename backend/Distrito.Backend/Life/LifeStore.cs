@@ -42,9 +42,12 @@ public sealed class LifeStore(NpgsqlDataSource db, IConfiguration config, TimePr
         await using var tx = await c.BeginTransactionAsync(ct);
         await using (var lockCmd = new NpgsqlCommand("SELECT pg_advisory_xact_lock(19520036)", c, tx))
             await lockCmd.ExecuteNonQueryAsync(ct);
-        await using (var count = new NpgsqlCommand("SELECT count(*) FROM distrito.npc_residents", c, tx))
-            if ((long)(await count.ExecuteScalarAsync(ct))! > 0)
-                return;
+        // Se crean una sola vez; si el archivo suma gente (ampliaciones), se agregan solo los que faltan.
+        var existing = new HashSet<Guid>();
+        await using (var ids = new NpgsqlCommand("SELECT id FROM distrito.npc_residents", c, tx))
+        await using (var reader = await ids.ExecuteReaderAsync(ct))
+            while (await reader.ReadAsync(ct))
+                existing.Add(reader.GetGuid(0));
 
         LifeConfig cfg;
         try
@@ -65,10 +68,12 @@ public sealed class LifeStore(NpgsqlDataSource db, IConfiguration config, TimePr
 
         var now = clock.GetUtcNow();
         var professions = cfg.Professions.ToDictionary(p => p.Code, p => p.Name);
-        var districts = cfg.Districts.ToDictionary(d => d.Code, d => d.Name);
+        var districts = cfg.AllDistricts.ToDictionary(d => d.Code, d => d.Name);
         var places = cfg.Places.ToDictionary(p => p.Code, p => p.Name);
-        foreach (var r in ResidentGenerator.Generate(cfg))
+        var created = 0;
+        foreach (var r in ResidentGenerator.Generate(cfg).Where(r => !existing.Contains(r.Id)))
         {
+            created++;
             await using var insert = new NpgsqlCommand("""
                 INSERT INTO distrito.npc_residents (id, identity) VALUES (@id, @identity::jsonb);
                 INSERT INTO distrito.npc_resident_states (resident_id, state) VALUES (@id, @state::jsonb);
@@ -83,7 +88,8 @@ public sealed class LifeStore(NpgsqlDataSource db, IConfiguration config, TimePr
             await insert.ExecuteNonQueryAsync(ct);
         }
         await tx.CommitAsync(ct);
-        logger.LogInformation("Vida de los NPC: se crearon {Count} habitantes de Bellmont", cfg.Population);
+        if (created > 0)
+            logger.LogInformation("Vida de los NPC: llegaron {Count} habitantes nuevos a Bellmont ({Total} en total)", created, existing.Count + created);
     }
 
     /// <summary>Guarda el último estado de varios habitantes y sus hechos importantes, todo junto.</summary>

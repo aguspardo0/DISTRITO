@@ -41,6 +41,26 @@ public sealed class LifeProfession
     [JsonPropertyName("ingreso")] public long Income { get; set; }
 }
 
+/// <summary>Cuántos de una profesión llegan con una ampliación (y, si se indica, dónde trabajan).</summary>
+public sealed class LifeHeadcount
+{
+    [JsonPropertyName("codigo")] public string Code { get; set; } = "";
+    [JsonPropertyName("cantidad")] public int Count { get; set; }
+    [JsonPropertyName("lugares")] public List<string>? Places { get; set; }
+}
+
+/// <summary>
+/// Gente nueva que llega a Bellmont (etapa 9: población del Centro). Tiene su propia semilla, así que los habitantes
+/// que ya existían no cambian: los nuevos se suman. Viven en los barrios de la ampliación.
+/// </summary>
+public sealed class LifeExpansion
+{
+    [JsonPropertyName("semilla")] public int Seed { get; set; }
+    [JsonPropertyName("nombre")] public string Name { get; set; } = "";
+    [JsonPropertyName("barrios")] public List<LifeDistrict> Districts { get; set; } = new();
+    [JsonPropertyName("profesiones")] public List<LifeHeadcount> Professions { get; set; } = new();
+}
+
 /// <summary>Cuánto gasta un habitante en cada cosa (solo su estado: no es plata del libro de cuentas).</summary>
 public sealed class LifeCosts
 {
@@ -71,10 +91,19 @@ public sealed class LifeConfig
     [JsonPropertyName("paraComer")] public List<string> EatPlaces { get; set; } = new();
     [JsonPropertyName("paraComprar")] public List<string> ShopPlaces { get; set; } = new();
     [JsonPropertyName("paraSalir")] public List<string> SocialPlaces { get; set; } = new();
+    [JsonPropertyName("ampliaciones")] public List<LifeExpansion> Expansions { get; set; } = new();
 
     public LifePlace? Place(string code) => Places.FirstOrDefault(p => p.Code == code);
 
-    public int Population => Professions.Sum(p => p.Count);
+    /// <summary>Los barrios donde vive la gente: los de la primera población y los de las ampliaciones.</summary>
+    public IEnumerable<LifeDistrict> AllDistricts => Districts.Concat(Expansions.SelectMany(e => e.Districts));
+
+    public LifeDistrict? District(string code) => AllDistricts.FirstOrDefault(d => d.Code == code);
+
+    /// <summary>La primera población (los 30 de la prueba).</summary>
+    public int BasePopulation => Professions.Sum(p => p.Count);
+
+    public int Population => BasePopulation + Expansions.Sum(e => e.Professions.Sum(p => p.Count));
 
     public static LifeConfig Parse(string json) =>
         JsonSerializer.Deserialize<LifeConfig>(json, new JsonSerializerOptions { ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })
@@ -100,6 +129,19 @@ public sealed class LifeConfig
             if (p.AgeMin > p.AgeMax || p.MoneyMin > p.MoneyMax) errors.Add($"profesión {p.Code}: mínimo mayor que máximo.");
         }
         if (Professions.Select(p => p.Code).Distinct().Count() != Professions.Count) errors.Add("Hay profesiones repetidas.");
+        foreach (var e in Expansions)
+        {
+            if (e.Seed == Seed || Expansions.Count(x => x.Seed == e.Seed) > 1) errors.Add($"ampliación «{e.Name}»: la semilla tiene que ser distinta de las otras.");
+            if (e.Districts.Count == 0) errors.Add($"ampliación «{e.Name}»: falta al menos un barrio donde vivir.");
+            foreach (var h in e.Professions)
+            {
+                if (Professions.All(p => p.Code != h.Code)) errors.Add($"ampliación «{e.Name}»: la profesión «{h.Code}» no existe.");
+                if (h.Count < 0) errors.Add($"ampliación «{e.Name}»: cantidad negativa de {h.Code}.");
+                foreach (var place in (h.Places ?? []).Where(code => Places.All(l => l.Code != code)))
+                    errors.Add($"ampliación «{e.Name}»: el lugar «{place}» no está en la lista de lugares.");
+            }
+        }
+        if (AllDistricts.Select(d => d.Code).Distinct().Count() != AllDistricts.Count()) errors.Add("Hay barrios repetidos entre las ampliaciones.");
         if (Names.Men.Count == 0 || Names.Women.Count == 0 || Names.Surnames.Count == 0) errors.Add("Faltan nombres o apellidos.");
         foreach (var (list, name) in new[] { (EatPlaces, "paraComer"), (ShopPlaces, "paraComprar"), (SocialPlaces, "paraSalir") })
         {

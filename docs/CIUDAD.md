@@ -80,3 +80,12 @@ las horas pico): 6 horas reales de día y 6 de noche.
 - Al oscurecer se prenden los faroles de los barrios (luz de verdad), brillan las cabezas de los faroles del Centro y
   los carteles de neón, y se encienden las ventanas de algunos pisos del Centro (siempre los mismos).
 - Abajo a la derecha se ve la hora de Bellmont («Bellmont 19:40 · noche»).
+
+## El Mercado en el medio del Centro y sin galpón de depósitos (2026-11-08)
+
+- Pedido del equipo: el Mercado tiene que quedar bien centrado y conectado con la ciudad. La grilla del Centro ahora
+  **arranca en el Mercado**: la primera calle lo rodea (ejes a ±39 m, pegada a su borde) y de ahí siguen las calles
+  cada 75 m (±114, ±189, ±264) hasta el borde. El Mercado es la manzana del medio y sus calles siguen derecho por toda
+  la ciudad (`CityLayout.StreetLines`).
+- Se sacó el **galpón de Depósitos Valenti** (las bahías al oeste del Mercado que decían «Bahía libre»). Los depósitos
+  de cuadrilla se siguen usando igual, desde el mostrador de la **Oficina Valenti**.

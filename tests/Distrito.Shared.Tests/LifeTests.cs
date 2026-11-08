@@ -20,15 +20,18 @@ public class LifeTests
     public void La_config_del_repo_no_tiene_errores()
     {
         Assert.Empty(Config().Validate());
-        Assert.Equal(30, Config().Population);
+        Assert.Equal(30, Config().BasePopulation);
+        Assert.Equal(278, Config().Population); // los 30 de la prueba y los 248 del Centro (etapa 9)
     }
 
     [Fact]
     public void Treinta_habitantes_con_la_composicion_de_la_prueba()
     {
-        var people = ResidentGenerator.Generate(Config());
+        var all = ResidentGenerator.Generate(Config());
+        Assert.Equal(278, all.Count);
+        Assert.Equal(278, all.Select(p => p.Id).Distinct().Count());
+        var people = all.Take(30).ToList();
 
-        Assert.Equal(30, people.Count);
         Assert.Equal(8, people.Count(p => p.Profession == "obrero"));
         Assert.Equal(6, people.Count(p => p.Profession == "comerciante"));
         Assert.Equal(4, people.Count(p => p.Profession == "transportista"));
@@ -38,6 +41,21 @@ public class LifeTests
         Assert.Equal(30, people.Select(p => p.FullName).Distinct().Count());
         Assert.All(people.Where(p => p.Profession == "vecino"), p => Assert.Null(p.Workplace));
         Assert.All(people.Where(p => p.Profession != "vecino"), p => Assert.NotNull(p.Workplace));
+    }
+
+    [Fact]
+    public void La_gente_del_Centro_se_suma_sin_cambiar_a_los_que_ya_vivian()
+    {
+        var cfg = Config();
+        var with = ResidentGenerator.Generate(cfg);
+        cfg.Expansions.Clear();
+        var before = ResidentGenerator.Generate(cfg);
+        Assert.Equal(30, before.Count);
+        Assert.Equal(before, with.Take(30)); // mismos ids, nombres, casas y personalidades
+        var downtown = with.Skip(30).ToList();
+        Assert.Contains(downtown, p => p.Profession == "oficinista");
+        Assert.All(downtown, p => Assert.StartsWith("centro-", p.District));
+        Assert.All(downtown.Where(p => p.Profession != "vecino"), p => Assert.NotNull(p.Workplace));
     }
 
     [Fact]

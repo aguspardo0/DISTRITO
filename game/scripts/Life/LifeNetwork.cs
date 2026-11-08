@@ -127,10 +127,20 @@ public partial class LifeNetwork : Node
     {
         if (_sim is null)
             return;
+        var watch = System.Diagnostics.Stopwatch.StartNew();
         var world = new LifeWorld(_residents, _states);
-        foreach (var r in _residents.Values)
+        // Etapa 9 (cientos de habitantes): como mucho unos pocos deciden por segundo (buscar el camino es lo que cuesta);
+        // los demás esperan su turno al segundo siguiente. Se reparte en ronda para que nadie quede siempre último.
+        _order ??= _residents.Values.OrderBy(r => r.Id).ToList();
+        var budget = DecisionsPerStep;
+        for (var k = 0; k < _order.Count; k++)
         {
+            var r = _order[(_cursor + k) % _order.Count];
             var before = _states[r.Id];
+            var due = before.Until <= now || (!before.Travelling(now) && LifeSimulation.Interruptible(before.Activity)
+                && (now - before.NeedsAt).TotalMinutes * BellmontClock.Speed >= LifeSimulation.CheckMinutes);
+            if (due && budget-- <= 0)
+                continue;
             var after = _sim.Advance(r, before, now, world);
             if (before.Money > 0 && after.Money == 0)
                 Record(r.Id, "sin-plata", $"{r.FullName} se quedó sin plata.");
@@ -149,7 +159,15 @@ public partial class LifeNetwork : Node
                 GD.Print($"[DISTRITO] VIDA relacion {e.Kind}: {e.Text}");
         }
         SyncNearby(now);
+        _cursor = (_cursor + 7) % Math.Max(1, _order.Count);
+        _stepMsMax = Math.Max(_stepMsMax, watch.Elapsed.TotalMilliseconds);
     }
+
+    /// <summary>Cuántos habitantes pueden decidir por segundo como mucho.</summary>
+    public const int DecisionsPerStep = 25;
+    private List<Distrito.Shared.Life.Resident>? _order;
+    private int _cursor;
+    private double _stepMsMax;
 
     private DateTimeOffset _lastMeet;
 
@@ -274,6 +292,13 @@ public partial class LifeNetwork : Node
 
     private static double Distance((double X, double Z) p, double x, double z) => Math.Sqrt((p.X - x) * (p.X - x) + (p.Z - z) * (p.Z - z));
 
+    private double TakeStepMs()
+    {
+        var v = _stepMsMax;
+        _stepMsMax = 0;
+        return v;
+    }
+
     private (int Friends, int Rivals) CountTies()
     {
         int friends = 0, rivals = 0;
@@ -313,11 +338,18 @@ public partial class LifeNetwork : Node
             var sent = _sent.TryGetValue(player.PeerId, out var known) ? known : (_sent[player.PeerId] = new());
             var views = new List<ResidentView>();
             var removed = new List<Guid>();
+            // Con mucha gente, a cada jugador le llegan como mucho los más cercanos (para que su computadora no sufra).
+            var px = player.GlobalPosition.X;
+            var pz = player.GlobalPosition.Z;
+            var near = positions
+                .Select(kv => (kv.Key, D: (px - kv.Value.X) * (px - kv.Value.X) + (pz - kv.Value.Z) * (pz - kv.Value.Z)))
+                .Where(x => x.D <= ResidentLevels.KeepNear * ResidentLevels.KeepNear)
+                .OrderBy(x => x.D).Take(ResidentLevels.MaxDrawn).Select(x => x.Key).ToHashSet();
             foreach (var (id, (x, z)) in positions)
             {
                 var seen = sent.TryGetValue(id, out var decision);
                 var state = _states[id];
-                if (ResidentLevels.InRange(player.GlobalPosition.X - x, player.GlobalPosition.Z - z, seen))
+                if (near.Contains(id) && ResidentLevels.InRange(player.GlobalPosition.X - x, player.GlobalPosition.Z - z, seen))
                 {
                     if (!seen || decision != state.Decisions)
                     {
@@ -454,7 +486,7 @@ public partial class LifeNetwork : Node
     {
         var counts = _states.Values.GroupBy(s => s.Travelling(now) ? "caminando" : s.Activity).OrderBy(g => g.Key).Select(g => $"{g.Key.Replace(' ', '_')}={g.Count()}");
         return $"hora_bellmont={BellmontClock.TimeOfDay(now):hh\\:mm} {string.Join(" ", counts)} decisiones={_sim?.DecisionsMade ?? 0} " +
-               $"amistades={CountTies().Friends} rivalidades={CountTies().Rivals} cerca={_near} intermedio={_middle} lejos={_states.Count - _near - _middle} celdas_caminables={CityNavigation.WalkableCells}";
+               $"vida_ms_max={TakeStepMs():0.0} amistades={CountTies().Friends} rivalidades={CountTies().Rivals} cerca={_near} intermedio={_middle} lejos={_states.Count - _near - _middle} celdas_caminables={CityNavigation.WalkableCells}";
     }
 
     /// <summary>Qué hace cada habitante y por qué (herramienta de inspección del panel de administración).</summary>
