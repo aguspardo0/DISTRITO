@@ -44,6 +44,9 @@ public partial class InterestManager : Node
     /// <summary>Cantidad de pares (observador, objetivo) visibles ahora. Para métricas.</summary>
     public int VisiblePairs => _visible.Count(kv => kv.Value && kv.Key.Target != kv.Key.Observer);
 
+    /// <summary>¿El observador recibe hoy a este personaje? (el propio, siempre). Lo usan los paquetes de movimiento.</summary>
+    public bool Sees(long observer, long target) => target == observer || _visible.GetValueOrDefault((target, observer));
+
     private bool IsVisible(long target, long observer)
     {
         if (target == observer)

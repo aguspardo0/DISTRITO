@@ -7,7 +7,7 @@ namespace Distrito.Game.Player;
 /// <summary>
 /// Personaje de un jugador. El nombre del nodo es el id de red (peer) de su dueño.
 ///
-/// Autoridad: el servidor simula el movimiento y replica posición/rotación (MultiplayerSynchronizer).
+/// Autoridad: el servidor simula el movimiento; la posición y el giro viajan en paquetes compactos (PlayerSnapshots) y el resto por MultiplayerSynchronizer.
 /// El dueño solo envía su intención de movimiento con <see cref="SubmitLocalInput"/>.
 /// En los demás equipos el modelo visual se suaviza hacia la última posición recibida.
 /// </summary>

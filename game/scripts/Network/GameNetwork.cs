@@ -99,6 +99,10 @@ public partial class GameNetwork : Node
         spawner.SpawnPath = spawner.GetPathTo(players);
         spawner.AddSpawnableScene(PlayerScenePath);
 
+        var snapshots = new PlayerSnapshots { Name = "Snapshots" }; // mismo nombre en servidor y cliente: ahí viajan los paquetes de movimiento
+        AddChild(snapshots);
+        snapshots.Initialize(this);
+
         _players.ChildEnteredTree += OnPlayerNodeEntered;
         Multiplayer.PeerConnected += OnPeerConnected;
         Multiplayer.PeerDisconnected += OnPeerDisconnected;
