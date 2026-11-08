@@ -62,7 +62,7 @@ public partial class AdminNetwork : Node
     public void ServerReports()
     {
         if (Multiplayer.IsServer())
-            _ = AsAdminAsync(Multiplayer.GetRemoteSenderId(), (peer, _) => _ = SendReportsAsync(peer));
+            _ = AsAdminAsync(Multiplayer.GetRemoteSenderId(), (peer, _) => { var send = SendReportsAsync(peer); });
     }
 
     private async Task SendReportsAsync(long peer)
