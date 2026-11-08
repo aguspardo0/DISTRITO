@@ -1,13 +1,17 @@
 using Distrito.Game.Network;
+using Distrito.Game.Player;
+using Distrito.Server.Core.World;
 using Distrito.Shared.Life;
 using Godot;
 
 namespace Distrito.Game.Life;
 
 /// <summary>
-/// Vida autónoma de los NPC en el servidor del juego (etapa 1: identidad y estado guardado). Al arrancar pide los
-/// habitantes al backend (que los crea la primera vez) y cada pocos minutos guarda su estado. En las próximas etapas
-/// acá corren las rutinas, necesidades y decisiones; el servidor decide y el backend solo guarda.
+/// Vida autónoma de los NPC. En el servidor del juego: al arrancar pide los habitantes al backend (que los crea la
+/// primera vez), los hace vivir (rutinas, necesidades y decisiones) y cada pocos minutos guarda su estado; el servidor
+/// decide y el backend solo guarda. Etapa 5: a cada jugador le manda los habitantes que tiene cerca, un tramo por
+/// decisión (de dónde sale, por qué esquinas y a dónde llega), y en el cliente caminan solos por las veredas, entran a
+/// los locales y patrullan. Los lejanos no se dibujan ni viajan por la red.
 /// Sin backend (modo invitado) no hay habitantes.
 /// </summary>
 public partial class LifeNetwork : Node
@@ -32,11 +36,22 @@ public partial class LifeNetwork : Node
     public LifeConfig? Config => _config;
     public bool Loaded => _config is not null;
 
-    public void Initialize(GameNetwork network) => _network = network;
+    public void Initialize(GameNetwork network)
+    {
+        _network = network;
+        Multiplayer.PeerDisconnected += peer => _sent.Remove(peer);
+    }
 
     public override void _Process(double delta)
     {
-        if (!Multiplayer.HasMultiplayerPeer() || !Multiplayer.IsServer() || _network.Backend is null)
+        if (!Multiplayer.HasMultiplayerPeer())
+            return;
+        if (!Multiplayer.IsServer())
+        {
+            AnimateFigures((float)delta);
+            return;
+        }
+        if (_network.Backend is null)
             return;
         if (!Loaded)
         {
@@ -81,7 +96,7 @@ public partial class LifeNetwork : Node
                 _states[r.Identity.Id] = r.State ?? ResidentGenerator.InitialState(r.Identity, now);
             }
             _config = config;
-            _sim = new LifeSimulation(config);
+            _sim = new LifeSimulation(config, CityNavigation.Route);
             Step(now); // se pone al día con lo que pasó mientras el servidor estaba apagado
             GD.Print($"[DISTRITO] VIDA habitantes={_residents.Count} hora_bellmont={BellmontClock.TimeOfDay(now):hh\\:mm} " +
                      $"noche={(BellmontClock.IsNight(now) ? "si" : "no")} " +
@@ -111,12 +126,166 @@ public partial class LifeNetwork : Node
                 Record(r.Id, "sin-plata", $"{r.FullName} se quedó sin plata.");
             _states[r.Id] = after;
         }
+        SyncNearby(now);
+    }
+
+    // --- Etapa 5: los que están cerca de cada jugador ---
+
+    /// <summary>Por jugador: qué habitantes ya tiene y con qué decisión (para mandar solo lo nuevo).</summary>
+    private readonly Dictionary<long, Dictionary<Guid, long>> _sent = new();
+    private int _near, _middle;
+
+    private void SyncNearby(DateTimeOffset now)
+    {
+        var peers = Multiplayer.GetPeers().ToHashSet();
+        var players = _network.AllPlayers.Where(p => p.IsInsideTree() && peers.Contains(p.PeerId)).ToList();
+        var positions = _states.ToDictionary(kv => kv.Key, kv => kv.Value.PositionAt(now));
+        _near = _middle = 0;
+        foreach (var (_, (x, z)) in positions)
+        {
+            var closest = players.Count == 0 ? double.MaxValue : players.Min(p =>
+                (p.GlobalPosition.X - x) * (p.GlobalPosition.X - x) + (p.GlobalPosition.Z - z) * (p.GlobalPosition.Z - z));
+            if (closest <= ResidentLevels.Near * ResidentLevels.Near) _near++;
+            else if (closest <= ResidentLevels.Middle * ResidentLevels.Middle) _middle++;
+        }
+
+        var nowMs = now.ToUnixTimeMilliseconds();
+        foreach (var player in players)
+        {
+            var sent = _sent.TryGetValue(player.PeerId, out var known) ? known : (_sent[player.PeerId] = new());
+            var views = new List<ResidentView>();
+            var removed = new List<Guid>();
+            foreach (var (id, (x, z)) in positions)
+            {
+                var seen = sent.TryGetValue(id, out var decision);
+                var state = _states[id];
+                if (ResidentLevels.InRange(player.GlobalPosition.X - x, player.GlobalPosition.Z - z, seen))
+                {
+                    if (!seen || decision != state.Decisions)
+                    {
+                        views.Add(ResidentView.Of(_residents[id], state));
+                        sent[id] = state.Decisions;
+                    }
+                }
+                else if (seen)
+                {
+                    removed.Add(id);
+                    sent.Remove(id);
+                }
+            }
+            if (views.Count > 0 || removed.Count > 0)
+                RpcId(player.PeerId, MethodName.ReceiveResidents, ResidentSyncCodec.Encode(nowMs, views, removed));
+        }
+        foreach (var gone in _sent.Keys.Where(k => !peers.Contains(k)).ToList())
+            _sent.Remove(gone);
+    }
+
+    // --- Cliente: las figuras ---
+
+    private sealed class Figure
+    {
+        public required ResidentView View;
+        public required Node3D Root;
+        public required CharacterModel Model;
+        public Vector3 Last;
+    }
+
+    private readonly Dictionary<Guid, Figure> _figures = new();
+    private long _clockOffsetMs; // hora del servidor − hora local
+    private bool _haveClock;
+
+    public int FigureCount => _figures.Count;
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = false, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ReceiveResidents(byte[] data)
+    {
+        (long ServerNowMs, List<ResidentView> Views, List<Guid> Removed) packet;
+        try
+        {
+            packet = ResidentSyncCodec.Decode(data);
+        }
+        catch (ArgumentException)
+        {
+            return;
+        }
+        var offset = packet.ServerNowMs - DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        _clockOffsetMs = _haveClock ? (long)(_clockOffsetMs * 0.8 + offset * 0.2) : offset;
+        _haveClock = true;
+        foreach (var id in packet.Removed)
+            if (_figures.Remove(id, out var gone))
+                gone.Root.QueueFree();
+        foreach (var view in packet.Views)
+        {
+            if (_figures.TryGetValue(view.Id, out var figure))
+            {
+                figure.View = view;
+                continue;
+            }
+            var root = new Node3D { Name = $"Habitante_{view.Id:N}" };
+            var model = CharacterModel.Build(ResidentLooks.For(view));
+            root.AddChild(model);
+            root.AddChild(new Label3D
+            {
+                Text = view.Name,
+                Position = new Vector3(0, 2.15f, 0),
+                FontSize = 28,
+                PixelSize = 0.004f,
+                Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                Modulate = new Color(0.95f, 0.92f, 0.85f),
+                OutlineSize = 6,
+                VisibilityRangeEnd = 14,
+            });
+            AddChild(root);
+            figure = new Figure { View = view, Root = root, Model = model };
+            _figures[view.Id] = figure;
+            Place(figure, ServerNowMs(), 0, snap: true);
+        }
+        if (!_loggedFirst && _figures.Count > 0)
+        {
+            _loggedFirst = true;
+            GD.Print($"[DISTRITO] VIDA_CLIENTE habitantes_cerca={_figures.Count} reloj_ms={_clockOffsetMs}");
+        }
+    }
+
+    private bool _loggedFirst;
+
+    private long ServerNowMs() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + _clockOffsetMs;
+
+    private void AnimateFigures(float delta)
+    {
+        if (_figures.Count == 0)
+            return;
+        var now = ServerNowMs();
+        foreach (var figure in _figures.Values)
+            Place(figure, now, delta, snap: false);
+    }
+
+    private static void Place(Figure f, long nowMs, float delta, bool snap)
+    {
+        var visible = f.View.Visible(nowMs);
+        f.Root.Visible = visible;
+        if (!visible)
+            return;
+        var (x, z, dx, dz, walking) = f.View.At(nowMs);
+        var target = new Vector3(x, 0, z);
+        // Si el tramo nuevo empieza un poco corrido (redondeos, reloj), se acomoda de a poco en vez de saltar.
+        var position = snap || f.Last.DistanceTo(target) > 3 ? target : f.Last.Lerp(target, Mathf.Clamp(delta * 10, 0, 1));
+        var speed = delta > 0 ? f.Last.DistanceTo(position) / delta : 0;
+        f.Last = position;
+        f.Root.GlobalPosition = position;
+        if (walking)
+        {
+            var yaw = Mathf.Atan2(-dx, -dz); // el modelo mira hacia −Z
+            f.Root.Rotation = new Vector3(0, Mathf.LerpAngle(f.Root.Rotation.Y, yaw, snap ? 1 : Mathf.Clamp(delta * 8, 0, 1)), 0);
+        }
+        f.Model.Animate(walking ? Math.Max(speed, (float)LifeSimulation.WalkSpeed) : 0, delta);
     }
 
     public string Summary(DateTimeOffset now)
     {
         var counts = _states.Values.GroupBy(s => s.Travelling(now) ? "caminando" : s.Activity).OrderBy(g => g.Key).Select(g => $"{g.Key.Replace(' ', '_')}={g.Count()}");
-        return $"hora_bellmont={BellmontClock.TimeOfDay(now):hh\\:mm} {string.Join(" ", counts)} decisiones={_sim?.DecisionsMade ?? 0}";
+        return $"hora_bellmont={BellmontClock.TimeOfDay(now):hh\\:mm} {string.Join(" ", counts)} decisiones={_sim?.DecisionsMade ?? 0} " +
+               $"cerca={_near} intermedio={_middle} lejos={_states.Count - _near - _middle} celdas_caminables={CityNavigation.WalkableCells}";
     }
 
     /// <summary>Qué hace cada habitante y por qué (herramienta de inspección del panel de administración).</summary>
@@ -126,7 +295,7 @@ public partial class LifeNetwork : Node
             return "Los habitantes todavía no se cargaron (hace falta el backend).";
         var lines = new List<string>
         {
-            $"Hora de Bellmont {BellmontClock.TimeOfDay(now):hh\\:mm} ({(BellmontClock.IsNight(now) ? "de noche" : "de día")}) · {_residents.Count} habitantes · nivel: lejos (todavía no se dibujan)",
+            $"Hora de Bellmont {BellmontClock.TimeOfDay(now):hh\\:mm} ({(BellmontClock.IsNight(now) ? "de noche" : "de día")}) · {_residents.Count} habitantes · cerca de algún jugador: {_near} (se dibujan) · intermedio: {_middle} · lejos: {_states.Count - _near - _middle}",
             "",
         };
         var professions = _config.Professions.ToDictionary(p => p.Code, p => p.Name);

@@ -236,6 +236,8 @@ life=$(grep -h "VIDA habitantes=" persist-server.log | tail -1)
 if echo "$life" | grep -q "habitantes=30"; then note "Vida de los NPC" "${life#*\] }"
   grep -h "VIDA hora_bellmont=" persist-server.log | tail -1 | while IFS= read -r l; do note "Vida de los NPC (qué hacen)" "${l#*\] }"; done
 else error "Vida de los NPC" "el servidor no cargó los 30 habitantes (${life:-sin línea VIDA})"; fi
+near=$(grep -h "VIDA_CLIENTE" persist-r*-*.log 2>/dev/null | tail -1)
+note "Vida de los NPC (cliente)" "${near:+${near#*\] }}${near:-ningún habitante pasó cerca de los bots}"
 
 kill "$server_pid" "$backend_pid" 2>/dev/null || true
 exit $fail

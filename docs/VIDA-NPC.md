@@ -43,7 +43,7 @@ La plata de cada habitante es solo un estado para sus decisiones (si le alcanza 
   el motivo («hambre 0,82 y le alcanza ($12,30)»).
 - **Interrupciones:** cada 15 minutos de Bellmont se revisa si algo urgente corta lo que hace (mucha hambre o cansancio).
 - **Desplazamientos lógicos:** sale de donde está, camina a 1,3 m/s hasta el lugar y ahí hace la actividad. Los
-  policías van de parada en parada durante el turno. Todavía no se dibujan (nivel «lejos»).
+  policías van de parada en parada durante el turno. Desde la etapa 5 los cercanos se dibujan (ver abajo).
 - **Plata del habitante:** cobra al terminar el turno (o al levantarse, si no trabaja) y gasta en comer, salir y
   comprar (`gastos` en `config/vida.json`). Es solo su estado: no toca la economía.
 - **Ponerse al día:** como cada uno tiene la hora en la que termina lo que hace, después de un reinicio se recalcula
@@ -52,3 +52,33 @@ La plata de cada habitante es solo un estado para sus decisiones (si le alcanza 
 En el servidor del juego, `LifeNetwork` los avanza cada segundo y cada 5 minutos escribe en el log qué hacen
 (`VIDA hora_bellmont=… trabajando=… durmiendo=…`). **Inspección:** panel de administración (F10) → «Habitantes» →
 qué hace cada uno, por qué y cómo está de hambre, cansancio y ganas de ver gente.
+
+## Etapa 5 (2026-11-08): navegación y niveles — los cercanos se ven caminando
+
+- **Caminos** (`CityNavigation`, en `Distrito.Server.Core/World`): grilla de 1,5 m sobre el plano de `CityLayout`;
+  una celda es caminable si está adentro de un distrito y a más de 60 cm de cualquier edificio de `MapPresence`.
+  Camino más corto con A* (sin cortar esquinas) y después se queda solo con las esquinas que hacen falta. Si el destino
+  cae adentro de un edificio, el camino termina en la vereda más cercana (la puerta). La grilla sale del mismo plano
+  que el mundo 3D, así que crece sola cuando crezca el mapa.
+- **Simulación:** `LifeSimulation` recibe el buscador de caminos; cada decisión guarda las esquinas (`Path`) y el
+  tiempo de viaje sale del largo real del camino. Al ponerse al día después de un reinicio no se buscan caminos (son
+  viajes que ya pasaron).
+- **Lugares cerrados:** en `config/vida.json` cada lugar tiene `"adentro"`; al llegar a uno cerrado (o a su casa) el
+  habitante entra y deja de verse hasta que sale. El kiosco, el taller, los muelles y el puesto de policía son al aire
+  libre. La comisaría pasó a ser el **puesto de policía de la Avenida Norte** (24,5; −33): el punto viejo (0; −60)
+  quedaba en el borde del Barrio Valenti.
+- **Tres niveles** (`ResidentLevels`): **cerca** (hasta 65 m de un jugador, se suelta a los 75 m para que no
+  parpadeen): se dibujan; **intermedio** (hasta 150 m): no se dibujan pero ya están por aparecer; **lejos**: solo
+  viven en la simulación. El log del servidor los cuenta (`cerca=… intermedio=… lejos=…`) y el panel de
+  administración también.
+- **Red:** a cada jugador se le manda **un tramo por decisión** (`ResidentView`: quién es, la actividad, la hora de
+  salida y de llegada, las esquinas y si al llegar se mete adentro) y cuándo deja de verse. No se manda la posición a
+  cada rato: el cliente lo hace caminar solo con la hora del servidor (corrige la diferencia de reloj con cada paquete).
+  30 habitantes cerca son unos pocos KB por minuto.
+- **Cliente:** cada habitante cercano es una figura con las piezas de los personajes (`ResidentLooks`: la policía de
+  azul con gorra; las mujeres de vestido; el resto con ropa variada según una semilla), camina por las esquinas con la
+  animación de caminata, mira hacia donde va y muestra su nombre cuando estás a menos de 14 m. Al entrar a un local o
+  a su casa desaparece; al salir vuelve a aparecer en la puerta.
+- **Pruebas:** `CityNavigationTests` (ningún camino atraviesa edificios ni sale de la ciudad, todos los lugares y
+  casas se alcanzan, y el cliente calcula la misma posición que el servidor). En la prueba de persistencia el log del
+  bot muestra `VIDA_CLIENTE habitantes_cerca=…` si alguno pasó cerca.

@@ -18,6 +18,8 @@ public sealed class LifePlace
     [JsonPropertyName("nombre")] public string Name { get; set; } = "";
     [JsonPropertyName("x")] public double X { get; set; }
     [JsonPropertyName("z")] public double Z { get; set; }
+    /// <summary>Lugar cerrado: al llegar, el habitante entra y deja de verse (hasta que sale).</summary>
+    [JsonPropertyName("adentro")] public bool Indoor { get; set; }
 }
 
 public sealed class LifeProfession
@@ -144,18 +146,53 @@ public sealed record Resident(
 public sealed record ResidentState(Guid ResidentId, string Activity, string Place, double X, double Z, DateTimeOffset Since,
     DateTimeOffset ArrivesAt = default, DateTimeOffset Until = default, double FromX = 0, double FromZ = 0,
     double Hunger = 0.2, double Fatigue = 0.2, double Social = 0.3, long? Money = null,
-    string? Decision = null, string? Reason = null, long Decisions = 0, DateTimeOffset NeedsAt = default)
+    string? Decision = null, string? Reason = null, long Decisions = 0, DateTimeOffset NeedsAt = default,
+    double[]? Path = null, bool Indoor = false)
 {
     public bool Travelling(DateTimeOffset now) => now < ArrivesAt;
 
-    /// <summary>Dónde está ahora (si va caminando, en algún punto del camino).</summary>
+    /// <summary>Puntos del camino: la salida, las esquinas (<see cref="Path"/>: x, z, x, z…) y el destino.</summary>
+    public List<(double X, double Z)> Waypoints()
+    {
+        var points = new List<(double X, double Z)> { (FromX, FromZ) };
+        if (Path is { } p)
+            for (var i = 0; i + 1 < p.Length; i += 2)
+                points.Add((p[i], p[i + 1]));
+        points.Add((X, Z));
+        return points;
+    }
+
+    /// <summary>Largo del camino en metros.</summary>
+    public static double Length(IReadOnlyList<(double X, double Z)> points)
+    {
+        var total = 0.0;
+        for (var i = 1; i < points.Count; i++)
+            total += Math.Sqrt((points[i].X - points[i - 1].X) * (points[i].X - points[i - 1].X) + (points[i].Z - points[i - 1].Z) * (points[i].Z - points[i - 1].Z));
+        return total;
+    }
+
+    /// <summary>Dónde está ahora (si va caminando, en algún punto del camino, a velocidad pareja).</summary>
     public (double X, double Z) PositionAt(DateTimeOffset now)
     {
         if (!Travelling(now) || ArrivesAt <= Since)
             return (X, Z);
-        var t = (now - Since).TotalSeconds / (ArrivesAt - Since).TotalSeconds;
-        return (FromX + (X - FromX) * t, FromZ + (Z - FromZ) * t);
+        var t = Math.Clamp((now - Since).TotalSeconds / (ArrivesAt - Since).TotalSeconds, 0, 1);
+        var points = Waypoints();
+        var left = Length(points) * t;
+        for (var i = 1; i < points.Count; i++)
+        {
+            var (ax, az) = points[i - 1];
+            var (bx, bz) = points[i];
+            var seg = Math.Sqrt((bx - ax) * (bx - ax) + (bz - az) * (bz - az));
+            if (left <= seg && seg > 0)
+                return (ax + (bx - ax) * left / seg, az + (bz - az) * left / seg);
+            left -= seg;
+        }
+        return (X, Z);
     }
+
+    /// <summary>¿Se ve en la calle? No si ya llegó a un lugar cerrado (su casa, un local).</summary>
+    public bool Visible(DateTimeOffset now) => Travelling(now) || !Indoor;
 }
 
 /// <summary>Un hecho importante de su vida (no cada movimiento).</summary>

@@ -81,7 +81,7 @@ public static class ResidentGenerator
 
     public static ResidentState InitialState(Resident r, DateTimeOffset now) =>
         new(r.Id, LifeActivities.AtHome, LifeSimulation.HomePlace, r.HomeX, r.HomeZ, now,
-            ArrivesAt: now, Until: now, FromX: r.HomeX, FromZ: r.HomeZ, Money: r.PocketMoneyCents, NeedsAt: now);
+            ArrivesAt: now, Until: now, FromX: r.HomeX, FromZ: r.HomeZ, Money: r.PocketMoneyCents, NeedsAt: now, Indoor: true);
 }
 
 /// <summary>

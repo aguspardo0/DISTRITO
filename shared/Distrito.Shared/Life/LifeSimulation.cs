@@ -8,8 +8,14 @@ namespace Distrito.Shared.Life;
 /// personaje en el mundo) y para ponerse al día después de un reinicio.
 /// La plata es solo estado del habitante (le alcanza o no para comer); no toca el libro de cuentas.
 /// </summary>
-public sealed class LifeSimulation(LifeConfig cfg)
+public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route = null)
 {
+    /// <summary>
+    /// Camino por la ciudad (etapa 5): las esquinas de (desde) a (hasta), con el destino real al final (puede quedar
+    /// en la puerta si el punto pedido está adentro de un edificio). Sin camino, va en línea recta.
+    /// </summary>
+    public delegate IReadOnlyList<(double X, double Z)> Router(double fromX, double fromZ, double toX, double toZ);
+
     public const string HomePlace = "casa";
 
     /// <summary>Velocidad al caminar, en metros por segundo real.</summary>
@@ -25,6 +31,8 @@ public sealed class LifeSimulation(LifeConfig cfg)
 
     public long DecisionsMade { get; private set; }
 
+    private bool _catchingUp;
+
     /// <summary>Avanza un habitante hasta <paramref name="now"/>: decide todas las veces que haga falta.</summary>
     public ResidentState Advance(Resident r, ResidentState s, DateTimeOffset now)
     {
@@ -33,6 +41,7 @@ public sealed class LifeSimulation(LifeConfig cfg)
             if (s.Until <= now)
             {
                 var at = s.Until == default || s.Until < now.AddDays(-2) ? now : s.Until; // muy atrasado: arranca de ahora
+                _catchingUp = at < now.AddMinutes(-10); // poniéndose al día: viajes viejos, sin buscar el camino
                 s = Finish(r, s, at);
                 s = Decide(r, s, at);
                 continue;
@@ -43,6 +52,7 @@ public sealed class LifeSimulation(LifeConfig cfg)
                 var updated = Needs(r, s, now);
                 if (updated.Hunger > 0.9 || updated.Fatigue > 0.95)
                 {
+                    _catchingUp = false;
                     s = Decide(r, updated, now);
                     continue;
                 }
@@ -116,7 +126,18 @@ public sealed class LifeSimulation(LifeConfig cfg)
 
         var (fromX, fromZ) = s.PositionAt(at);
         var (toX, toZ) = Where(r, best.Place, s.Decisions);
-        var travel = TimeSpan.FromSeconds(Math.Sqrt((toX - fromX) * (toX - fromX) + (toZ - fromZ) * (toZ - fromZ)) / WalkSpeed);
+        double[]? path = null;
+        if (route is not null && !_catchingUp && (Math.Abs(toX - fromX) > 0.05 || Math.Abs(toZ - fromZ) > 0.05))
+        {
+            var corners = route(fromX, fromZ, toX, toZ);
+            if (corners.Count > 0)
+            {
+                (toX, toZ) = corners[^1];
+                path = corners.Count > 1 ? corners.Take(corners.Count - 1).SelectMany(c => new[] { c.X, c.Z }).ToArray() : null;
+            }
+        }
+        var length = ResidentState.Length(new ResidentState(s.ResidentId, "", "", toX, toZ, at, FromX: fromX, FromZ: fromZ, Path: path).Waypoints());
+        var travel = TimeSpan.FromSeconds(length / WalkSpeed);
         var arrives = at + travel;
         var until = best.Until ?? arrives + TimeSpan.FromSeconds(best.Minutes * 60 / BellmontClock.Speed);
         if (until <= arrives)
@@ -131,7 +152,8 @@ public sealed class LifeSimulation(LifeConfig cfg)
         var money = (s.Money ?? r.PocketMoneyCents) - best.Cost;
         return s with
         {
-            Activity = best.Activity, Place = best.Place, X = toX, Z = toZ, FromX = fromX, FromZ = fromZ,
+            Activity = best.Activity, Place = best.Place, X = toX, Z = toZ, FromX = fromX, FromZ = fromZ, Path = path,
+            Indoor = best.Place == HomePlace || cfg.Place(best.Place)?.Indoor == true,
             Since = at, ArrivesAt = arrives, Until = until, Money = Math.Max(0, money),
             Decision = Describe(best.Activity, best.Place), Reason = best.Reason, Decisions = s.Decisions + 1,
         };

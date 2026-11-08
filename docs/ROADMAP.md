@@ -149,7 +149,7 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
    - [x] Auditoría e integración (2026-11-08) y decisiones del equipo: NPC visibles como ambientación (la plata la mueven los habitantes simulados), día de Bellmont de 12 horas reales (6 de día y 6 de noche), policía sin arrestos, casas sin interior. Ver `docs/VIDA-NPC.md`.
    - [x] Etapa 1 (2026-11-08): identidad y estado guardado de los 30 habitantes (`config/vida.json`, `ResidentGenerator`, `LifeStore`, `LifeNetwork`) y el reloj de Bellmont.
    - [x] Etapas 2 a 4 (2026-11-08): rutinas, necesidades y decisiones (`LifeSimulation`), con interrupciones, desplazamientos lógicos, patrullas y la inspección en el panel de administración.
-   - [ ] Etapa 5: navegación y los tres niveles (los cercanos se ven caminando).
+   - [x] Etapa 5: navegación y los tres niveles (los cercanos se ven caminando por las veredas, entran a los locales y patrullan).
 
 ## Más adelante (sin orden fijado)
 Economía con oferta/demanda, producción, empresas, NPC con objetivos, organizaciones y jerarquías, territorio, política, transporte entre ciudades, varias ciudades.
