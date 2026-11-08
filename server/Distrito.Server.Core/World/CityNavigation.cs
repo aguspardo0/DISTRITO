@@ -65,12 +65,23 @@ public static class CityNavigation
     {
         if (Free(c.X, c.Z))
             return c;
-        for (var r = 1; r < 40; r++)
+        // La más cercana de verdad (en línea recta), no la primera del anillo cuadrado: así se sale por la vereda más próxima.
+        (int X, int Z)? best = null;
+        var bestD = int.MaxValue;
+        var limit = 40;
+        for (var r = 1; r <= limit; r++)
+        {
             for (var dz = -r; dz <= r; dz++)
             for (var dx = -r; dx <= r; dx++)
-                if ((Math.Abs(dx) == r || Math.Abs(dz) == r) && Free(c.X + dx, c.Z + dz))
-                    return (c.X + dx, c.Z + dz);
-        return c;
+                if ((Math.Abs(dx) == r || Math.Abs(dz) == r) && Free(c.X + dx, c.Z + dz) && dx * dx + dz * dz < bestD)
+                {
+                    bestD = dx * dx + dz * dz;
+                    best = (c.X + dx, c.Z + dz);
+                }
+            if (best is not null && limit == 40)
+                limit = Math.Min(40, (int)Math.Ceiling(r * 1.42)); // más allá no puede haber una más cerca
+        }
+        return best ?? c;
     }
 
     /// <summary>
