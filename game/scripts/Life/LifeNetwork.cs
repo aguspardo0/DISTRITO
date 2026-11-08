@@ -36,9 +36,15 @@ public partial class LifeNetwork : Node
     public LifeConfig? Config => _config;
     public bool Loaded => _config is not null;
 
-    public void Initialize(GameNetwork network)
+    public void Initialize(GameNetwork network, Distrito.Game.Combat.CombatNetwork? combat = null)
     {
         _network = network;
+        if (combat is not null)
+            combat.Incident += (kind, at) =>
+            {
+                if (Multiplayer.HasMultiplayerPeer() && Multiplayer.IsServer())
+                    OnIncident(kind, at.X, at.Z, DateTimeOffset.UtcNow);
+            };
         Multiplayer.PeerDisconnected += peer => _sent.Remove(peer);
     }
 
@@ -146,6 +152,54 @@ public partial class LifeNetwork : Node
     }
 
     private DateTimeOffset _lastMeet;
+
+    // --- Etapa 7: reacciones ---
+
+    private readonly List<LifeIncident> _recentIncidents = new();
+
+    /// <summary>
+    /// Pasó algo en la calle: cada habitante que lo ve o lo oye reacciona según su personalidad y la distancia. Si
+    /// alguien avisa, van hasta dos policías de turno (sin arrestar). Los tiros seguidos en el mismo lugar cuentan una vez.
+    /// </summary>
+    public void OnIncident(string kind, double x, double z, DateTimeOffset now)
+    {
+        if (_sim is null)
+            return;
+        _recentIncidents.RemoveAll(i => (now - i.At).TotalSeconds > 20);
+        if (_recentIncidents.Any(i => i.Kind == kind && (i.X - x) * (i.X - x) + (i.Z - z) * (i.Z - z) < 15 * 15))
+            return;
+        var incident = new LifeIncident(kind, Math.Round(x, 2), Math.Round(z, 2), now);
+        _recentIncidents.Add(incident);
+        var counts = new Dictionary<string, int>();
+        foreach (var r in _residents.Values.OrderBy(r => r.Id))
+        {
+            var (after, outcome) = _sim.React(r, _states[r.Id], incident);
+            if (outcome is null)
+                continue;
+            _states[r.Id] = after;
+            counts[outcome] = counts.GetValueOrDefault(outcome) + 1;
+            if (outcome is "huyeron" or "escondidos" or "avisaron")
+                Record(r.Id, "reaccion", $"{r.FullName}: {after.Reason}.");
+        }
+        if (counts.GetValueOrDefault("avisaron") > 0)
+        {
+            var hour = BellmontClock.Hour(now);
+            var police = _residents.Values
+                .Where(r => r.Profession == "policia" && r.OnShift(hour) && _states[r.Id].Activity != LifeActivities.Responding)
+                .OrderBy(r => Distance(_states[r.Id].PositionAt(now), x, z)).Take(2).ToList();
+            foreach (var cop in police)
+            {
+                _states[cop.Id] = _sim.Respond(cop, _states[cop.Id], incident, $"le avisaron de {IncidentKinds.Describe(kind)} y va para allá");
+                Record(cop.Id, "reaccion", $"{cop.FullName} acudió a un aviso de {IncidentKinds.Describe(kind)}.");
+                counts["policias"] = counts.GetValueOrDefault("policias") + 1;
+            }
+        }
+        GD.Print($"[DISTRITO] VIDA reaccion {kind} en ({x:0},{z:0}): " +
+                 (counts.Count == 0 ? "nadie cerca" : string.Join(" ", counts.OrderBy(c => c.Key).Select(c => $"{c.Key}={c.Value}"))));
+        SyncNearby(now); // los que salieron corriendo se ven enseguida
+    }
+
+    private static double Distance((double X, double Z) p, double x, double z) => Math.Sqrt((p.X - x) * (p.X - x) + (p.Z - z) * (p.Z - z));
 
     private (int Friends, int Rivals) CountTies()
     {

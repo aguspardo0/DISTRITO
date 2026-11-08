@@ -147,7 +147,7 @@ public sealed record ResidentState(Guid ResidentId, string Activity, string Plac
     DateTimeOffset ArrivesAt = default, DateTimeOffset Until = default, double FromX = 0, double FromZ = 0,
     double Hunger = 0.2, double Fatigue = 0.2, double Social = 0.3, long? Money = null,
     string? Decision = null, string? Reason = null, long Decisions = 0, DateTimeOffset NeedsAt = default,
-    double[]? Path = null, bool Indoor = false, Dictionary<Guid, double>? Ties = null)
+    double[]? Path = null, bool Indoor = false, Dictionary<Guid, double>? Ties = null, DateTimeOffset ScaredUntil = default)
 {
     public bool Travelling(DateTimeOffset now) => now < ArrivesAt;
 
@@ -217,4 +217,7 @@ public static class LifeActivities
     public const string Socializing = "charlando";
     public const string Strolling = "paseando";
     public const string Visiting = "de visita";
+    public const string Fleeing = "huyendo";
+    public const string Hiding = "escondido";
+    public const string Responding = "acudiendo";
 }

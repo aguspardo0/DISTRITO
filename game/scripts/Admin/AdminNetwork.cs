@@ -54,6 +54,23 @@ public partial class AdminNetwork : Node
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ReceiveResidents(string text) => ResidentsReceived?.Invoke(text);
 
+    /// <summary>Prueba de reacciones (etapa 7): un tiro al aire donde está el administrador, sin daño.</summary>
+    public void RequestTestShot() => Send(MethodName.ServerTestShot);
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ServerTestShot()
+    {
+        if (Multiplayer.IsServer())
+            _ = AsAdminAsync(Multiplayer.GetRemoteSenderId(), (peer, _) =>
+            {
+                if (_network.GetPlayer(peer) is not { } me || _life is null)
+                    return;
+                _life.OnIncident(Distrito.Shared.Life.IncidentKinds.Shot, me.GlobalPosition.X, me.GlobalPosition.Z, DateTimeOffset.UtcNow);
+                if (Multiplayer.GetPeers().Contains((int)peer))
+                    RpcId(peer, MethodName.ReceiveResidents, _life.Report(DateTimeOffset.UtcNow));
+            });
+    }
+
     public event Action? StatusReceived;
     public event Action<string>? MessageReceived;
     public AdminView? Status { get; private set; }

@@ -307,6 +307,7 @@ public partial class PveNetwork : Node
             return;
         a.Robbed = true;
         a.Threat.Clear();
+        _combat.ReportIncident(Distrito.Shared.Life.IncidentKinds.Robbery, a.Body.GlobalPosition);
         a.LeaveAt = _clock + 12; // queda frenado unos segundos y se va
         if (a.Kind == Kind.Truck && _rules.Truck is { } t)
         {
@@ -417,6 +418,8 @@ public partial class PveNetwork : Node
                     continue;
                 }
                 var before = _shopThreat.GetValueOrDefault(key);
+                if (before == 0)
+                    _combat.ReportIncident(Distrito.Shared.Life.IncidentKinds.Robbery, at); // la gente ve que asaltan el local
                 var progress = _shopThreat[key] = before + dt * (1 + (float)_combat.Skill(p.PeerId, Distrito.Shared.Progression.SkillTree.Intimidation) / 100);
                 if ((int)progress != (int)before)
                     _combat.Notify(p.PeerId, $"Asaltando la caja de {npc.Name}… {(int)progress}/{s.ThreatSeconds:0} s");

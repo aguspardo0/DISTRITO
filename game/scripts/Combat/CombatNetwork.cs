@@ -38,6 +38,14 @@ public partial class CombatNetwork : Node
 
     /// <summary>Cliente: mensajes para el HUD.</summary>
     public event Action<string>? MessageReceived;
+
+    /// <summary>
+    /// Servidor: pasó algo en la calle que los habitantes pueden ver u oír (un tiro, alguien herido, un asalto). Lo usa
+    /// la vida de los NPC para que reaccionen (etapa 7).
+    /// </summary>
+    public event Action<string, Vector3>? Incident;
+
+    public void ReportIncident(string kind, Vector3 at) => Incident?.Invoke(kind, at);
     /// <summary>Pruebas: piñas que el servidor confirmó a este cliente.</summary>
     public int ConfirmedHits { get; private set; }
 
@@ -255,6 +263,7 @@ public partial class CombatNetwork : Node
             return;
 
         target.Downed = true;
+        ReportIncident(Distrito.Shared.Life.IncidentKinds.Wounded, target.GlobalPosition);
         _bleedUntil[target.PeerId] = _clock + CombatRules.BleedSeconds + Skill(target.PeerId, Distrito.Shared.Progression.SkillTree.ColdBlood); // Sangre fría
         GD.Print($"[DISTRITO] COMBAT_KO {attacker.DisplayName} dejó herido a {target.DisplayName}");
         SendMessage(attacker.PeerId, $"Dejaste herido a {target.DisplayName}.");

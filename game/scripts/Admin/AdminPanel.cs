@@ -189,6 +189,9 @@ public partial class AdminPanel : PanelContainer
         var residents = new Button { Text = "Ver qué hace cada uno y por qué" };
         residents.Pressed += _admin.RequestResidents;
         _content.AddChild(residents);
+        var shot = new Button { Text = "Tiro al aire acá (ver cómo reaccionan)" };
+        shot.Pressed += _admin.RequestTestShot;
+        _content.AddChild(shot);
 
         Section("Eventos ahora");
         var events = new HFlowContainer();

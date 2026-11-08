@@ -259,6 +259,7 @@ public partial class CombatNetwork
         var direction = (aimPoint - muzzle).Normalized();
         if (direction.LengthSquared() < 0.5f)
             return;
+        ReportIncident(Distrito.Shared.Life.IncidentKinds.Shot, muzzle); // los habitantes oyen el tiro
         // Línea de vista: entre los ojos y el cañón no puede haber pared (sacar el arma a través de un muro).
         if (WallDistance(eye, (muzzle - eye).Normalized(), eye.DistanceTo(muzzle)) < eye.DistanceTo(muzzle))
         {

@@ -104,3 +104,24 @@ qué hace cada uno, por qué y cómo está de hambre, cansancio y ganas de ver g
 - **Inspección:** el panel de administración muestra las relaciones de cada uno con nombre y valor.
 - **Pruebas:** `LifeSocietyTests` (cuatro días de Bellmont con los 30: se hacen amigos, las relaciones cambian las
   decisiones, es determinista y se guarda igual).
+
+## Etapa 7 (2026-11-08): reacciones
+
+- **Qué ven y oyen:** el servidor avisa a la vida de los NPC (`CombatNetwork.Incident`) cuando hay un **tiro**
+  (se oye hasta 45 m), alguien queda **herido** (30 m, asusta más) o un **asalto** a un local, al camión o al cobrador
+  (20 m). Los tiros seguidos en el mismo lugar cuentan una sola vez cada 20 segundos.
+- **Qué hace cada uno** (`LifeSimulation.React`, determinista), según su personalidad y qué tan cerca estaba:
+  - la **policía de turno** va a ver qué pasó (actividad «acudiendo») y se queda un rato mirando: sin arrestos, como
+    decidió el equipo;
+  - los más asustados **salen corriendo a su casa** (a 3,2 m/s, se ve que corren);
+  - otros **se meten en el local cerrado más cercano** (o en su casa, si está más cerca) y se quedan adentro;
+  - los confiados y pacíficos **avisan a la policía**: van hasta dos policías de turno, aunque estén lejos;
+  - los más duros **siguen con lo suyo**;
+  - los que ya estaban adentro **se quedan adentro** un rato más; los que duermen no se enteran.
+- **Después del susto:** por un rato (más largo cuanto más miedo tuvo) prefiere quedarse en casa y sale menos a
+  pasear, comprar o ver gente («todavía está asustado por lo que vio»).
+- **Registro:** cada reacción importante queda en el historial del habitante y el log del servidor resume cada hecho
+  (`VIDA reaccion tiro en (12,-4): avisaron=1 escondidos=2 huyeron=1 policias=2 siguieron=3`).
+- **Para probarlo a mano:** panel de administración (F10) → «Habitantes» → «Tiro al aire acá»: simula un tiro donde
+  estás parado (sin daño ni balas) y muestra qué hizo cada uno.
+- **Pruebas:** `LifeReactionTests`.

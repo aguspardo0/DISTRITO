@@ -80,7 +80,7 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
         var money = s.Money ?? r.PocketMoneyCents;
         switch (s.Activity)
         {
-            case LifeActivities.Working or LifeActivities.Patrolling when !r.OnShift(BellmontClock.Hour(at)):
+            case LifeActivities.Working or LifeActivities.Patrolling or LifeActivities.Responding when r.HasShift && !r.OnShift(BellmontClock.Hour(at)):
                 money += _professions.GetValueOrDefault(r.Profession)?.Income ?? 0;
                 break;
             case LifeActivities.Sleeping when !r.HasShift:
@@ -173,7 +173,8 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
         var night = BellmontClock.IsNight(at);
         var money = s.Money ?? r.PocketMoneyCents;
         var fearful = r.Trait("temeroso");
-        var outdoorsAtNight = night ? 1 - 0.6 * fearful : 1;
+        var scared = s.ScaredUntil > at; // etapa 7: vio algo feo hace poco
+        var outdoorsAtNight = (night ? 1 - 0.6 * fearful : 1) * (scared ? 0.4 : 1);
         var c = cfg.Costs;
         var reasons = $"hambre {s.Hunger:0.00}, cansancio {s.Fatigue:0.00}, ganas de ver gente {s.Social:0.00}, tiene {Money(money)}";
 
@@ -238,18 +239,18 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
         if (hour is >= 8 and < 20 && money >= c.Shopping * 3)
         {
             var trusted = Trusted(r, s, cfg.ShopPlaces);
-            yield return new Option(LifeActivities.Shopping, trusted?.Place ?? Pick(cfg.ShopPlaces, r.Id, s.Decisions + 7), 0.45 + 0.3 * r.Trait("ambicioso") + (trusted is null ? 0 : 0.15),
+            yield return new Option(LifeActivities.Shopping, trusted?.Place ?? Pick(cfg.ShopPlaces, r.Id, s.Decisions + 7), (0.45 + 0.3 * r.Trait("ambicioso") + (trusted is null ? 0 : 0.15)) * (scared ? 0.4 : 1),
                 30, $"tiene plata ({Money(money)}) y los negocios están abiertos{(trusted is null ? "" : $"; le compra a {trusted.Value.Name}, que le tiene confianza")}", c.Shopping);
         }
 
         // Pasear: de día, los que no son miedosos.
         if (!night)
-            yield return new Option(LifeActivities.Strolling, Pick(cfg.Places.Select(p => p.Code).ToList(), r.Id, s.Decisions + 3), 0.35 + 0.25 * (1 - fearful),
+            yield return new Option(LifeActivities.Strolling, Pick(cfg.Places.Select(p => p.Code).ToList(), r.Id, s.Decisions + 3), (0.35 + 0.25 * (1 - fearful)) * (scared ? 0.4 : 1),
                 40, "tiene el día libre y sale a dar una vuelta");
 
         // Quedarse en casa: los reservados, o de noche los miedosos.
-        yield return new Option(LifeActivities.AtHome, HomePlace, 0.45 + 0.35 * r.Trait("reservado") + (night ? 0.4 * fearful : 0),
-            60, night && fearful > 0.6 ? "es de noche y prefiere no salir" : "se queda tranquilo en casa");
+        yield return new Option(LifeActivities.AtHome, HomePlace, 0.45 + 0.35 * r.Trait("reservado") + (night ? 0.4 * fearful : 0) + (scared ? 0.5 : 0),
+            60, scared ? "todavía está asustado por lo que vio y no quiere salir" : night && fearful > 0.6 ? "es de noche y prefiere no salir" : "se queda tranquilo en casa");
     }
 
     // --- Relaciones (etapa 6) ---
@@ -378,4 +379,128 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
     }
 
     private static string Money(long cents) => $"${cents / 100}.{cents % 100:00}";
+
+    // --- Reacciones (etapa 7) ---
+
+    /// <summary>Corriendo (huir o esconderse), en metros por segundo real.</summary>
+    public const double RunSpeed = 3.2;
+
+    /// <summary>La policía que acude a un aviso va apurada.</summary>
+    public const double HurrySpeed = 2.2;
+
+    /// <summary>
+    /// Qué hace un habitante ante algo que pasa cerca (un tiro, alguien herido, un asalto), según la distancia y su
+    /// personalidad: la policía de turno va a ver; los más asustados huyen a su casa corriendo, otros se meten en el
+    /// local cerrado más cercano, otros avisan a la policía y los más duros siguen con lo suyo. Los que están adentro
+    /// se quedan adentro un rato más. Los que duermen no se enteran.
+    /// </summary>
+    public (ResidentState State, string? Outcome) React(Resident r, ResidentState s, LifeIncident inc)
+    {
+        var now = inc.At;
+        if (s.Activity is LifeActivities.Fleeing or LifeActivities.Hiding or LifeActivities.Responding && s.Until > now)
+            return (s, null); // ya está reaccionando
+        if (s.Activity == LifeActivities.Sleeping && !s.Travelling(now))
+            return (s, null);
+        var (x, z) = s.PositionAt(now);
+        var distance = Math.Sqrt((x - inc.X) * (x - inc.X) + (z - inc.Z) * (z - inc.Z));
+        var radius = IncidentKinds.Radius(inc.Kind);
+        if (distance > radius)
+            return (s, null);
+        _at = now;
+        var closeness = 1 - distance / radius;
+        var what = $"{IncidentKinds.Describe(inc.Kind)} a {distance:0} m";
+        var inside = !s.Travelling(now) && s.Indoor;
+
+        if (r.Profession == "policia" && r.OnShift(BellmontClock.Hour(now)) && !inside)
+            return (Respond(r, s, inc, $"escuchó {what} y va a ver qué pasó"), "policias");
+
+        var fear = Math.Clamp(0.55 * r.Trait("temeroso") + 0.25 * (1 - r.Trait("agresivo")) + 0.5 * closeness * IncidentKinds.Severity(inc.Kind) - 0.15, 0, 1);
+        var scaredFor = TimeSpan.FromHours((0.5 + 1.5 * fear) / BellmontClock.Speed);
+        if (inside)
+        {
+            if (fear < 0.4)
+                return (s, null);
+            var stay = now + TimeSpan.FromMinutes(30 / BellmontClock.Speed);
+            return (s with
+            {
+                Until = s.Until > stay ? s.Until : stay, ScaredUntil = now + scaredFor,
+                Reason = $"escuchó {what} y se queda adentro", Decisions = s.Decisions + 1,
+            }, "adentro");
+        }
+        if (fear > 0.75)
+            return (Travel(r, s, now, LifeActivities.Fleeing, HomePlace, r.HomeX, r.HomeZ, RunSpeed, 60, "huir a su casa",
+                $"vio {what} y salió corriendo para su casa (miedo {fear:0.00})", indoor: true) with { ScaredUntil = now + scaredFor }, "huyeron");
+        if (fear > 0.5)
+        {
+            var refuge = cfg.Places.Where(p => p.Indoor)
+                .Select(p => (Code: p.Code, Name: p.Name, p.X, p.Z))
+                .Append((Code: HomePlace, Name: "su casa", X: r.HomeX, Z: r.HomeZ))
+                .OrderBy(p => (p.X - x) * (p.X - x) + (p.Z - z) * (p.Z - z)).First();
+            return (Travel(r, s, now, LifeActivities.Hiding, refuge.Code, refuge.X, refuge.Z, RunSpeed * 0.8, 30, $"esconderse en {refuge.Name}",
+                $"vio {what} y se metió en {refuge.Name} (miedo {fear:0.00})", indoor: true) with { ScaredUntil = now + scaredFor }, "escondidos");
+        }
+        if ((1 - r.Trait("desconfiado")) * (0.5 + 0.5 * r.Trait("pacifico")) > 0.42)
+            return (s with { Reason = $"vio {what} y avisó a la policía", ScaredUntil = now + scaredFor / 2 }, "avisaron");
+        return (s with { Reason = $"vio {what} y siguió con lo suyo" }, "siguieron");
+    }
+
+    /// <summary>Un policía va al lugar (sin arrestar a nadie: decisión del equipo) y se queda un rato mirando.</summary>
+    public ResidentState Respond(Resident r, ResidentState s, LifeIncident inc, string reason)
+    {
+        _at = inc.At;
+        var n = Noise(r.Id, s.Decisions + 17);
+        return Travel(r, s, inc.At, LifeActivities.Responding, IncidentKinds.Place, inc.X + (n[0] - 0.15) * 12, inc.Z + (n[1] - 0.15) * 12,
+            HurrySpeed, 20, $"ir a ver {IncidentKinds.Describe(inc.Kind)}", reason, indoor: false);
+    }
+
+    /// <summary>Sale ahora de donde está hacia (toX, toZ) por las veredas, a la velocidad dada, y se queda ahí unos minutos de Bellmont.</summary>
+    private ResidentState Travel(Resident r, ResidentState s, DateTimeOffset at, string activity, string place, double toX, double toZ,
+        double speed, double minutes, string decision, string reason, bool indoor)
+    {
+        DecisionsMade++;
+        s = Needs(r, s, at);
+        var (fromX, fromZ) = s.PositionAt(at);
+        double[]? path = null;
+        if (route is not null && (Math.Abs(toX - fromX) > 0.05 || Math.Abs(toZ - fromZ) > 0.05))
+        {
+            var corners = route(fromX, fromZ, toX, toZ);
+            if (corners.Count > 0)
+            {
+                (toX, toZ) = corners[^1];
+                path = corners.Count > 1 ? corners.Take(corners.Count - 1).SelectMany(c => new[] { c.X, c.Z }).ToArray() : null;
+            }
+        }
+        var length = ResidentState.Length(new ResidentState(s.ResidentId, "", "", toX, toZ, at, FromX: fromX, FromZ: fromZ, Path: path).Waypoints());
+        var arrives = at + TimeSpan.FromSeconds(length / speed);
+        return s with
+        {
+            Activity = activity, Place = place, X = Math.Round(toX, 2), Z = Math.Round(toZ, 2), FromX = fromX, FromZ = fromZ, Path = path, Indoor = indoor,
+            Since = at, ArrivesAt = arrives, Until = arrives + TimeSpan.FromSeconds(minutes * 60 / BellmontClock.Speed),
+            Decision = decision, Reason = reason, Decisions = s.Decisions + 1,
+        };
+    }
+}
+
+/// <summary>Algo que pasó en la calle y que los habitantes pueden ver u oír (etapa 7).</summary>
+public sealed record LifeIncident(string Kind, double X, double Z, DateTimeOffset At);
+
+public static class IncidentKinds
+{
+    public const string Shot = "tiro";
+    public const string Wounded = "herido";
+    public const string Robbery = "asalto";
+
+    /// <summary>Lugar «en la calle, donde pasó algo» (la policía que acude).</summary>
+    public const string Place = "incidente";
+
+    /// <summary>Hasta dónde se oye o se ve (metros).</summary>
+    public static double Radius(string kind) => kind switch { Shot => 45, Wounded => 30, Robbery => 20, _ => 15 };
+
+    /// <summary>Cuánto asusta (1 = un tiro).</summary>
+    public static double Severity(string kind) => kind switch { Shot => 1, Wounded => 1.2, Robbery => 0.8, _ => 0.5 };
+
+    public static string Describe(string kind) => kind switch
+    {
+        Shot => "un tiro", Wounded => "a alguien herido", Robbery => "un asalto", _ => "algo raro",
+    };
 }
