@@ -44,3 +44,18 @@ Los que estaban a mitad del tutorial siguen en el mismo paso.
   mundo 3D (preocupa el espacio si hay muchos). Lo que sí está decidido: se **alquilan** principalmente, comprar se
   puede pero **cuesta mucho**, y si el dueño no paga o no entra en **14 días** el local se libera. Las **sedes** de las
   cuadrillas van a tener la misma regla (alquiler primero; comprar, muy caro).
+
+## La competencia y las misiones del café (2026-11-08)
+
+- **Café La Perla:** el café de la competencia, en un local del Centro a pasos del Mercado (cartel de neón y toldo
+  verde). Se lleva parte de la clientela de los puestos según precio, calidad y fama (ver `docs/NEGOCIOS-QUE-CRECEN.md`).
+- **«El café de Don Aldo»:** cuatro misiones que da Don Aldo en la Esquina del café **a los que ya tienen su puesto**.
+  Son una historia más (se juegan con la libreta, los marcadores y el seguimiento de siempre) y no cuentan para el
+  límite de 2 encargos:
+  1. **Granos del puerto** (paquete con Gaetano, en Los Muelles) — $5, lo pagan los Moretti.
+  2. **La reunión de los Valenti** (2 bolsas de café) — $12, los Valenti.
+  3. **Noches de jazz** (un sobre al Club de jazz) — $8, los Valenti.
+  4. **¿Quién se robó la urna?** (escuchar 2 minutos cerca del kiosco) — $10, los Caruso.
+
+  Cada capítulo da además **+60 de fama al puesto**, experiencia y +5 de reputación con la familia que paga. La plata
+  sale de la cuenta de esa familia, como todos los encargos.

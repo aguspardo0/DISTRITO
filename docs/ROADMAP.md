@@ -156,6 +156,7 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
    - [ ] Etapa 9: optimización y prueba de población.
 - [x] Mapa, fase 1 (2026-11-08): El Centro, 600 × 600 m alrededor de lo que ya existía; grilla generada de manzanas de los 50, calles con autos y veredas, edificios de época sin interior, locales vacíos «SE ALQUILA» y muros en los barrios (solo se entra por su avenida). Ver `docs/CIUDAD.md`
 - [x] Primera hora (2026-11-08): turnos de empleado en la Esquina del café ($3 cada 10 minutos + propinas de hasta $1), con el minijuego de la urna (como se hacía el café en 1952); el tutorial guía de empleado a dueño del puesto sin obligar. Ver `docs/PRIMERA-HORA.md`
+- [x] Rubro café (2026-11-08): tope de 6 turnos por día, la competencia (Café La Perla y El Gato Negro) y las misiones «El café de Don Aldo» (plata de la familia que encarga + fama del puesto)
 - [x] Día y noche visibles (2026-11-08): sol y luna con el reloj de Bellmont, cielo y luz por hora, faroles, neones y ventanas que se prenden de noche, y la hora de Bellmont en pantalla
 - [ ] Mapa, fase 2: la bahía, el puerto grande, la aduana, el barrio obrero y la estación; el anillo para autos
 

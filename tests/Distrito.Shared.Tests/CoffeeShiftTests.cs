@@ -45,3 +45,28 @@ public class CoffeeShiftTests
         Assert.Equal("negro, sin azúcar", new CoffeeOrder(0, "x", 0, "").Text);
     }
 }
+
+/// <summary>Las misiones del café (historia de Don Aldo).</summary>
+public class CafeStoryTests
+{
+    [Fact]
+    public void Son_cuatro_capitulos_que_da_Don_Aldo_con_premios_de_5_a_15_pesos()
+    {
+        var cafe = FamilyStories.Cafe;
+        Assert.Equal(FamilyStories.CafeKey, cafe.StoryKey);
+        Assert.True(cafe.NeedsCoffeeStand);
+        Assert.Equal(4, cafe.Steps.Count);
+        Assert.All(cafe.Steps, s => Assert.InRange(s.RewardCents, 500, 1_500));
+        Assert.Same(cafe, FamilyStories.Of(FamilyStories.CafeKey));
+        Assert.Same(FamilyStories.Moretti, FamilyStories.Of(EconomyCatalog.Moretti));
+        for (var i = 0; i < cafe.Steps.Count; i++)
+        {
+            var d = FamilyStories.ToDraft(Guid.NewGuid(), FamilyStories.CafeKey, i);
+            Assert.Equal(EconomyCatalog.CoffeeCornerNpc, d.GiverNpc);
+            Assert.Equal(cafe.Steps[i].Family, d.Family);
+            Assert.Same(cafe, FamilyStories.OfTitle(d.Title));
+        }
+        // Las de las familias siguen dándolas los capos.
+        Assert.Equal(FamilyPeople.BossOf(EconomyCatalog.Caruso), FamilyStories.ToDraft(Guid.NewGuid(), EconomyCatalog.Caruso, 0).GiverNpc);
+    }
+}

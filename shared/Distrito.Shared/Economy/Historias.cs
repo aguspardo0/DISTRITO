@@ -1,11 +1,22 @@
 namespace Distrito.Shared.Economy;
 
 /// <summary>Un capítulo de una historia: un encargo con texto propio que da el capo.</summary>
+/// <see cref="Family"/>: quién paga este capítulo (si no, la familia de la historia).
 public sealed record StoryStep(string Kind, string Title, string Detail, string? Item, int Quantity, string? Target, int Goal,
-    long RewardCents, int Xp, string Closing);
+    long RewardCents, int Xp, string Closing, string? Family = null);
 
 /// <summary>La historia de una familia: cuatro capítulos y un premio único al final.</summary>
-public sealed record FamilyStory(string Family, string Name, string Intro, string Ending, string Perk, IReadOnlyList<StoryStep> Steps);
+/// <remarks>
+/// Las misiones del café (2026-11-08) son una historia más: <see cref="Key"/> «cafe», la da <see cref="Giver"/> (Don Aldo,
+/// en la Esquina del café) solo a quien tiene un puesto, cada capítulo lo paga la familia que lo encarga y suma fama al
+/// puesto (<see cref="FamePerStep"/>).
+/// </remarks>
+public sealed record FamilyStory(string Family, string Name, string Intro, string Ending, string Perk, IReadOnlyList<StoryStep> Steps,
+    string? Key = null, string? Giver = null, bool NeedsCoffeeStand = false, double FamePerStep = 0)
+{
+    /// <summary>Con qué se guarda la historia (la familia, o «cafe»).</summary>
+    public string StoryKey => Key ?? Family;
+}
 
 /// <summary>
 /// Historias de las tres familias (propuesta aprobada por el equipo, 2026-11-01): las da el capo, que solo recibe desde
@@ -95,19 +106,60 @@ public static class FamilyStories
                 "«Ahora sí. El barrio respira.»"),
         ]);
 
+    public const string CafeKey = "cafe";
+    public const double CafeFamePerStep = 60;
+
+    /// <summary>
+    /// Misiones del café (aprobado 2026-11-08: plata y fama del puesto). Don Aldo se las da a los que ya tienen su puesto.
+    /// Pagan entre $5 y $12 cada una (lo paga la familia que encarga) y +60 de fama al puesto.
+    /// </summary>
+    public static readonly FamilyStory Cafe = new(EconomyCatalog.Valenti, "El café de Don Aldo",
+        "Don Aldo se seca las manos en el delantal. «Así que ahora tenés tu puesto. Bien: el café es un oficio, pero en Bellmont también es "
+        + "política. Los que mandan toman café, y el que se los sirve se entera de todo. Tengo unos trabajos para alguien de confianza.»",
+        "Don Aldo te sirve una taza y no te la cobra. «Ya sos del gremio. En el Mercado se corre la voz: el que quiere buen café, "
+        + "sabe dónde está tu puesto.»",
+        "fama para tu puesto (+60 por capítulo) y la confianza del gremio",
+        [
+            new(EncargoKinds.Paquete, "El café de Don Aldo (1/4): granos del puerto",
+                "«Los Moretti me consiguen granos que llegan por barco, de los buenos, sin pasar por la aduana. Gaetano los tiene en Los Muelles. Traémelos.»",
+                null, 0, EncargoRules.DocksContact, 1, 500, 100,
+                "«Huelen a Brasil. Con esto la urna canta.»", EconomyCatalog.Moretti),
+            new(EncargoKinds.Entrega, "El café de Don Aldo (2/4): la reunión de los Valenti",
+                "«Los Valenti tienen reunión en la oficina y quieren café de verdad, no esa agua de La Perla. Conseguime dos bolsas en el Almacén; yo se las mando.»",
+                EconomyCatalog.CoffeeBagItem, 2, null, 2, 1_200, 150,
+                "«Vittorio dijo que nunca tomó un café así. Y Vittorio no dice esas cosas.»", EconomyCatalog.Valenti),
+            new(EncargoKinds.Recado, "El café de Don Aldo (3/4): noches de jazz",
+                "«En el club quieren servir café en las noches de jazz. Llevales este sobre con mi propuesta. Si los Valenti preguntan, es un negocio limpio.»",
+                null, 0, EconomyCatalog.JazzClubNpc, 1, 800, 150,
+                "«Aceptaron. Los músicos toman más café que whisky, aunque no lo parezca.»", EconomyCatalog.Valenti),
+            new(EncargoKinds.Vigilar, "El café de Don Aldo (4/4): ¿quién se robó la urna?",
+                "«Anoche me robaron la urna vieja. El diariero del kiosco ve todo lo que pasa en la calle: quedate cerca un par de minutos y escuchá lo que se dice.»",
+                null, 0, Distrito.Shared.Economy.MarketInfoRules.KioskNpc, 4, 1_000, 200,
+                "«¿Los de La Perla? Me lo imaginaba. Dejalo: la mejor venganza es servir mejor café que ellos.»", EconomyCatalog.Caruso),
+        ],
+        Key: CafeKey, Giver: EconomyCatalog.CoffeeCornerNpc, NeedsCoffeeStand: true, FamePerStep: CafeFamePerStep);
+
+    /// <summary>Las historias de las familias (las da el capo).</summary>
     public static readonly IReadOnlyList<FamilyStory> All = [Moretti, Valenti, Caruso];
 
-    public static FamilyStory Of(string family) => All.First(s => s.Family == family);
+    /// <summary>Todas las historias: las de las familias y las misiones del café.</summary>
+    public static readonly IReadOnlyList<FamilyStory> Every = [.. All, Cafe];
+
+    public static FamilyStory Of(string key) => Every.First(s => s.StoryKey == key);
 
     /// <summary>Id estable de la oferta de un capítulo (cambia con cada intento, por si se abandonó o venció el anterior).</summary>
     public static Guid OfferId(Guid characterId, string family, int step, int attempt) =>
         EncargoRules.StableId(characterId, $"historia-{family}-{step}", attempt);
 
     /// <summary>El capítulo como encargo: lo da (y lo cobra) el capo de la familia.</summary>
-    public static EncargoGenerator.Draft ToDraft(Guid id, string family, int step)
+    public static EncargoGenerator.Draft ToDraft(Guid id, string key, int step)
     {
-        var s = Of(family).Steps[step];
-        return new EncargoGenerator.Draft(id, s.Kind, FamilyPeople.BossOf(family), family, s.Title, s.Detail, s.Item, s.Quantity, s.Target,
-            s.Goal, 0, s.RewardCents, s.Xp, ReputationPerStep, false);
+        var story = Of(key);
+        var s = story.Steps[step];
+        return new EncargoGenerator.Draft(id, s.Kind, story.Giver ?? FamilyPeople.BossOf(story.Family), s.Family ?? story.Family, s.Title, s.Detail,
+            s.Item, s.Quantity, s.Target, s.Goal, 0, s.RewardCents, s.Xp, ReputationPerStep, false);
     }
+
+    /// <summary>De qué historia es un capítulo (por su título), si es de alguna.</summary>
+    public static FamilyStory? OfTitle(string title) => Every.FirstOrDefault(s => s.Steps.Any(x => x.Title == title));
 }

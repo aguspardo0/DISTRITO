@@ -57,18 +57,20 @@ public sealed partial class EconomyService
             while (await r.ReadAsync(ct)) rows.Add((r.GetString(0), r.GetInt32(1), r.GetString(2)));
         }
         var offers = new List<EncargoGenerator.Draft>();
-        foreach (var story in FamilyStories.All)
+        var hasStand = await ExistsAsync(c, tx, "SELECT 1 FROM distrito.businesses WHERE owner_character_id = @k::uuid AND kind = 'puesto-cafe'", characterId.ToString(), ct);
+        foreach (var story in FamilyStories.Every)
         {
-            if (!FamilyPeople.CanMeetBoss(reputation(story.Family)))
+            // Las de las familias, con 50 de reputación (el capo recibe); las del café, con un puesto propio.
+            if (story.NeedsCoffeeStand ? !hasStand : !FamilyPeople.CanMeetBoss(reputation(story.Family)))
                 continue;
-            var mine = rows.Where(x => x.Story == story.Family).ToList();
+            var mine = rows.Where(x => x.Story == story.StoryKey).ToList();
             if (mine.Any(x => x.Status == EncargoStatus.Active))
                 continue;
             var next = mine.Where(x => x.Status == EncargoStatus.Done).Select(x => x.Step + 1).DefaultIfEmpty(0).Max();
             if (next >= story.Steps.Count)
                 continue;
             var attempt = mine.Count(x => x.Step == next);
-            offers.Add(FamilyStories.ToDraft(FamilyStories.OfferId(characterId, story.Family, next, attempt), story.Family, next));
+            offers.Add(FamilyStories.ToDraft(FamilyStories.OfferId(characterId, story.StoryKey, next, attempt), story.StoryKey, next));
         }
         return offers;
     }
@@ -262,7 +264,7 @@ public sealed partial class EconomyService
         var storyDrafts = await StoryOffersAsync(c, tx, r.CharacterId, f => reps.GetValueOrDefault(f), ct);
         var d = drafts.Concat(storyDrafts).FirstOrDefault(x => x.Id == r.EncargoId)
             ?? throw new EconomyRejected("not_offered", "Ese encargo ya no se ofrece (se renuevan cada 2 horas).");
-        var storyFamily = storyDrafts.Contains(d) ? d.Family : null;
+        var storyFamily = storyDrafts.Contains(d) ? FamilyStories.OfTitle(d.Title)?.StoryKey : null;
         int? storyStep = storyFamily is null ? null : FamilyStories.Of(storyFamily).Steps.ToList().FindIndex(s => s.Title == d.Title);
         if (d.GiverNpc != r.NpcCode)
             throw new EconomyRejected("wrong_npc", $"Ese encargo lo da {NameOfNpc(d.GiverNpc)}.");
@@ -468,6 +470,15 @@ public sealed partial class EconomyService
         {
             var tale = FamilyStories.Of(story);
             text += $"\n{tale.Steps[step].Closing}";
+            if (tale.FamePerStep > 0)
+            {
+                await using var fame = new NpgsqlCommand(
+                    "UPDATE distrito.businesses SET fame = fame + @f WHERE owner_character_id = @c AND kind = 'puesto-cafe'", c, tx);
+                fame.Parameters.AddWithValue("f", tale.FamePerStep);
+                fame.Parameters.AddWithValue("c", characterId);
+                if (await fame.ExecuteNonQueryAsync(ct) > 0)
+                    text += $"\n+{tale.FamePerStep:0} de fama para tu puesto de café.";
+            }
             if (step == tale.Steps.Count - 1)
                 text += $"\n\n{tale.Ending}\nHistoria terminada: «{tale.Name}». Premio: {tale.Perk}.";
         }
