@@ -207,6 +207,9 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<DropItemResult>> PveRobGoodsAsync(string serverKey, PveRobGoodsRequest request, CancellationToken ct = default) =>
         SendAsync<DropItemResult>(HttpMethod.Post, "internal/pve/rob-goods", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<EconomyActionResult>> CoffeeShiftPayAsync(string serverKey, CoffeeShiftPayRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/economy/coffee-shift", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<EconomyActionResult>> PveRobCashAsync(string serverKey, PveRobCashRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/pve/rob-cash", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

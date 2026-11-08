@@ -38,6 +38,9 @@ public static class NpcInteractionRules
     /// <summary>Opción que no va al servidor: el cliente abre la ventana de compra de vehículos.</summary>
     public const string VehicleShopOption = "ui:vehiculos";
 
+    /// <summary>Opción que no va al servidor: el cliente pide empezar un turno de empleado en la Esquina del café.</summary>
+    public const string CoffeeShiftOption = "ui:turno-cafe";
+
     /// <summary>Opción que no va al servidor: el cliente abre las mesas del casino.</summary>
     public const string CasinoOption = "ui:casino";
 
@@ -166,6 +169,16 @@ public static class NpcInteractionRules
             _ => ("…", new List<NpcOption>()),
         };
         var options = rawOptions;
+        if (npc.Code == EconomyCatalog.CoffeeCornerNpc)
+        {
+            // Primera hora (2026-11-08): antes de tener su puesto, el jugador nuevo puede trabajar acá de empleado.
+            text = "Don Aldo, el encargado, limpia la urna de café. «¿Buscás trabajo? Necesito alguien en la barra: el café sale de la urna, "
+                   + "taza gruesa hasta la línea, y cada cliente lo pide a su gusto. Diez minutos, tres pesos y las propinas que te ganes.»
+
+" + text;
+            options.Insert(0, new NpcOption(CoffeeShiftOption,
+                $"Trabajar un turno de {CoffeeShiftRules.ShiftSeconds / 60} minutos ({EconomyCatalog.FormatMoney(CoffeeShiftRules.PayCents)} + propinas de hasta {EconomyCatalog.FormatMoney(CoffeeShiftRules.MaxTipCents)})"));
+        }
         EncargoOptions(npc.Code, s, ref text, options);
         // Venta a NPC: cada local compra lo que vende (60 %, tope por hora); se ofrece lo que llevás encima.
         if (NpcSaleRules.Buyers.TryGetValue(npc.Code, out var buys))

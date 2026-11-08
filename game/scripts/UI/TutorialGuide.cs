@@ -4,7 +4,7 @@ using Godot;
 namespace Distrito.Game.UI;
 
 /// <summary>
-/// Tutorial de inicio (Etapa F de la hoja de ruta): guía al jugador nuevo en seis pasos por lo básico, marcando a dónde
+/// Tutorial de inicio (Etapa F de la hoja de ruta; primera hora con el café, 2026-11-08): guía al jugador nuevo por lo básico, marcando a dónde
 /// ir (luz en el mundo y aro en el mapa, como los encargos). No da premios: solo enseña. El avance se guarda por personaje
 /// en user://tutorial.cfg; los personajes con experiencia lo saltean solos y se puede saltar o repetir desde Esc.
 /// </summary>
@@ -34,6 +34,11 @@ public partial class TutorialGuide : PanelContainer
 
     public bool Active => _index >= 0 && _index < _steps.Count;
 
+    /// <summary>¿Terminó un turno de empleado en la Esquina del café? (lo pone Main).</summary>
+    public Func<bool> ShiftDone { get; set; } = () => false;
+
+    private bool HasStand() => _snapshot()?.BusinessOf(EconomyCatalog.CoffeeStand.Code) is not null;
+
     public void Initialize(Func<EconomySnapshot?> snapshot, Func<Guid?> character, Func<bool> mapOpen, Func<bool> notebookOpen)
     {
         _snapshot = snapshot;
@@ -44,10 +49,18 @@ public partial class TutorialGuide : PanelContainer
         _steps =
         [
             new("Bienvenido a Bellmont",
-                "Estás en el Mercado, el corazón neutral de la ciudad: acá están los proveedores y los comercios. Abrí el mapa con M para ubicarte.",
+                "Llegaste en tren con veinte pesos en el bolsillo. Estás en el Mercado, el corazón neutral de la ciudad: acá están los proveedores "
+                + "y los comercios, y alrededor, El Centro. Abrí el mapa con M para ubicarte.",
                 () => _mapSeen, []),
-            new("Tu primera compra",
-                "Andá al Almacén Moretti (la columna de luz te marca el camino) y comprá una bolsa de café: acercate y hablá con E.",
+            new("Tu primer trabajo",
+                "Andá a la Esquina del café (la columna de luz te marca el camino) y hablá con Don Aldo con E. Trabajá un turno de diez minutos: "
+                + "aprendés a servir el café de la urna como le gusta a cada cliente y cobrás $3 más propinas.",
+                () => ShiftDone() || HasStand(), [EconomyCatalog.CoffeeCornerNpc]),
+            new("Tu propio puesto",
+                "Ahora que sabés cómo es, podés tener tu propio puesto de café. La licencia la da la Oficina Valenti: hablá con ellos y sacala.",
+                HasStand, [EconomyCatalog.ValentiOfficeNpc]),
+            new("Mercadería para el puesto",
+                "Un puesto sin café no vende. Andá al Almacén Moretti y comprá bolsas de café; después cargalas en tu puesto desde la Esquina del café.",
                 () => _snapshot()?.QuantityOf(EconomyCatalog.CoffeeBagItem) > 0 || HasWork(), [EconomyCatalog.DepositNpc]),
             new("Las familias",
                 "Bellmont tiene tres familias rivales, cada una en su barrio: los Moretti al oeste, los Valenti al norte y los Caruso al sur. "
@@ -114,8 +127,14 @@ public partial class TutorialGuide : PanelContainer
         var cfg = new ConfigFile();
         cfg.Load(FilePath);
         var key = character?.ToString() ?? "invitado";
-        if (cfg.HasSectionKey(key, "paso"))
-            _index = (int)cfg.GetValue(key, "paso");
+        if (cfg.HasSectionKey(key, "paso2"))
+            _index = (int)cfg.GetValue(key, "paso2");
+        else if (cfg.HasSectionKey(key, "paso"))
+        {
+            // Tutorial de antes (sin los pasos del café): se corre al mismo paso de ahora.
+            var old = (int)cfg.GetValue(key, "paso");
+            _index = old == 0 ? 0 : old + 2; // antes: 0 bienvenida, 1 compra…; ahora hay dos pasos más (trabajo y puesto) después de la bienvenida
+        }
         else
             // Quien ya tiene experiencia no necesita el tutorial.
             _index = snapshot.ProgressOrEmpty.Level >= 3 || snapshot.Reputation?.Any(r => r.Value >= 10) == true ? _steps.Count : 0;
@@ -128,7 +147,7 @@ public partial class TutorialGuide : PanelContainer
     {
         var cfg = new ConfigFile();
         cfg.Load(FilePath);
-        cfg.SetValue(_loadedFor?.ToString() ?? "invitado", "paso", _index);
+        cfg.SetValue(_loadedFor?.ToString() ?? "invitado", "paso2", _index);
         cfg.Save(FilePath);
     }
 

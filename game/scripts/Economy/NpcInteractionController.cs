@@ -76,6 +76,11 @@ public partial class NpcInteractionController : Node
                 _dialog.Close();
                 VehicleShopRequested?.Invoke();
             }
+            else if (option == NpcInteractionRules.CoffeeShiftOption)
+            {
+                _dialog.Close();
+                CoffeeShiftRequested?.Invoke();
+            }
             else if (option == NpcInteractionRules.CasinoOption)
             {
                 _dialog.Close();
@@ -102,6 +107,9 @@ public partial class NpcInteractionController : Node
 
     /// <summary>El jugador entró al casino.</summary>
     public event Action? CasinoRequested;
+
+    /// <summary>El jugador eligió trabajar un turno en la Esquina del café.</summary>
+    public event Action? CoffeeShiftRequested;
 
     /// <summary>Leer el diario, ver el informe de Nino o el libro de cuentas: se abre la ventana del mercado en esa hoja.</summary>
     public event Action<string>? MarketRequested;
