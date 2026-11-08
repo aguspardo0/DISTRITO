@@ -36,6 +36,12 @@ public static class CoffeeShiftRules
     public const long MaxTipCents = 100;
     public const int MinServed = 6;
 
+    /// <summary>
+    /// Tope (decisión del equipo 2026-11-08): 6 turnos cobrados por día (de Argentina), una hora real. Después hay que
+    /// hacer plata de otra forma: el puesto propio, los encargos, los contratos y las misiones del café.
+    /// </summary>
+    public const int MaxPerDay = 6;
+
     /// <summary>Cada cuánto llega un cliente, cuántos pueden esperar a la vez y cuánto esperan antes de irse.</summary>
     public const int OrderEverySeconds = 30;
     public const int MaxWaiting = 3;

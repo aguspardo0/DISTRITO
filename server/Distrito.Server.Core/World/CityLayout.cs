@@ -261,7 +261,13 @@ public static class CityLayout
 
     private static readonly (List<DowntownBuilding> Buildings, List<EmptyShop> Shops) Generated = MakeDowntown();
     public static readonly IReadOnlyList<DowntownBuilding> DowntownBuildings = Generated.Buildings;
-    public static readonly IReadOnlyList<EmptyShop> EmptyShops = Generated.Shops;
+    /// <summary>
+    /// El Café La Perla (la competencia de los puestos de café, ver «competidores» en config/negocios.json): ocupa el
+    /// local del Centro más cercano al Mercado. No es de ningún jugador.
+    /// </summary>
+    public static readonly EmptyShop RivalCafe = Generated.Shops.OrderBy(s => s.X * s.X + s.Z * s.Z).First() with { Code = "cafe-la-perla" };
+
+    public static readonly IReadOnlyList<EmptyShop> EmptyShops = Generated.Shops.OrderBy(s => s.X * s.X + s.Z * s.Z).Skip(1).OrderBy(s => s.Code).ToList();
 
     /// <summary>
     /// Cada manzana se llena de edificios pegados, de 9 a 18 m de frente, mirando a la calle; las manzanas hondas tienen

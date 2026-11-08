@@ -33,6 +33,11 @@ public partial class CoffeeShiftNetwork : Node
     }
 
     private readonly Dictionary<long, Shift> _shifts = new();
+
+    /// <summary>Turnos cobrados hoy por personaje (el backend tiene la cuenta de verdad; esto evita empezar uno que no se va a cobrar).</summary>
+    private readonly Dictionary<(Guid Character, DateTimeOffset Day), int> _paidToday = new();
+
+    private static DateTimeOffset Today => TerritoryRules.DayStart(DateTimeOffset.UtcNow);
     private double _clock;
 
     /// <summary>Cliente: lo que llega del servidor para la barra.</summary>
@@ -86,6 +91,12 @@ public partial class CoffeeShiftNetwork : Node
             return;
         }
         Guid? character = _network.TryGetSession(peer, out var session) ? session.CharacterId : null;
+        if (character is { } who && _paidToday.GetValueOrDefault((who, Today)) >= CoffeeShiftRules.MaxPerDay)
+        {
+            RpcId(peer, MethodName.ReceiveFinished, $"Don Aldo: «Por hoy ya hiciste tus {CoffeeShiftRules.MaxPerDay} turnos, pibe. Volvé mañana. "
+                + "Mientras tanto, tu puesto, los encargos de las familias y los contratos también dejan plata.»");
+            return;
+        }
         var shift = new Shift { Peer = peer, Character = character, StartedAt = _clock, Seed = (int)(DateTimeOffset.UtcNow.ToUnixTimeSeconds() ^ peer), NextOrderAt = _clock + 3 };
         _shifts[peer] = shift;
         GD.Print($"[DISTRITO] TURNO_CAFE empieza {p.DisplayName}");
@@ -194,7 +205,13 @@ public partial class CoffeeShiftNetwork : Node
                     new CoffeeShiftPayRequest(character, $"turno-cafe:{character}:{s.Seed}:{(long)s.StartedAt}", pay, tip, s.Scores.Count));
                 summary += " " + (result.IsSuccess ? result.Value!.Message : $"No se pudo cobrar: {result.Error!.Message}");
                 if (result.IsSuccess)
+                {
                     _economy.RefreshPeer(s.Peer);
+                    if (result.Value!.Ok)
+                        _paidToday[(character, Today)] = _paidToday.GetValueOrDefault((character, Today)) + 1;
+                    else if (result.Value.ErrorCode == "shift_limit")
+                        _paidToday[(character, Today)] = CoffeeShiftRules.MaxPerDay;
+                }
             }
             else
                 summary += $" (Sin cuenta no se cobra: serían {EconomyCatalog.FormatMoney(pay)} y {EconomyCatalog.FormatMoney(tip)} de propina.)";

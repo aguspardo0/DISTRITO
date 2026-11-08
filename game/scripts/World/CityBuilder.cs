@@ -131,6 +131,23 @@ public static class CityBuilder
             });
         }
 
+        // El Café La Perla: la competencia de los puestos de café (no es de ningún jugador).
+        {
+            var shop = CityLayout.RivalCafe;
+            var facing = Mathf.Atan2(shop.NX, shop.NZ);
+            var cafe = new Node3D { Name = "CafeLaPerla", Position = new Vector3(shop.X, 0, shop.Z), Rotation = new Vector3(0, facing, 0) };
+            node.AddChild(cafe);
+            Visual(cafe, "Awning", new Vector3(shop.Width, 0.12f, 1.6f), new Vector3(0, 3.1f, 0.15f), new Color(0.15f, 0.35f, 0.25f));
+            var neon = new Color(1f, 0.85f, 0.55f);
+            Visual(cafe, "SignBoard", new Vector3(shop.Width * 0.8f, 0.9f, 0.1f), new Vector3(0, 4.3f, -0.5f), new Color(0.1f, 0.1f, 0.11f));
+            cafe.AddChild(new Label3D
+            {
+                Name = "Neon", Text = "CAFÉ LA PERLA", FontSize = 90, OutlineSize = 14, PixelSize = 0.01f, Shaded = false,
+                Modulate = neon, OutlineModulate = neon.Darkened(0.6f), Position = new Vector3(0, 4.3f, -0.42f),
+            });
+            cafe.AddChild(NightLamp(new Vector3(0, 2.8f, 1.2f), new Color(1f, 0.85f, 0.6f), 1.4f, 7f));
+        }
+
         // Muros de los barrios: ladrillo de 3,2 m con el color de cada familia.
         foreach (var barrio in CityLayout.Barrios)
         {

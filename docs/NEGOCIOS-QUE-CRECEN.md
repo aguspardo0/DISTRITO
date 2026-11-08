@@ -90,3 +90,17 @@ semana se recupera. El que nunca mejora pierde clientes contra el que reinvierte
 - `tools/Distrito.MarketSim/Growth.cs`: escenarios de ritmo.
 - Pruebas: `BusinessGrowthTests` y `BusinessGrowthApiTests`. En las pruebas del backend la ciudad tiene mil veces más
   gente (`Business:Crowd`): así manda la capacidad y las ventas son exactas.
+
+## La competencia (aprobado 2026-11-08)
+
+Además de los locales de los jugadores, cada rubro tiene un local de la competencia que no es de nadie
+(`competidores` en `config/negocios.json`): el **Café La Perla** (en El Centro, a pasos del Mercado: $6 la taza,
+calidad 1, fama 200, toldo) y el club **El Gato Negro** ($8,50, calidad 1, fama 250). Entran en el reparto de la
+clientela como un local más, con precio, calidad, fama y atracción fijos: si tu local es peor o más caro, se llevan
+parte de la gente; si es mejor o más barato, se la sacás. No venden mercadería ni mueven plata (los clientes que se
+llevan simplemente no le compran a ningún jugador). Un puesto nuevo igual vende: pierde un poco de gente, pero sigue
+por encima de lo que puede atender al principio.
+
+## Turnos de empleado
+
+Ver `docs/PRIMERA-HORA.md`: tope de **6 turnos cobrados por día** (aprobado 2026-11-08).

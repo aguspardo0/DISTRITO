@@ -39,7 +39,7 @@ Los que estaban a mitad del tutorial siguen en el mismo paso.
 
 ## Pendiente
 
-- Decidir si hay un tope de turnos por día (hoy no hay: $3–4 cada 10 minutos).
+- **Tope:** 6 turnos cobrados por día de Argentina (aprobado 2026-11-08). Después, la plata sale del puesto propio, los encargos, los contratos y las misiones del café.
 - Los locales físicos del Centro: el equipo todavía no decidió si los negocios de los jugadores ocupan un local en el
   mundo 3D (preocupa el espacio si hay muchos). Lo que sí está decidido: se **alquilan** principalmente, comprar se
   puede pero **cuesta mucho**, y si el dueño no paga o no entra en **14 días** el local se libera. Las **sedes** de las

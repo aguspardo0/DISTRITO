@@ -57,6 +57,26 @@ public sealed class GrowthKind
     [JsonPropertyName("categorias")] public string[] Categories { get; set; } = [];
 }
 
+/// <summary>
+/// Local de la competencia que no es de ningún jugador (aprobado 2026-11-08): precio, calidad, fama y atracción fijos.
+/// Solo se lleva clientes (no vende mercadería ni mueve plata): si tu local es peor o más caro, se queda con parte de la
+/// gente; si es mejor, se la sacás vos.
+/// </summary>
+public sealed class GrowthRival
+{
+    [JsonPropertyName("nombre")] public string Name { get; set; } = "";
+    [JsonPropertyName("rubro")] public string Kind { get; set; } = "";
+    [JsonPropertyName("fama")] public double Fame { get; set; }
+    [JsonPropertyName("precio")] public long PriceCents { get; set; }
+    [JsonPropertyName("calidad")] public int Quality { get; set; }
+    [JsonPropertyName("atraccion")] public int Attraction { get; set; }
+
+    /// <summary>Id fijo (para que no se confunda con los locales de los jugadores).</summary>
+    public Guid Id => new(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes("rival:" + Name)));
+
+    public GrowthState State => new(Id, Kind, Fame, PriceCents, 0, Quality, Attraction);
+}
+
 public sealed class GrowthConfig
 {
     [JsonPropertyName("ciclosPorDia")] public int CyclesPerDay { get; set; } = 288;
@@ -68,6 +88,7 @@ public sealed class GrowthConfig
     [JsonPropertyName("fama")] public GrowthFame Fame { get; set; } = new();
     [JsonPropertyName("zonas")] public List<GrowthZone> Zones { get; set; } = new();
     [JsonPropertyName("negocios")] public Dictionary<string, GrowthKind> Kinds { get; set; } = new();
+    [JsonPropertyName("competidores")] public List<GrowthRival> Rivals { get; set; } = new();
 
     private static readonly JsonSerializerOptions Options = new() { ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
 
@@ -81,6 +102,9 @@ public sealed class GrowthConfig
         foreach (var code in EconomyCatalog.BusinessTypes.Keys)
             if (!Kinds.TryGetValue(code, out var k)) errors.Add($"falta el negocio «{code}»");
             else if (k.CapacityCost <= 0 || k.QualityCost <= 0 || k.AttractionCost <= 0 || k.CostGrowth <= 1) errors.Add($"«{code}»: costos de mejora inválidos");
+        foreach (var r in Rivals)
+            if (r.Name.Length == 0 || !Kinds.ContainsKey(r.Kind) || r.PriceCents <= 0 || r.Fame < 0 || r.Quality < 0 || r.Attraction < 0)
+                errors.Add($"competidor «{r.Name}»: rubro, precio, fama o mejoras inválidos");
         if (Fame.Levels.Length != BusinessGrowth.FameNames.Length) errors.Add($"fama.niveles tiene que tener {BusinessGrowth.FameNames.Length} valores");
         return errors;
     }
@@ -269,7 +293,9 @@ public static class BusinessGrowth
         var k = KindOf(cfg, me.Kind);
         var evt = InEvent(cfg, me.Kind, at);
         var moment = PeakFactor(cfg, me.Kind, at) * (evt ? k.EventFactor : 1);
-        var rivals = all.Where(s => s.Kind == me.Kind && s.Id != me.Id).Append(me).ToList();
+        // Los otros locales del rubro (de jugadores) y los de la competencia que no son de nadie.
+        var rivals = all.Where(s => s.Kind == me.Kind && s.Id != me.Id)
+            .Concat(cfg.Rivals.Where(r => r.Kind == me.Kind && r.Id != me.Id).Select(r => r.State)).Append(me).ToList();
         double Pull(GrowthState s, double distance) =>
             PriceEffect(cfg, s) * Math.Pow(QualityOf(cfg, s), cfg.QualityWeight) * Math.Exp(-distance / cfg.DistanceScale) * FameFactor(s.Fame) * AttractionOf(cfg, s);
 

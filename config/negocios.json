@@ -23,6 +23,11 @@
     { "codigo": "barrio-caruso", "habitantes": 3000, "x": 13, "z": 110, "preferencias": { "puesto-cafe": 1.3, "club-jazz": 0.7 } },
     { "codigo": "los-muelles", "habitantes": 800, "x": 57, "z": 0, "preferencias": { "puesto-cafe": 1.2, "club-jazz": 1.1 } }
   ],
+  "_competidores": "Locales de la competencia que no son de ningún jugador: se llevan parte de la clientela del rubro según su precio, calidad (niveles), fama y atracción (niveles). No venden mercadería ni mueven plata. Si tu local es mejor o más barato, les sacás la gente.",
+  "competidores": [
+    { "nombre": "Café La Perla", "rubro": "puesto-cafe", "fama": 200, "precio": 600, "calidad": 1, "atraccion": 1 },
+    { "nombre": "El Gato Negro", "rubro": "club-jazz", "fama": 250, "precio": 850, "calidad": 1, "atraccion": 1 }
+  ],
   "negocios": {
     "puesto-cafe": {
       "x": -3, "z": 8,

@@ -17,6 +17,8 @@ public sealed partial class EconomyService
             if (r.PayCents + r.TipCents == 0)
                 throw new EconomyRejected("no_pay", $"Para cobrar el turno hay que servir al menos {CoffeeShiftRules.MinServed} cafés.");
             var me = await EnsureCharacterAccountAsync(c, tx, r.CharacterId, ct);
+            if (await ShiftsTodayAsync(c, tx, me, ct) >= CoffeeShiftRules.MaxPerDay)
+                throw new EconomyRejected("shift_limit", $"Por hoy ya cobraste {CoffeeShiftRules.MaxPerDay} turnos. Don Aldo te espera mañana.");
             var customers = await AccountIdByCodeAsync(c, tx, EconomyCatalog.PopulationAccount, ct);
             await LockAccountsAsync(c, tx, ct, me, customers);
             var txId = await NewLedgerTransactionAsync(c, tx, r.RequestId, "coffee_shift", $"Turno en la Esquina del café ({r.Served} cafés)", ct);
@@ -24,4 +26,17 @@ public sealed partial class EconomyService
             return $"Cobraste {EconomyCatalog.FormatMoney(r.PayCents)} del turno" +
                    (r.TipCents > 0 ? $" y {EconomyCatalog.FormatMoney(r.TipCents)} de propina." : ".");
         });
+
+    /// <summary>Turnos cobrados hoy (día de Argentina) por esta cuenta.</summary>
+    private static async Task<int> ShiftsTodayAsync(Npgsql.NpgsqlConnection c, Npgsql.NpgsqlTransaction tx, Guid account, CancellationToken ct)
+    {
+        await using var cmd = new Npgsql.NpgsqlCommand("""
+            SELECT count(DISTINCT t.id)::int FROM distrito.ledger_transactions t
+              JOIN distrito.ledger_entries e ON e.transaction_id = t.id
+             WHERE t.kind = 'coffee_shift' AND e.account_id = @a AND t.created_at >= @from
+            """, c, tx);
+        cmd.Parameters.AddWithValue("a", account);
+        cmd.Parameters.AddWithValue("from", TerritoryRules.DayStart(DateTimeOffset.UtcNow).UtcDateTime);
+        return (int)(await cmd.ExecuteScalarAsync(ct))!;
+    }
 }

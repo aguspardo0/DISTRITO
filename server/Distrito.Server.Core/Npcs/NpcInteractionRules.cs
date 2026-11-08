@@ -173,7 +173,8 @@ public static class NpcInteractionRules
         {
             // Primera hora (2026-11-08): antes de tener su puesto, el jugador nuevo puede trabajar acá de empleado.
             text = "Don Aldo, el encargado, limpia la urna de café. «¿Buscás trabajo? Necesito alguien en la barra: el café sale de la urna, "
-                   + "taza gruesa hasta la línea, y cada cliente lo pide a su gusto. Diez minutos, tres pesos y las propinas que te ganes.»\n\n" + text;
+                   + "taza gruesa hasta la línea, y cada cliente lo pide a su gusto. Diez minutos, tres pesos y las propinas que te ganes. Eso sí: más de seis turnos por día no te doy.» A pasos del Mercado, en El Centro, el Café La Perla cobra $6 la taza "
+                   + "y tiene su clientela: un puesto que sirva mejor café o más barato se la puede sacar.\n\n" + text;
             options.Insert(0, new NpcOption(CoffeeShiftOption,
                 $"Trabajar un turno de {CoffeeShiftRules.ShiftSeconds / 60} minutos ({EconomyCatalog.FormatMoney(CoffeeShiftRules.PayCents)} + propinas de hasta {EconomyCatalog.FormatMoney(CoffeeShiftRules.MaxTipCents)})"));
         }
