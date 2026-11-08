@@ -30,13 +30,14 @@ for x in a b; do
 done
 
 # ---------- 1b. Colisiones: un bot intenta atravesar un edificio, otro salir del barrio ----------
-# Edificio 0 ocupa x,z en [-18,-10]; el suelo termina en ±30 (bordes invisibles).
+# Edificio 0 ocupa x,z en [-18,-10]. El otro bot camina hacia el este por la calle z = 0 (cruza Los Muelles y el
+# Centro) hasta el borde de la ciudad, en x = 300 (pared invisible).
 PORT=7803
 "$GODOT" --headless --path game -- --server --port $PORT > walls-server.log 2>&1 &
 srv=$!
 sleep 4
 client walls-a.log $PORT --bot-goto -14,-14 --test-seconds 20 --expect-players 2 & a=$!
-client walls-b.log $PORT --bot-goto 100,0 --test-seconds 25 --expect-players 2 & b=$!
+client walls-b.log $PORT --bot-goto 400,0 --test-seconds 95 --expect-players 2 & b=$!
 wait $a; wait $b
 kill $srv 2>/dev/null; wait $srv 2>/dev/null
 pos_of() { grep -h NET_TEST_ "$1" | tail -1 | grep -o ' pos=[-0-9.,]*' | cut -d= -f2; }
@@ -44,9 +45,9 @@ pa=$(pos_of walls-a.log); pb=$(pos_of walls-b.log)
 if grep -q NET_TEST_OK walls-a.log && echo "$pa" | awk -F, '{ dx=$1+14; dz=$2+14; if (dx<0) dx=-dx; if (dz<0) dz=-dz; exit !(dx > 4.2 || dz > 4.2) }'; then
   note "Colisión con edificio" "el bot quedó afuera, en ${pa}"
 else error "Colisión con edificio" "posición final ${pa:-?}: atravesó el edificio o falló ($(grep -h NET_TEST_ walls-a.log | tail -1))"; fi
-if grep -q NET_TEST_OK walls-b.log && echo "$pb" | awk -F, '{ x=$1; if (x<0) x=-x; exit !(x <= 84.2) }'; then
-  note "Borde del barrio" "el bot llegó al muelle y no pudo salir del mapa: quedó en ${pb}"
-else error "Borde del barrio" "posición final ${pb:-?} ($(grep -h NET_TEST_ walls-b.log | tail -1 | cut -c1-200))"; fi
+if grep -q NET_TEST_OK walls-b.log && echo "$pb" | awk -F, '{ exit !($1 >= 250 && $1 <= 300.2) }'; then
+  note "Borde de la ciudad" "el bot cruzó el Centro y el borde lo frenó en ${pb}"
+else error "Borde de la ciudad" "posición final ${pb:-?} ($(grep -h NET_TEST_ walls-b.log | tail -1 | cut -c1-200))"; fi
 
 # ---------- 1d. Barrios de las familias: se llega por las avenidas y el borde de la ciudad frena ----------
 # A va por la Avenida Oeste hasta la plaza del Barrio Moretti (antes de la fuente, x≈−107).
