@@ -276,7 +276,7 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
     private (Guid Id, string Name, double Tie)? FriendHome(Resident r, ResidentState s)
     {
         foreach (var (other, state, tie) in Known(s, t => t >= LifeSociety.Friend))
-            if (state.Activity == LifeActivities.AtHome && state.Place == HomePlace && !state.Travelling(_at) && state.Until > _at.AddMinutes(20))
+            if (state.Activity == LifeActivities.AtHome && state.Place == HomePlace && !state.Travelling(_at) && state.Until > _at.AddMinutes(5))
                 return (other.Id, other.FirstName, tie);
         return null;
     }

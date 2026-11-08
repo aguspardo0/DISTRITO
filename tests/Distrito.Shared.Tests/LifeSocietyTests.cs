@@ -109,10 +109,31 @@ public class LifeSocietyTests
     {
         var run = Two.Value;
         Assert.Contains(run.Reasons, r => r.Contains("su amigo"));
-        var visits = run.Reasons.Count(r => r.StartsWith("visitar a "));
-        var trust = run.Reasons.Count(r => r.Contains("le tiene confianza"));
-        Assert.True(visits > 0, $"nadie visitó a un amigo (confianza: {trust})");
-        Assert.True(trust > 0, $"nadie eligió dónde comprar por confianza (visitas: {visits})");
+        Assert.Contains(run.Reasons, r => r.Contains("le tiene confianza"));
+    }
+
+    [Fact]
+    public void Con_ganas_de_ver_gente_va_a_visitar_al_amigo_que_esta_en_su_casa()
+    {
+        var cfg = Config();
+        var sim = new LifeSimulation(cfg);
+        var vecinos = ResidentGenerator.Generate(cfg).Where(p => p.Profession == "vecino").Take(2).ToList();
+        var a = vecinos[0] with { Traits = new Dictionary<string, double>(vecinos[0].Traits) { ["sociable"] = 0.8, ["reservado"] = 0.2, ["temeroso"] = 0.2 } };
+        var b = vecinos[1];
+        var at = Start.AddHours(8); // las 16 en Bellmont
+        Assert.Equal(16, BellmontClock.Hour(at));
+        var stateA = ResidentGenerator.InitialState(a, at) with { Social = 0.9, Hunger = 0.1, Fatigue = 0.1, Money = 10_000, Ties = new() { [b.Id] = 0.8 } };
+        var stateB = ResidentGenerator.InitialState(b, at) with { Until = at.AddHours(2), Ties = new() { [a.Id] = 0.8 } };
+        var world = new LifeWorld(new Dictionary<Guid, Resident> { [a.Id] = a, [b.Id] = b }, new Dictionary<Guid, ResidentState> { [a.Id] = stateA, [b.Id] = stateB });
+
+        var after = sim.Advance(a, stateA, at, world);
+        Assert.Equal(LifeActivities.Visiting, after.Activity);
+        Assert.Equal($"visitar a {b.FullName}", after.Decision);
+        Assert.Contains($"su amigo {b.FirstName} está en casa", after.Reason);
+        Assert.True(after.Indoor);
+        Assert.True(Math.Abs(after.X - b.HomeX) < 2 && Math.Abs(after.Z - b.HomeZ) < 2, "no fue a la casa del amigo");
+        // Estando juntos en esa casa, se cruzan.
+        Assert.Equal(LifeSociety.Spot(b, stateB, at), LifeSociety.Spot(a, after with { ArrivesAt = at }, at));
     }
 
     [Fact]
