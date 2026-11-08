@@ -1,3 +1,33 @@
+## Paquetes de movimiento compactos (2026-11-08): de 65 a 21 Mbps con 100 jugadores
+
+El movimiento de los personajes (posición, giro y mira) ya no lo manda el sincronizador de Godot (un paquete por
+personaje y por observador, 20 veces por segundo, siempre). Ahora el servidor arma **un paquete por observador**
+(`game/scripts/Network/PlayerSnapshots.cs`, reglas en `server/Distrito.Server.Core/Interest/PlayerSnapshots.cs`):
+
+- 20 bytes por personaje (id, posición al centímetro, giro y mira).
+- A menos de 20 m: 20 veces por segundo. Hasta 40 m: 10. Más lejos (hasta el radio de 60 m): 5.
+- Quieto: no se manda, salvo un recordatorio por segundo por si se perdió un paquete. El propio personaje va siempre
+  (lo necesita la predicción local).
+- El trabajo se reparte en 3 cuadros de física (un tercio de los observadores en cada uno).
+- El sincronizador sigue mandando la posición al aparecer y los datos que cambian poco (nombre, salud, arma…).
+
+Misma prueba de escala real (100 bots todos juntos, servidor de 1 núcleo):
+
+| Con 100 jugadores | Antes | Ahora |
+|---|---|---|
+| Lo que manda el servidor | 62–66 Mbps | **19–21 Mbps** |
+| Por jugador | 620–660 kbps | **~210 kbps** |
+| CPU | 85–93 % | 82–87 % |
+| Cuadros por segundo (mín.) | 43 | 56 |
+| Desconexiones antes de la salida | 2 | 1 |
+
+**Pendiente:** siguen apareciendo picos sueltos de 20–45 ms en un cuadro (antes el máximo era 13 ms). Aparecen
+incluso con 20 jugadores, cuando armar los paquetes es trivial, así que lo más probable es que el servidor de un
+núcleo esté atendiendo otra cosa en ese momento (la partida oficial, el backend y la base comparten ese núcleo). Las
+métricas nuevas `envio_ms_max`, `gc0` y `gc2` quedan para seguirlo; con un servidor de 2 núcleos debería
+desaparecer. Con ping de hasta 500 ms (los bots salen de EE.UU.), 2 o 3 de 100 bots terminan con la predicción
+corrida 0,9–1,5 m.
+
 ## Escala real: 100 jugadores en el servidor de internet (2026-11-07)
 
 Workflow manual `escala.yml` (Actions → «Escala real» → Run workflow). Levanta una partida aparte en el servidor
