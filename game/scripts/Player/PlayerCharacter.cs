@@ -20,7 +20,10 @@ public partial class PlayerCharacter : CharacterBody3D
     private double _clock;
     private Node3D _visual = null!;
 
-    public long PeerId => long.Parse(Name.ToString());
+    private long _peerId;
+
+    /// <summary>Se lee muchas veces por segundo (paquetes de movimiento): se calcula una sola vez.</summary>
+    public long PeerId => _peerId != 0 ? _peerId : (_peerId = long.Parse(Name.ToString()));
 
     /// <summary>Nombre visible. Lo fija el servidor y se replica una vez al aparecer.</summary>
     [Export]

@@ -44,8 +44,8 @@ else:
             continue
         key = (n - 1) // 10 * 10 + 10  # 1–10 → 10, 11–20 → 20, …
         buckets.setdefault(key, []).append(r)
-    out += ["| Jugadores | Física máx (ms/paso) | % del presupuesto | CPU máx (100 = 1 núcleo) | RAM (MB) | Envía (kbps) | Por jugador (kbps) | Pares visibles | FPS mín |",
-            "|---|---|---|---|---|---|---|---|---|"]
+    out += ["| Jugadores | Física máx (ms/paso) | % del presupuesto | CPU máx (100 = 1 núcleo) | RAM (MB) | Envía (kbps) | Por jugador (kbps) | Pares visibles | FPS mín | Armar paquetes máx (ms) | Limpiezas de memoria (rápidas / grandes) |",
+            "|---|---|---|---|---|---|---|---|---|---|---|"]
     first_half = first_full = None
     for key in sorted(buckets):
         b = buckets[key]
@@ -55,7 +55,8 @@ else:
         per = max(r.get("enviado_kbps", 0) / max(1, r.get("jugadores", 1)) for r in b)
         out.append(f"| hasta {key} | {phys:.1f} | {pct:.0f} % | {max(r.get('cpu_pct', 0) for r in b):.0f} | "
                    f"{max(r.get('ram_mb', 0) for r in b):.0f} | {sent:.0f} | {per:.1f} | "
-                   f"{max(r.get('pares_visibles', 0) for r in b):.0f} | {min(r.get('fps', 0) for r in b):.0f} |")
+                   f"{max(r.get('pares_visibles', 0) for r in b):.0f} | {min(r.get('fps', 0) for r in b):.0f} | "
+                   f"{max(r.get('envio_ms_max', 0) for r in b):.1f} | {sum(r.get('gc0', 0) for r in b):.0f} / {sum(r.get('gc2', 0) for r in b):.0f} |")
         if pct >= 50 and first_half is None:
             first_half = key
         if pct >= 100 and first_full is None:

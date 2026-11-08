@@ -20,6 +20,7 @@ public partial class ServerMetrics : Node
     private TimeSpan _lastCpu;
     private int _disconnections;
     private int _errors;
+    private int _lastGen0, _lastGen2;
 
     public void Initialize(GameNetwork network, int intervalSeconds)
     {
@@ -53,10 +54,14 @@ public partial class ServerMetrics : Node
         var cpu = _process.TotalProcessorTime;
         var cpuPct = (cpu - _lastCpu).TotalSeconds / seconds * 100.0;
         _lastCpu = cpu;
+        int gen0 = GC.CollectionCount(0), gen2 = GC.CollectionCount(2);
+        var gcLine = string.Create(CultureInfo.InvariantCulture, $" envio_ms_max={Distrito.Game.Network.PlayerSnapshots.TakeMaxWorkMs():0.00} gc0={gen0 - _lastGen0} gc2={gen2 - _lastGen2}");
+        _lastGen0 = gen0;
+        _lastGen2 = gen2;
         var line = string.Create(CultureInfo.InvariantCulture,
             $"jugadores={_network.PlayerCount} fps={Engine.GetFramesPerSecond():0} fisica_ms_max={_maxPhysicsMs:0.00} cpu_pct={cpuPct:0} " +
             $"ram_mb={_process.WorkingSet64 / 1048576.0:0} enviado_kbps={sentKbps:0.0} recibido_kbps={receivedKbps:0.0} " +
-            $"pares_visibles={_network.Interest?.VisiblePairs ?? 0} desconexiones={_disconnections} errores={_errors}");
+            $"pares_visibles={_network.Interest?.VisiblePairs ?? 0} desconexiones={_disconnections} errores={_errors}") + gcLine;
         GD.Print($"[DISTRITO] METRICS {line}");
         _maxPhysicsMs = 0;
     }
