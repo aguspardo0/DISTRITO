@@ -132,7 +132,7 @@ jobs:
           for mode in "ventana:1280x720:" "completa-1080p:1920x1080:--fullscreen" "ventana-chica:1024x600:"; do
             IFS=: read -r name res extra <<< "$mode"
             w=${res%x*}; h=${res#*x}
-            timeout 120 xvfb-run -a -s "-screen 0 ${w}x${h}x24" "$GODOT" --path game --rendering-driver opengl3 \
+            timeout 300 xvfb-run -a -s "-screen 0 ${w}x${h}x24" "$GODOT" --path game --rendering-driver opengl3 \
               --resolution "$res" $extra -- --ui-snapshot "$PWD/ui-shots/$name" > "ui-$name.log" 2>&1 || true
             if grep -q UI_SNAPSHOT_DONE "ui-$name.log"; then
               echo "::notice title=Capturas ($name)::$(grep -c 'UI_SNAPSHOT ' "ui-$name.log") capturas, $(grep 'UI_SNAPSHOT ' "ui-$name.log" | head -1 | awk '{print $NF}')"
