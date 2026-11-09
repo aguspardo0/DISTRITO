@@ -783,8 +783,8 @@ public partial class Main : Node3D
                 Distrito.Game.World.SceneNetwork.Instance?.Trigger("lluvia", null, 30);
                 if (_network.LocalPlayer is { } me)
                 {
-                    me.GlobalPosition = new Vector3(150f, 0.2f, 9f);
-                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(0);
+                    me.GlobalPosition = new Vector3(124f, 0.2f, 6.5f); // en la vereda de la Avenida del Puerto, mirando el tiroteo
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(-Mathf.Pi / 2 + 0.15f);
                 }
             }),
             ("calle-principal", () =>
