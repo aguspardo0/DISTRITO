@@ -1,0 +1,4 @@
+{
+  "_ayuda": "Ajustes de los modelos .glb sin tocar código. Clave «tipo/código» (o solo «tipo» para toda la carpeta). girar: grados (por defecto 180, porque los .glb suelen mirar a +Z); altura: metros (personas); subir: metros; escala: multiplicador. Ver docs/MODELOS.md.",
+  "personas": { "girar": 180 }
+}

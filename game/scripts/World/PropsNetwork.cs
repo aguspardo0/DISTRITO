@@ -118,6 +118,13 @@ public partial class PropsNetwork : Node3D
     private static Node3D Mesh(string type, Spec spec)
     {
         var root = new Node3D();
+        // Modelo .glb (game/modelos/objetos/<tipo>.glb): entra en la caja del objeto; la física sigue igual.
+        if (ModelLibrary.Make("objetos", type, spec.Size, ModelLibrary.Fit.Inside) is { } glb)
+        {
+            glb.Position = new Vector3(0, -spec.Size.Y / 2, 0);
+            root.AddChild(glb);
+            return root;
+        }
         var mat = InteriorBuilder.Mat(spec.Color, type == "botella" ? 0.1f : 0.8f, type is "tacho" ? 0.5f : 0f);
         var s = spec.Size;
         switch (type)

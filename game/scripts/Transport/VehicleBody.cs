@@ -64,6 +64,12 @@ public partial class VehicleBody : CharacterBody3D
     private static Node3D BuildModel(VehicleType type)
     {
         var model = new Node3D { Name = "Model" };
+        // Modelo .glb (game/modelos/autos/<código>.glb): se escala al largo del vehículo; la colisión no cambia.
+        if (Distrito.Game.World.ModelLibrary.Make("autos", type.Code, new Vector3(type.Width, type.Height, type.Length), Distrito.Game.World.ModelLibrary.Fit.Length) is { } glb)
+        {
+            model.AddChild(glb);
+            return model;
+        }
         var truck = type.Code == Vehicles.Truck.Code;
         var paint = new StandardMaterial3D { AlbedoColor = truck ? new Color(0.2f, 0.32f, 0.26f) : new Color(0.28f, 0.56f, 0.55f), Roughness = 0.35f, Metallic = 0.15f };
         var cream = new StandardMaterial3D { AlbedoColor = new Color(0.9f, 0.86f, 0.74f), Roughness = 0.35f };

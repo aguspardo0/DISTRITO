@@ -12,6 +12,12 @@ namespace Distrito.Game.Player;
 public partial class CharacterModel : Node3D
 {
     private Node3D _legL = null!, _legR = null!, _armL = null!, _armR = null!;
+
+    // Modelo .glb (game/modelos/personas/<código>.glb): si existe, reemplaza a las piezas simples.
+    private AnimationPlayer? _anims;
+    private string? _idle, _walk, _run, _punchAnim, _downAnim, _current;
+    private Node3D? _hand; // donde va el arma (el hueso de la mano derecha, si el esqueleto lo tiene)
+    private bool Glb => _hand is not null;
     private float _phase;
     private float _punch;
     private bool _downed;
@@ -29,6 +35,7 @@ public partial class CharacterModel : Node3D
         _gun = null;
         if (code == Distrito.Shared.Economy.Weapons.Fists)
             return;
+        var glbGun = Glb;
         var length = code == "pistola" ? 0.2f : code == "escopeta" ? 0.75f : 0.6f;
         _gun = new MeshInstance3D
         {
@@ -37,7 +44,14 @@ public partial class CharacterModel : Node3D
             Position = new Vector3(0, -0.64f, -length / 2 + 0.05f),
             RotationDegrees = new Vector3(-90, 0, 0),
         };
-        _armR.AddChild(_gun);
+        if (glbGun)
+        {
+            _gun.Position = new Vector3(0, 0, -length / 2);
+            _gun.RotationDegrees = Vector3.Zero;
+            _hand!.AddChild(_gun);
+        }
+        else
+            _armR.AddChild(_gun);
     }
 
     private float _aimPitch, _recoil, _reload;
@@ -57,6 +71,11 @@ public partial class CharacterModel : Node3D
         if (downed == _downed)
             return;
         _downed = downed;
+        if (Glb && _downAnim is not null)
+        {
+            Play(downed ? _downAnim : _idle);
+            return;
+        }
         Rotation = downed ? new Vector3(Mathf.DegToRad(-85f), 0, 0) : Vector3.Zero;
         Position = downed ? new Vector3(0, 0.2f, 0.9f) : Vector3.Zero;
     }
@@ -66,6 +85,14 @@ public partial class CharacterModel : Node3D
     public static CharacterModel Build(CharacterLook look)
     {
         var m = new CharacterModel { Name = "Model", LookCode = look.Code };
+        // Variante estable para la misma persona (la ropa ya la distingue): sale de sus colores.
+        var seed = $"{look.Skin}{look.Shirt}{look.Pants}{look.Top}".Sum(c => c * 7);
+        if (Distrito.Game.World.ModelLibrary.Make("personas", look.Code, new Vector3(0.6f, 1.8f, 0.4f), Distrito.Game.World.ModelLibrary.Fit.Height, seed) is { } glb)
+        {
+            m.AddChild(glb);
+            m.UseGlb(glb);
+            return m;
+        }
         var skin = Mat(look.Skin);
         var hair = Mat(look.Hair);
         var shirt = Mat(look.Shirt);
@@ -141,9 +168,63 @@ public partial class CharacterModel : Node3D
         return m;
     }
 
+    /// <summary>Prepara un modelo .glb: sus animaciones (quieto, caminar, correr, piña, herido) y la mano para el arma.</summary>
+    private void UseGlb(Node3D glb)
+    {
+        _anims = Distrito.Game.World.ModelLibrary.AnimationsOf(glb);
+        if (_anims is not null)
+        {
+            _idle = Distrito.Game.World.ModelLibrary.FindAnimation(_anims, "idle", "quieto", "parado", "stand");
+            _walk = Distrito.Game.World.ModelLibrary.FindAnimation(_anims, "walk", "camin");
+            _run = Distrito.Game.World.ModelLibrary.FindAnimation(_anims, "run", "corr", "jog") ?? _walk;
+            _punchAnim = Distrito.Game.World.ModelLibrary.FindAnimation(_anims, "punch", "pina", "piña", "hit", "attack", "golpe");
+            _downAnim = Distrito.Game.World.ModelLibrary.FindAnimation(_anims, "death", "die", "dying", "fall", "herido", "muerte");
+            foreach (var name in new[] { _idle, _walk, _run })
+                if (name is not null && _anims.GetAnimation(name) is { } anim)
+                    anim.LoopMode = Animation.LoopModeEnum.Linear;
+            Play(_idle);
+        }
+        if (Distrito.Game.World.ModelLibrary.FindBone(glb, "righthand", "hand_r", "hand.r", "r_hand", "mano_d", "manoderecha") is { } bone)
+        {
+            var attach = new BoneAttachment3D { BoneName = bone.Skeleton.GetBoneName(bone.Bone) };
+            bone.Skeleton.AddChild(attach);
+            _hand = attach;
+        }
+        else
+            _hand = new Node3D { Name = "Mano", Position = new Vector3(0.25f, 1.05f, -0.25f) }; // sin esqueleto: el arma va adelante
+        if (_hand.GetParent() is null)
+            AddChild(_hand);
+    }
+
+    private void Play(string? animation, float blend = 0.2f, float speed = 1f)
+    {
+        if (_anims is null || animation is null)
+            return;
+        _anims.SpeedScale = speed;
+        if (_current == animation && _anims.IsPlaying())
+            return;
+        _current = animation;
+        _anims.Play(animation, blend);
+    }
+
     /// <summary>Caminata: balanceo de piernas y brazos según la velocidad horizontal (m/s).</summary>
     public void Animate(float speed, float delta)
     {
+        if (Glb)
+        {
+            if (_downed)
+                return;
+            if (_punch > 0 && _punchAnim is not null)
+            {
+                _punch -= delta;
+                Play(_punchAnim, 0.05f);
+                return;
+            }
+            if (speed > 3.4f && _run is not null) Play(_run, 0.2f, Mathf.Clamp(speed / 5f, 0.7f, 1.5f));
+            else if (speed > 0.25f && _walk is not null) Play(_walk, 0.2f, Mathf.Clamp(speed / 1.6f, 0.6f, 1.6f));
+            else Play(_idle, 0.25f);
+            return;
+        }
         var amount = Mathf.Clamp(speed / 4.5f, 0f, 1f);
         _phase += delta * (4f + 6f * amount);
         var swing = Mathf.Sin(_phase) * 0.6f * amount;

@@ -233,7 +233,10 @@ public static class InteriorBuilder
         var node = new Node3D { Name = $"{item.Type}", Position = new Vector3(item.X, 0, item.Z), Rotation = new Vector3(0, Mathf.DegToRad(item.Rotation), 0) };
         room.AddChild(node);
         var path = $"{AssetFolder}/{item.Type}.glb";
-        if (ResourceLoader.Exists(path) && GD.Load<PackedScene>(path) is { } model)
+        var box = Sizes.GetValueOrDefault(item.Type, new Vector3(0.6f, 0.6f, 0.6f));
+        if (ModelLibrary.Make("muebles", item.Type, box, ModelLibrary.Fit.Inside) is { } glb)
+            node.AddChild(glb); // game/modelos/muebles/<tipo>.glb, escalado para que entre en su caja
+        else if (ResourceLoader.Exists(path) && GD.Load<PackedScene>(path) is { } model)
             node.AddChild(model.Instantiate<Node3D>());
         else
             Greybox(node, item, plan);

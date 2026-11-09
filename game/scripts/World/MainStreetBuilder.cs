@@ -54,6 +54,16 @@ public static class MainStreetBuilder
             // acá va solo lo de arriba del techo del salón.
             var interior = lot.Kind == "interior" ? InteriorLayout.Find(lot.Code) : null;
             var bottom = interior is null ? 0f : interior.Height + 0.25f;
+            // Fachada propia (game/modelos/edificios/<código>.glb): reemplaza la caja; la colisión sigue siendo la caja.
+            if (interior is null && ModelLibrary.Make("edificios", lot.Code, new Vector3(p.Width, lot.Height, p.Depth), ModelLibrary.Fit.Inside) is { } custom)
+            {
+                custom.Position = new Vector3(p.X, 0, p.Z);
+                custom.Rotation = new Vector3(0, lot.North ? Mathf.Pi : 0, 0); // el frente, hacia la calle
+                node.AddChild(custom);
+                var full = new Vector3(p.Width, lot.Height, p.Depth);
+                body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = full }, Position = new Vector3(p.X, lot.Height / 2, p.Z) });
+                continue;
+            }
             if (lot.Height - bottom > 0.3f)
             {
                 var center = new Vector3(p.X, bottom + (lot.Height - bottom) / 2, p.Z);

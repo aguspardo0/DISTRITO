@@ -79,6 +79,17 @@ jobs:
       DISTRITO_TEST_DB: Host=localhost;Port=5432;Database=distrito;Username=distrito;Password=distrito_dev;Timeout=5
     steps:
       - uses: actions/checkout@v5
+      # Modelos, texturas y retratos van por Git LFS: se bajan con caché (así no se gasta el cupo de descarga en cada corrida).
+      - name: Lista de archivos LFS
+        run: git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
+      - name: Caché de LFS
+        uses: actions/cache@v4
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id') }}
+          restore-keys: lfs-
+      - name: Bajar archivos LFS
+        run: git lfs pull
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -157,6 +168,17 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+      # Modelos, texturas y retratos van por Git LFS: se bajan con caché (así no se gasta el cupo de descarga en cada corrida).
+      - name: Lista de archivos LFS
+        run: git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
+      - name: Caché de LFS
+        uses: actions/cache@v4
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id') }}
+          restore-keys: lfs-
+      - name: Bajar archivos LFS
+        run: git lfs pull
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -188,6 +210,17 @@ jobs:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
     steps:
       - uses: actions/checkout@v5
+      # Modelos, texturas y retratos van por Git LFS: se bajan con caché (así no se gasta el cupo de descarga en cada corrida).
+      - name: Lista de archivos LFS
+        run: git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
+      - name: Caché de LFS
+        uses: actions/cache@v4
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id') }}
+          restore-keys: lfs-
+      - name: Bajar archivos LFS
+        run: git lfs pull
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -273,6 +306,17 @@ jobs:
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
     steps:
       - uses: actions/checkout@v5
+      # Modelos, texturas y retratos van por Git LFS: se bajan con caché (así no se gasta el cupo de descarga en cada corrida).
+      - name: Lista de archivos LFS
+        run: git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
+      - name: Caché de LFS
+        uses: actions/cache@v4
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id') }}
+          restore-keys: lfs-
+      - name: Bajar archivos LFS
+        run: git lfs pull
 
       - name: Leer servidor de pruebas
         run: |
