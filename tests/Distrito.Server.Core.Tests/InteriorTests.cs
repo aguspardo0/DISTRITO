@@ -6,20 +6,27 @@ using Distrito.Shared.Networking;
 
 namespace Distrito.Server.Core.Tests;
 
-/// <summary>Interiores del Mercado: puertas, salones lejos de la ciudad, mostradores y reglas adentro.</summary>
+/// <summary>Interiores de la Calle Principal: salones adentro de su edificio, puertas, mostradores y reglas adentro.</summary>
 public class InteriorTests
 {
     [Fact]
-    public void Los_salones_estan_lejos_de_la_ciudad_y_entre_si()
+    public void Cada_salon_esta_adentro_de_su_edificio_con_la_puerta_en_el_frente()
     {
         Assert.True(InteriorLayout.All.Count >= 7);
         Assert.Equal(InteriorLayout.All.Count, InteriorLayout.All.Select(p => p.Code).Distinct().Count());
-        Assert.Equal(InteriorLayout.All.Count, InteriorLayout.All.Select(p => p.Slot).Distinct().Count());
         foreach (var p in InteriorLayout.All)
         {
-            Assert.True(p.Origin.X - p.Width > CityLayout.MaxX + NetworkDefaults.InterestRadius * 2, $"{p.Code} muy cerca de la ciudad");
-            foreach (var q in InteriorLayout.All.Where(q => q != p))
-                Assert.True(Vector2.Distance(p.Origin, q.Origin) > NetworkDefaults.InterestRadius * 2 + p.Width, $"{p.Code} y {q.Code} se ven entre sí");
+            var lot = MainStreet.Lot(p.Code);
+            var plan = lot.Plan;
+            const float t = InteriorLayout.WallThickness;
+            // El salón con sus paredes ocupa justo el lote (sin salirse).
+            Assert.True(MathF.Abs(p.Origin.X - plan.X) < 0.01f && MathF.Abs(p.Origin.Y - plan.Z) < 0.01f, $"{p.Code}: el salón no está centrado en su lote");
+            Assert.True(MathF.Abs(p.Width + 2 * t - plan.Width) < 0.01f && MathF.Abs(p.Depth + 2 * t - plan.Depth) < 0.01f, $"{p.Code}: el salón no mide lo que su edificio");
+            // La puerta sobre la línea de edificación, mirando a la calle.
+            Assert.Equal(MainStreet.Front, MathF.Abs(p.Door.Y), 2);
+            Assert.Equal(lot.Facing, p.Outward);
+            Assert.InRange(p.DoorX, -p.Width / 2 + p.DoorWidth / 2, p.Width / 2 - p.DoorWidth / 2);
+            Assert.True(lot.Height >= p.Height, $"{p.Code}: el edificio es más bajo que el salón");
         }
     }
 

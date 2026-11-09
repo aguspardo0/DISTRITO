@@ -53,6 +53,7 @@ public static class InteriorBuilder
     public static Dictionary<string, Vector3> Build(Node3D world)
     {
         var anchors = Anchors = new Dictionary<string, Vector3>();
+        Leaves.Clear();
         var root = new Node3D { Name = "Interiores" };
         world.AddChild(root);
         foreach (var plan in InteriorLayout.All)
@@ -65,77 +66,126 @@ public static class InteriorBuilder
 
     // ---------------- La puerta en la calle ----------------
 
+    /// <summary>Las hojas de las puertas (con física): las abre y las cierra <see cref="DoorNetwork"/>.</summary>
+    public static Dictionary<string, AnimatableBody3D> Leaves { get; } = new();
+
+    /// <summary>Marco, cartel, toldo y luz de la puerta, del lado de la calle (el hueco y la hoja los pone el salón).</summary>
     private static void BuildStreetDoor(Node3D root, InteriorPlan plan)
     {
         var yaw = Mathf.Atan2(plan.Outward.X, plan.Outward.Y); // el frente de la puerta mira hacia afuera
         var door = new Node3D { Name = $"Puerta_{plan.Code}", Position = new Vector3(plan.Door.X, 0, plan.Door.Y), Rotation = new Vector3(0, yaw, 0) };
         root.AddChild(door);
-        var frame = plan.Kind == InteriorLayout.Wholesale ? Metal : DarkWood;
-        var width = plan.Kind == InteriorLayout.Wholesale ? 2.6f : 1.6f;
-        Box(door, new Vector3(width + 0.3f, 2.6f, 0.12f), new Vector3(0, 1.3f, 0.02f), Mat(frame));
-        Box(door, new Vector3(width, 2.3f, 0.1f), new Vector3(0, 1.15f, 0.06f), Mat(plan.Kind == InteriorLayout.Wholesale ? new Color(0.35f, 0.38f, 0.4f) : new Color(0.3f, 0.2f, 0.12f)));
-        if (plan.Kind != InteriorLayout.Wholesale)
-            Box(door, new Vector3(width * 0.6f, 0.9f, 0.02f), new Vector3(0, 1.55f, 0.12f), Mat(new Color(0.6f, 0.75f, 0.8f), 0.1f, 0.2f, 0.25f)); // vidrio
+        var frame = Mat(plan.Kind == InteriorLayout.Wholesale ? Metal : DarkWood);
+        var width = plan.DoorWidth;
+        // Marco: dos jambas y el dintel (el hueco queda libre).
+        Box(door, new Vector3(0.15f, 2.6f, 0.14f), new Vector3(-width / 2 - 0.075f, 1.3f, 0.04f), frame);
+        Box(door, new Vector3(0.15f, 2.6f, 0.14f), new Vector3(width / 2 + 0.075f, 1.3f, 0.04f), frame);
+        Box(door, new Vector3(width + 0.3f, 0.15f, 0.14f), new Vector3(0, 2.55f, 0.04f), frame);
         // Toldo a rayas en los minoristas y en el diner.
         if (plan.Kind is InteriorLayout.Retail or InteriorLayout.Bar)
             for (var i = 0; i < 6; i++)
-                Box(door, new Vector3((width + 1.4f) / 6, 0.06f, 1.2f), new Vector3(-(width + 1.4f) / 2 + (i + 0.5f) * (width + 1.4f) / 6, 2.85f, 0.65f),
+                Box(door, new Vector3((width + 1.4f) / 6, 0.06f, 1.2f), new Vector3(-(width + 1.4f) / 2 + (i + 0.5f) * (width + 1.4f) / 6, 2.95f, 0.65f),
                     Mat(i % 2 == 0 ? Cream : plan.Kind == InteriorLayout.Bar ? Red : Green), rotation: new Vector3(Mathf.DegToRad(-12), 0, 0));
         door.AddChild(new Label3D
         {
-            Text = plan.Name.ToUpperInvariant(), FontSize = 64, OutlineSize = 10, PixelSize = 0.008f, Position = new Vector3(0, 3.35f, 0.15f),
+            Text = plan.Name.ToUpperInvariant(), FontSize = 64, OutlineSize = 10, PixelSize = 0.008f, Position = new Vector3(0, 3.45f, 0.15f),
             Modulate = new Color(0.98f, 0.86f, 0.55f), OutlineModulate = new Color(0.1f, 0.08f, 0.06f), Width = 900, AutowrapMode = TextServer.AutowrapMode.WordSmart,
         });
-        door.AddChild(new OmniLight3D { Position = new Vector3(0, 2.9f, 0.8f), LightColor = new Color(1f, 0.85f, 0.6f), LightEnergy = 1.2f, OmniRange = 5f });
+        door.AddChild(new OmniLight3D { Position = new Vector3(0, 2.9f, 0.8f), LightColor = new Color(1f, 0.85f, 0.6f), LightEnergy = 1.2f, OmniRange = 5f, DistanceFadeEnabled = true, DistanceFadeBegin = 40, DistanceFadeLength = 10 });
     }
 
     // ---------------- El salón ----------------
 
+    /// <summary>
+    /// El salón, en su lugar adentro del edificio: piso, techo, paredes (afuera del color de la fachada, adentro con su
+    /// revestimiento), la pared del frente con el hueco de la puerta y vidrieras, la hoja de la puerta y los muebles.
+    /// </summary>
     private static void BuildRoom(Node3D root, InteriorPlan plan, Dictionary<string, Vector3> anchors)
     {
-        var room = new Node3D { Name = $"Interior_{plan.Code}", Position = new Vector3(plan.Origin.X, 0, plan.Origin.Y) };
+        var room = new Node3D { Name = $"Interior_{plan.Code}", Position = new Vector3(plan.Origin.X, 0.05f, plan.Origin.Y), Rotation = new Vector3(0, plan.Yaw, 0) };
         root.AddChild(room);
         float w = plan.Width, d = plan.Depth, h = plan.Height;
-        var wall = WallMaterial(plan.Wall);
+        const float t = InteriorLayout.WallThickness;
+        var lining = WallMaterial(plan.Wall);
+        var outside = FacadeMaterial(plan.Code);
 
-        Solid(room, "Piso", new Vector3(w + 1, 0.4f, d + 1), new Vector3(0, -0.2f, 0), FloorMaterial(plan.Floor));
-        Box(room, new Vector3(w + 1, 0.2f, d + 1), new Vector3(0, h + 0.1f, 0), Mat(new Color(0.18f, 0.17f, 0.16f)));      // techo
-        Solid(room, "ParedFondo", new Vector3(w + 0.6f, h, 0.3f), new Vector3(0, h / 2, -d / 2 - 0.15f), wall);
-        Solid(room, "ParedIzq", new Vector3(0.3f, h, d + 0.6f), new Vector3(-w / 2 - 0.15f, h / 2, 0), wall);
-        Solid(room, "ParedDer", new Vector3(0.3f, h, d + 0.6f), new Vector3(w / 2 + 0.15f, h / 2, 0), wall);
-        const float gap = 1.8f;
-        // Pared de la puerta: entera (se entra y se sale con E, así la cámara nunca se escapa por el hueco), con la
-        // puerta vista desde adentro: madera, vidrio con la luz de la calle y el picaporte.
-        Solid(room, "ParedPuerta", new Vector3(w + 0.6f, h, 0.3f), new Vector3(0, h / 2, d / 2 + 0.15f), wall);
-        Box(room, new Vector3(gap + 0.3f, 2.6f, 0.08f), new Vector3(plan.DoorX, 1.3f, d / 2 - 0.02f), Mat(DarkWood));
-        Box(room, new Vector3(gap - 0.1f, 2.35f, 0.06f), new Vector3(plan.DoorX, 1.18f, d / 2 - 0.05f), Mat(new Color(0.34f, 0.22f, 0.12f)));
-        Box(room, new Vector3(gap * 0.55f, 0.9f, 0.03f), new Vector3(plan.DoorX, 1.6f, d / 2 - 0.09f), Mat(new Color(0.9f, 0.88f, 0.78f), 1f, 0f, 0.9f));
-        Box(room, new Vector3(0.12f, 0.05f, 0.05f), new Vector3(plan.DoorX + gap / 2 - 0.25f, 1.05f, d / 2 - 0.1f), Mat(Chrome, 0.2f, 0.9f));
-        room.AddChild(new Label3D
+        // Piso apenas por encima de la vereda (para que no se pisen) y techo.
+        Solid(room, "Piso", new Vector3(w + 2 * t, 0.4f, d + 2 * t), new Vector3(0, -0.2f, 0), FloorMaterial(plan.Floor)); // arriba en y = 0,05: apenas sobre la vereda
+        Box(room, new Vector3(w + 2 * t, 0.2f, d + 2 * t), new Vector3(0, h + 0.1f, 0), Mat(new Color(0.18f, 0.17f, 0.16f)));
+        // Paredes del fondo y de los costados: afuera, la fachada; adentro, el revestimiento del local.
+        Solid(room, "ParedFondo", new Vector3(w + 2 * t, h, t), new Vector3(0, h / 2, -d / 2 - t / 2), outside);
+        Solid(room, "ParedIzq", new Vector3(t, h, d + 2 * t), new Vector3(-w / 2 - t / 2, h / 2, 0), outside);
+        Solid(room, "ParedDer", new Vector3(t, h, d + 2 * t), new Vector3(w / 2 + t / 2, h / 2, 0), outside);
+        Box(room, new Vector3(w, h, 0.02f), new Vector3(0, h / 2, -d / 2 + 0.01f), lining);
+        Box(room, new Vector3(0.02f, h, d), new Vector3(-w / 2 + 0.01f, h / 2, 0), lining);
+        Box(room, new Vector3(0.02f, h, d), new Vector3(w / 2 - 0.01f, h / 2, 0), lining);
+
+        // Pared del frente: el hueco de la puerta y, en los comercios, vidrieras a los dos lados (se ve la calle).
+        var dw = plan.DoorWidth;
+        const float doorTop = 2.5f;
+        var front = d / 2 + t / 2;
+        var glassy = plan.Kind is InteriorLayout.Retail or InteriorLayout.Bar or InteriorLayout.Office;
+        var segments = new[] { (-w / 2 - t, plan.DoorX - dw / 2), (plan.DoorX + dw / 2, w / 2 + t) };
+        var glass = Mat(new Color(0.55f, 0.68f, 0.75f, 0.28f), 0.05f, 0.1f);
+        glass.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+        var k = 0;
+        foreach (var (x1, x2) in segments)
         {
-            Text = "SALIDA  [E]", FontSize = 40, OutlineSize = 8, PixelSize = 0.007f, Position = new Vector3(plan.DoorX, 2.65f, d / 2 - 0.05f),
-            Rotation = new Vector3(0, Mathf.Pi, 0), Modulate = new Color(0.9f, 0.3f, 0.25f), OutlineModulate = new Color(0.1f, 0.05f, 0.05f),
-        });
-        // Ventanas falsas con luz de día en las paredes laterales (dan profundidad sin abrir agujeros).
-        for (var z = -d / 2 + 2f; z < d / 2 - 1.5f; z += 3.5f)
-            foreach (var side in new[] { -1f, 1f })
-                Box(room, new Vector3(0.04f, 1.2f, 1.4f), new Vector3(side * (w / 2 - 0.02f), 2.1f, z), Mat(new Color(0.75f, 0.85f, 0.95f), 1f, 0f, 0.6f));
+            var len = x2 - x1;
+            if (len <= 0.05f)
+                continue;
+            var cx = (x1 + x2) / 2;
+            if (glassy && len > 2.2f)
+            {
+                // Zócalo, vidriera (con colisión: no se pasa) y la pared de arriba.
+                Solid(room, $"Zocalo{k}", new Vector3(len, 0.8f, t), new Vector3(cx, 0.4f, front), outside);
+                Solid(room, $"Vidriera{k}", new Vector3(len - 0.6f, 1.8f, 0.06f), new Vector3(cx, 1.7f, front), glass);
+                Solid(room, $"Marco{k}a", new Vector3(0.3f, 1.8f, t), new Vector3(x1 + 0.15f, 1.7f, front), outside);
+                Solid(room, $"Marco{k}b", new Vector3(0.3f, 1.8f, t), new Vector3(x2 - 0.15f, 1.7f, front), outside);
+                Solid(room, $"Arriba{k}", new Vector3(len, h - 2.6f, t), new Vector3(cx, 2.6f + (h - 2.6f) / 2, front), outside);
+            }
+            else
+                Solid(room, $"Frente{k}", new Vector3(len, h, t), new Vector3(cx, h / 2, front), outside);
+            k++;
+        }
+        Solid(room, "Dintel", new Vector3(dw, h - doorTop, t), new Vector3(plan.DoorX, doorTop + (h - doorTop) / 2, front), outside);
+
+        // La hoja de la puerta: gira sobre la bisagra (lado izquierdo, mirando desde afuera) hacia adentro del salón.
+        var leaf = new AnimatableBody3D { Name = "Hoja", Position = new Vector3(plan.DoorX - dw / 2, 0, front), SyncToPhysics = false };
+        var leafColor = plan.Kind == InteriorLayout.Wholesale ? new Color(0.35f, 0.38f, 0.4f) : new Color(0.32f, 0.2f, 0.11f);
+        leaf.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(dw - 0.04f, doorTop - 0.05f, 0.07f) }, MaterialOverride = Mat(leafColor), Position = new Vector3(dw / 2, (doorTop - 0.05f) / 2, 0) });
+        if (plan.Kind != InteriorLayout.Wholesale)
+            leaf.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(dw * 0.55f, 0.9f, 0.08f) }, MaterialOverride = glass, Position = new Vector3(dw / 2, 1.6f, 0) });
+        foreach (var side in new[] { -1f, 1f })
+            leaf.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.12f, 0.05f, 0.05f) }, MaterialOverride = Mat(Chrome, 0.2f, 0.9f), Position = new Vector3(dw - 0.2f, 1.05f, side * 0.07f) });
+        leaf.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(dw - 0.04f, doorTop - 0.05f, 0.08f) }, Position = new Vector3(dw / 2, (doorTop - 0.05f) / 2, 0) });
+        room.AddChild(leaf);
+        Leaves[plan.Code] = leaf;
+
         // Zócalo oscuro: separa piso y pared.
-        foreach (var (size, at) in new[] { (new Vector3(w, 0.2f, 0.05f), new Vector3(0, 0.1f, -d / 2 + 0.02f)), (new Vector3(0.05f, 0.2f, d), new Vector3(-w / 2 + 0.02f, 0.1f, 0)), (new Vector3(0.05f, 0.2f, d), new Vector3(w / 2 - 0.02f, 0.1f, 0)) })
+        foreach (var (size, at) in new[] { (new Vector3(w, 0.2f, 0.05f), new Vector3(0, 0.1f, -d / 2 + 0.03f)), (new Vector3(0.05f, 0.2f, d), new Vector3(-w / 2 + 0.03f, 0.1f, 0)), (new Vector3(0.05f, 0.2f, d), new Vector3(w / 2 - 0.03f, 0.1f, 0)) })
             Box(room, size, at, Mat(new Color(0.15f, 0.12f, 0.1f)));
-        // Luz de relleno para que nada quede negro.
-        room.AddChild(new OmniLight3D { Position = new Vector3(0, h - 0.6f, 0), LightColor = new Color(1f, 0.9f, 0.75f), LightEnergy = 0.8f, OmniRange = Mathf.Max(w, d) });
+        // Luz de relleno para que nada quede negro (se apaga de lejos).
+        room.AddChild(new OmniLight3D { Position = new Vector3(0, h - 0.6f, 0), LightColor = new Color(1f, 0.9f, 0.75f), LightEnergy = 0.8f, OmniRange = Mathf.Max(w, d), DistanceFadeEnabled = true, DistanceFadeBegin = 45, DistanceFadeLength = 10 });
 
         foreach (var item in plan.Items)
         {
-            var at = new Vector3(item.X, 0, item.Z);
             if (item.Type.StartsWith("stock-"))
             {
-                anchors[$"{plan.Code}:{item.Type}"] = room.Position + at;
+                var p = plan.ToWorld(item.X, item.Z);
+                anchors[$"{plan.Code}:{item.Type}"] = new Vector3(p.X, 0, p.Y);
                 continue;
             }
             Furniture(room, item, plan);
         }
+    }
+
+    /// <summary>El color de afuera del local: el del tono de su lote en la Calle Principal.</summary>
+    private static StandardMaterial3D FacadeMaterial(string code)
+    {
+        var lot = MainStreet.Lots.FirstOrDefault(l => l.Code == code);
+        var tone = CityLayout.DowntownPalette[(lot?.Tone ?? 0) % CityLayout.DowntownPalette.Length];
+        return Mat(new Color(tone.R, tone.G, tone.B), 0.9f);
     }
 
     private static StandardMaterial3D FloorMaterial(string kind) => kind switch

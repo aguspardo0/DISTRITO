@@ -51,10 +51,10 @@ public static class NpcInteractionRules
 
     // Los tres de las familias atienden en la vereda y también en el mostrador de adentro (galpón, taller y oficina). Desde
     // el 2026-11-09 cada uno está en la boca de la avenida de su familia sobre la Calle Principal (ver MainStreet).
-    public static readonly NpcDefinition Deposit = new(EconomyCatalog.DepositNpc, "Almacén Moretti", new Vector3(-14f, 0, -9.3f), [Inside("galpon-moretti")]);
-    public static readonly NpcDefinition Workshop = new(EconomyCatalog.WorkshopNpc, "Taller Caruso", new Vector3(10f, 0, 15.5f), [Inside("taller-caruso")]);
+    public static readonly NpcDefinition Deposit = new(EconomyCatalog.DepositNpc, "Almacén Moretti", new Vector3(-20f, 0, -9.3f), [Inside("galpon-moretti")]);
+    public static readonly NpcDefinition Workshop = new(EconomyCatalog.WorkshopNpc, "Taller Caruso", new Vector3(6f, 0, 9.3f), [Inside("taller-caruso")]);
 
-    public static readonly NpcDefinition ValentiOffice = new(EconomyCatalog.ValentiOfficeNpc, "Oficina Valenti", new Vector3(21.3f, 0, -15f), [Inside("oficina-valenti")]);
+    public static readonly NpcDefinition ValentiOffice = new(EconomyCatalog.ValentiOfficeNpc, "Oficina Valenti", new Vector3(16.5f, 0, -9.3f), [Inside("oficina-valenti")]);
 
     private static Vector3 Inside(string interior)
     {

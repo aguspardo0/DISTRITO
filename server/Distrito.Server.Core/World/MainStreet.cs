@@ -7,13 +7,13 @@ namespace Distrito.Server.Core.World;
 /// «interior» (se entra: la puerta la pone el interior con su código), «club», «casino», «fachada» (solo se ve) o
 /// «plaza» (sin edificio).
 /// </summary>
-public sealed record StreetLot(string Code, string Sign, float MinX, float MaxX, bool North, float Height, int Tone, string Kind)
+public sealed record StreetLot(string Code, string Sign, float MinX, float MaxX, bool North, float Height, int Tone, string Kind, float Depth = MainStreet.LotDepth)
 {
     public float Width => MaxX - MinX;
     public float CenterX => (MinX + MaxX) / 2;
 
     /// <summary>Planta del edificio: el frente sobre la línea de vereda y el fondo antes del pasaje de servicio.</summary>
-    public MapBuilding Plan => new(CenterX, (North ? -1 : 1) * (MainStreet.Front + MainStreet.LotDepth / 2), Width, MainStreet.LotDepth);
+    public MapBuilding Plan => new(CenterX, (North ? -1 : 1) * (MainStreet.Front + Depth / 2), Width, Depth);
 
     /// <summary>Hacia dónde mira el frente (hacia la calle).</summary>
     public Vector2 Facing => new(0, North ? 1 : -1);
@@ -31,8 +31,7 @@ public sealed record StreetLot(string Code, string Sign, float MinX, float MaxX,
 ///                 Av. Norte (Valenti) y Av. Sur (Caruso) cruzan la calle por sus huecos
 ///
 /// Cada familia tiene su local en la boca de su avenida: el Galpón Moretti donde entra la Avenida Oeste, la Oficina
-/// Valenti en la esquina de la Avenida Norte y el Taller Caruso en la de la Avenida Sur (las puertas de los dos últimos
-/// dan a su avenida). En la esquina de la Avenida Sur queda La Esquina, una plazoleta con el puesto de café y el
+/// Valenti en la esquina de la Avenida Norte y el Taller Caruso en la de la Avenida Sur. En la esquina de la Avenida Sur queda La Esquina, una plazoleta con el puesto de café y el
 /// kiosco; más al este, el casino, el club de jazz y los comercios.
 /// </summary>
 public static class MainStreet
@@ -44,20 +43,24 @@ public static class MainStreet
     /// <summary>Fondo de los lotes (16 m); detrás queda un pasaje de servicio de 3 m hasta el borde.</summary>
     public const float LotDepth = 16f;
 
+    /// <summary>
+    /// Los lotes. Los que tienen interior miden lo mismo que su salón más las paredes (0,3 m): el salón está adentro del
+    /// edificio y se entra caminando por la puerta (ver <see cref="InteriorLayout"/>).
+    /// </summary>
     public static readonly IReadOnlyList<StreetLot> Lots =
     [
         // Lado norte (de oeste a este).
-        new("galpon-moretti", "GALPÓN MORETTI", -28, -8, true, 7f, 0, "interior"),
-        new("botica", "BOTICA FERRI", -4, 8, true, 8f, 3, "interior"),
-        new("oficina-valenti", "OFICINA VALENTI", 11, 19, true, 11f, 1, "interior"),
+        new("galpon-moretti", "GALPÓN MORETTI", -29.7f, -3.1f, true, 7f, 0, "interior", 18.6f),
+        new("oficina-valenti", "OFICINA VALENTI", 6.4f, 19f, true, 11f, 1, "interior", 9.6f),
         // (19…31: la Avenida Norte cruza hacia el Barrio Valenti)
-        new("sastreria", "SASTRERÍA BIANCHI", 31, 45, true, 9.5f, 2, "interior"),
-        new("ramos-generales", "RAMOS GENERALES LA ESPERANZA", 49, 65, true, 8f, 5, "interior"),
-        new("hotel-roma", "HOTEL ROMA", 69, 81, true, 14.5f, 1, "fachada"),
-        new("club-jazz", "CLUB DE JAZZ", 85, 103, true, 9f, 2, "club"),
+        new("sastreria", "SASTRERÍA BIANCHI", 31f, 41.6f, true, 9.5f, 2, "interior", 8.6f),
+        new("ramos-generales", "RAMOS GENERALES LA ESPERANZA", 45f, 58.6f, true, 8f, 5, "interior", 9.6f),
+        new("botica", "BOTICA FERRI", 62f, 71.6f, true, 8f, 3, "interior", 7.6f),
+        new("hotel-roma", "HOTEL ROMA", 75f, 84f, true, 14.5f, 1, "fachada"),
+        new("club-jazz", "CLUB DE JAZZ", 87f, 103f, true, 9f, 2, "club"),
         // Lado sur.
-        new("diner", "DINER LA ESTRELLA", -28, -12, false, 6f, 3, "interior"),
-        new("taller-caruso", "TALLER CARUSO", -8, 7.5f, false, 7f, 4, "interior"),
+        new("diner", "DINER LA ESTRELLA", -29f, -13.4f, false, 6f, 3, "interior", 9.6f),
+        new("taller-caruso", "TALLER CARUSO", -11.1f, 7.5f, false, 7f, 4, "interior", 14.6f),
         // (7,5…20: la Avenida Sur cruza hacia el Barrio Caruso)
         new("la-esquina", "LA ESQUINA", 20, 36, false, 0f, 0, "plaza"),
         new("casino", "EL TRÉBOL", 38, 56, false, 7f, 0, "casino"),

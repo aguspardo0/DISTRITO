@@ -5,21 +5,33 @@ using Godot;
 namespace Distrito.Game.World;
 
 /// <summary>
-/// Puertas de los interiores: con E cerca de una puerta se entra (o se sale). Lo decide el servidor: verifica que el
-/// jugador esté en la puerta, a pie y en pie, y lo mueve adentro o afuera. El cliente solo gira la cámara.
+/// Puertas de los locales (desde el 2026-11-09): cada una es un objeto con física que se abre y se cierra con E, y se
+/// entra caminando (el salón está adentro del edificio, sin pasar a otro lado). Lo decide el servidor: verifica que el
+/// jugador esté al lado, a pie y en pie, y avisa a todos; cada equipo gira la hoja (con su colisión). Se cierran solas a
+/// los <see cref="AutoCloseSeconds"/> si no hay nadie en el paso.
 /// </summary>
 public partial class DoorNetwork : Node
 {
+    public const double AutoCloseSeconds = 12;
+    private const float OpenAngle = Mathf.Pi / 2 * 0.95f; // hacia adentro del salón
+    private const float Speed = 4f;                       // radianes por segundo
+
     public static DoorNetwork? Instance { get; private set; }
 
     private GameNetwork _network = null!;
     private readonly Dictionary<long, double> _lastUse = new();
-    private double _clock;
+    private readonly Dictionary<string, double> _openSince = new(); // puertas abiertas y desde cuándo
+    private double _clock, _nextSync;
 
     public void Initialize(GameNetwork network)
     {
         Instance = this;
         _network = network;
+        _network.PlayerAdmitted += (peer, _) =>
+        {
+            if (Multiplayer.IsServer())
+                RpcId(peer, MethodName.ReceiveAll, string.Join(',', _openSince.Keys));
+        };
     }
 
     public override void _ExitTree()
@@ -28,11 +40,11 @@ public partial class DoorNetwork : Node
             Instance = null;
     }
 
-    public override void _Process(double delta) => _clock += delta;
+    public static bool IsOpen(string code) => Instance?._openSince.ContainsKey(code) == true;
 
-    /// <summary>Texto para el cartel de abajo («[E] Entrar a…»), si hay una puerta al lado.</summary>
+    /// <summary>Texto para el cartel de abajo, si hay una puerta al lado.</summary>
     public static string? PromptAt(Vector3 p) => InteriorLayout.DoorNear(p.X, p.Z) is { } door
-        ? door.Inside ? "[E] Salir a la calle" : $"[E] Entrar a {door.Plan.Name}"
+        ? IsOpen(door.Plan.Code) ? "[E] Cerrar la puerta" : door.Inside ? "[E] Abrir la puerta" : $"[E] Abrir la puerta de {door.Plan.Name}"
         : null;
 
     public void Use()
@@ -56,25 +68,71 @@ public partial class DoorNetwork : Node
     {
         if (_network.GetPlayer(peer) is not { } player || player.Downed || player.Vehicle.Length > 0)
             return;
-        if (_lastUse.TryGetValue(peer, out var last) && _clock - last < 0.6)
-            return; // evita entrar y salir de golpe con dos toques
+        if (_lastUse.TryGetValue(peer, out var last) && _clock - last < 0.4)
+            return;
         var p = player.GlobalPosition;
         if (InteriorLayout.DoorNear(p.X, p.Z) is not { } door)
             return;
         _lastUse[peer] = _clock;
-        var (spot, yaw) = door.Inside ? (door.Plan.ExitPoint, door.Plan.ExitYaw) : (door.Plan.EntryPoint, door.Plan.EntryYaw);
-        player.Velocity = Vector3.Zero;
-        player.GlobalPosition = new Vector3(spot.X, 0.15f, spot.Y);
-        player.Rotation = new Vector3(0, yaw, 0);
-        GD.Print($"[DISTRITO] PUERTA {player.DisplayName} {(door.Inside ? "sale de" : "entra a")} {door.Plan.Name}");
-        if (peer != 1 && Multiplayer.GetPeers().Contains((int)peer))
-            RpcId(peer, MethodName.ReceiveFacing, yaw);
-        else
-            ReceiveFacing(yaw);
+        var open = !_openSince.ContainsKey(door.Plan.Code);
+        GD.Print($"[DISTRITO] PUERTA {player.DisplayName} {(open ? "abre" : "cierra")} {door.Plan.Name}");
+        Set(door.Plan.Code, open);
     }
 
-    /// <summary>Al cruzar la puerta, la cámara mira hacia adentro del salón (o hacia la calle al salir).</summary>
+    private void Set(string code, bool open)
+    {
+        if (open) _openSince[code] = _clock; else _openSince.Remove(code);
+        foreach (var peer in Multiplayer.GetPeers())
+            RpcId(peer, MethodName.ReceiveDoor, code, open);
+    }
+
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void ReceiveFacing(float yaw) =>
-        _network.LocalPlayer?.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(yaw);
+    public void ReceiveDoor(string code, bool open)
+    {
+        if (open) _openSince[code] = _clock; else _openSince.Remove(code);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ReceiveAll(string openCodes)
+    {
+        _openSince.Clear();
+        foreach (var code in openCodes.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            _openSince[code] = _clock;
+    }
+
+    public override void _Process(double delta)
+    {
+        _clock += delta;
+        // Todos (servidor y clientes) giran la hoja hacia donde tiene que estar: así la colisión es la misma en todos lados.
+        foreach (var (code, leaf) in InteriorBuilder.Leaves)
+        {
+            var target = _openSince.ContainsKey(code) ? OpenAngle : 0f;
+            var y = Mathf.MoveToward(leaf.Rotation.Y, target, Speed * (float)delta);
+            if (!Mathf.IsEqualApprox(y, leaf.Rotation.Y))
+                leaf.Rotation = new Vector3(0, y, 0);
+        }
+        if (!Multiplayer.HasMultiplayerPeer() || !Multiplayer.IsServer())
+            return;
+        // Se cierran solas si nadie está en el paso.
+        foreach (var (code, since) in _openSince.ToList())
+        {
+            if (_clock - since < AutoCloseSeconds || InteriorLayout.Find(code) is not { } plan)
+                continue;
+            var blocked = _network.AllPlayers.Any(pl =>
+            {
+                var at = new System.Numerics.Vector2(pl.GlobalPosition.X, pl.GlobalPosition.Z);
+                return System.Numerics.Vector2.Distance(at, plan.Door) < plan.DoorWidth + 0.6f || System.Numerics.Vector2.Distance(at, plan.InsideDoor) < plan.DoorWidth + 0.6f;
+            });
+            if (blocked)
+                _openSince[code] = _clock - AutoCloseSeconds + 2; // prueba de nuevo en 2 segundos
+            else
+                Set(code, false);
+        }
+        if (_clock >= _nextSync)
+        {
+            _nextSync = _clock + 5;
+            foreach (var peer in Multiplayer.GetPeers())
+                RpcId(peer, MethodName.ReceiveAll, string.Join(',', _openSince.Keys));
+        }
+    }
 }

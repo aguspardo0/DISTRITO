@@ -59,20 +59,20 @@ public partial class PropsNetwork : Node3D
     public override void _Ready()
     {
         Name = "Props";
-        var list = new List<(PhysicsProp Prop, Vector3 At)>();
+        var list = new List<(PhysicsProp Prop, Vector3 At, float Yaw)>();
         foreach (var p in InteriorLayout.MarketProps)
-            list.Add((p, new Vector3(p.X, p.Y, p.Z)));
+            list.Add((p, new Vector3(p.X, p.Y, p.Z), 0f));
         foreach (var plan in InteriorLayout.All)
             foreach (var p in plan.Props)
             {
                 var w = plan.ToWorld(p.X, p.Z);
-                list.Add((p, new Vector3(w.X, p.Y, w.Y)));
+                list.Add((p, new Vector3(w.X, p.Y + 0.05f, w.Y), plan.Yaw)); // el piso de los locales está 5 cm arriba
             }
-        foreach (var (p, at) in list)
+        foreach (var (p, at, yaw) in list)
         {
             var spec = Specs.GetValueOrDefault(p.Type, Specs["caja"]);
             var lift = spec.Size.Y / 2 + 0.02f;
-            var home = new Transform3D(new Basis(Vector3.Up, Mathf.DegToRad(p.Rotation)), at + new Vector3(0, lift, 0));
+            var home = new Transform3D(new Basis(Vector3.Up, Mathf.DegToRad(p.Rotation) + yaw), at + new Vector3(0, lift, 0));
             _props.Add(new Prop { Type = p.Type, Home = home, Target = home, LastSent = home });
         }
     }

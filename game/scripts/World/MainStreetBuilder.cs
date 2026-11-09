@@ -50,12 +50,22 @@ public static class MainStreetBuilder
             var p = lot.Plan;
             var tone = CityLayout.DowntownPalette[lot.Tone % CityLayout.DowntownPalette.Length];
             var color = new Color(tone.R, tone.G, tone.B);
-            var center = new Vector3(p.X, lot.Height / 2, p.Z);
-            var size = new Vector3(p.Width, lot.Height, p.Depth);
-            Box(st, center, size, color);
-            body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size }, Position = center });
+            // Los locales con interior: la planta baja es el salón (paredes, vidrieras y puerta los pone InteriorBuilder);
+            // acá va solo lo de arriba del techo del salón.
+            var interior = lot.Kind == "interior" ? InteriorLayout.Find(lot.Code) : null;
+            var bottom = interior is null ? 0f : interior.Height + 0.25f;
+            if (lot.Height - bottom > 0.3f)
+            {
+                var center = new Vector3(p.X, bottom + (lot.Height - bottom) / 2, p.Z);
+                var size = new Vector3(p.Width, lot.Height - bottom, p.Depth);
+                Box(st, center, size, color);
+                body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size }, Position = center });
+            }
             Box(st, new Vector3(p.X, lot.Height + 0.2f, p.Z), new Vector3(p.Width + 0.4f, 0.4f, p.Depth + 0.4f), color.Darkened(0.35f)); // cornisa
-            Box(st, new Vector3(p.X, 3.9f, p.Z), new Vector3(p.Width + 0.14f, 0.25f, p.Depth + 0.14f), color.Darkened(0.25f)); // línea de planta baja
+            if (interior is null)
+                Box(st, new Vector3(p.X, 3.9f, p.Z), new Vector3(p.Width + 0.14f, 0.25f, p.Depth + 0.14f), color.Darkened(0.25f)); // línea de planta baja
+            else
+                Box(st, new Vector3(p.X, bottom - 0.05f, p.Z), new Vector3(p.Width + 0.14f, 0.3f, p.Depth + 0.14f), color.Darkened(0.25f)); // techo del local
 
             // Pisos de arriba: filas de ventanas en el frente (algunas se encienden de noche).
             var face = lot.FrontCenter;
@@ -64,6 +74,8 @@ public static class MainStreetBuilder
             for (var floor = 1; floor < stories; floor++)
             {
                 var y = floor * 3.6f + 1.9f;
+                if (y - 0.8f < bottom + 0.2f || y + 0.8f > lot.Height - 0.3f)
+                    continue;
                 var count = Math.Max(2, (int)(p.Width / 3.2f));
                 for (var i = 0; i < count; i++)
                 {
@@ -74,14 +86,10 @@ public static class MainStreetBuilder
                 }
             }
 
-            // Planta baja: dos vidrieras a los lados (la puerta va al medio si el local tiene interior).
-            var hasDoorInFront = lot.Kind == "interior" && InteriorLayout.Find(lot.Code) is { } plan && plan.Outward.Y != 0;
-            var pane = hasDoorInFront ? (p.Width - 4f) / 2 - 0.6f : p.Width - 2.4f;
-            if (hasDoorInFront)
-                foreach (var side in new[] { -1, 1 })
-                    Box(st, new Vector3(p.X + side * (1.6f + pane / 2 + 0.3f), 1.7f, face.Y + facing.Y * 0.05f), new Vector3(pane, 2.3f, 0.1f), Glass.Lightened(0.1f));
-            else
-                Box(st, new Vector3(p.X, 1.7f, face.Y + facing.Y * 0.05f), new Vector3(pane, 2.3f, 0.1f), Glass.Lightened(0.1f));
+            // Planta baja de las fachadas: una vidriera (los locales con interior tienen las de verdad).
+            var hasDoorInFront = interior is not null;
+            if (interior is null)
+                Box(st, new Vector3(p.X, 1.7f, face.Y + facing.Y * 0.05f), new Vector3(p.Width - 2.4f, 2.3f, 0.1f), Glass.Lightened(0.1f));
 
             // Cartel en el frente: los locales con puerta al frente ya lo tienen sobre la puerta.
             if (!hasDoorInFront)

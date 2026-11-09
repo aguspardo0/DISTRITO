@@ -197,7 +197,7 @@ PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -q -c "
   SELECT id, 'caruso', 5 FROM distrito.characters WHERE name = 'Bot Jefe'
   ON CONFLICT (character_id, family_code) DO UPDATE SET value = GREATEST(distrito.character_reputation.value, 5)"
 crew_bot persist-collect-jefe.log bot_jefe "Bot Jefe" --bot-contract-code cobranza-caruso & a=$!
-crew_bot persist-collect-recluta.log bot_recluta "Bot Recluta" --bot-goto "10.5,13" & b=$!
+crew_bot persist-collect-recluta.log bot_recluta "Bot Recluta" --bot-goto "8,7.5" & b=$!
 wait $a; wait $b
 line=$(result_line persist-collect-jefe.log)
 if grep -q NET_TEST_OK persist-collect-jefe.log; then note "Cobranza en cuadrilla (jefe)" "${line#*\] }"

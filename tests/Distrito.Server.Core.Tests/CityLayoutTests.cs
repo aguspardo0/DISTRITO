@@ -173,7 +173,8 @@ public class CityLayoutTests
     [Fact]
     public void Cada_npc_esta_en_un_lugar_caminable_y_libre()
     {
-        foreach (var npc in NpcInteractionRules.All)
+        // Los que atienden adentro de un local (detrás del mostrador) quedan afuera de esta cuenta: el salón es su lugar.
+        foreach (var npc in NpcInteractionRules.All.Where(n => InteriorLayout.At(n.Position.X, n.Position.Z) is null))
         {
             Assert.True(CityLayout.IsWalkable(npc.Position.X, npc.Position.Z, 1f), $"{npc.Name} quedó contra un borde");
             Assert.All(MapPresence.Buildings, p =>
@@ -234,8 +235,8 @@ public class CityLayoutTests
             Assert.True(CityNavigation.IsFree(x, 0), $"la calzada está tapada en x = {x}");
         // Cada familia tiene su local en la boca de su avenida.
         Assert.True(InteriorLayout.Find("galpon-moretti")!.Door.X < CityLayout.Market.MinX + 15);
-        Assert.InRange(InteriorLayout.Find("oficina-valenti")!.Door.X, CityLayout.NorthAvenue.MinX - 1, CityLayout.NorthAvenue.MinX);
-        Assert.InRange(InteriorLayout.Find("taller-caruso")!.Door.X, CityLayout.SouthAvenue.MinX - 1, CityLayout.SouthAvenue.MinX);
+        Assert.InRange(MainStreet.Lot("oficina-valenti").MaxX, CityLayout.NorthAvenue.MinX - 1, CityLayout.NorthAvenue.MinX);
+        Assert.InRange(MainStreet.Lot("taller-caruso").MaxX, CityLayout.SouthAvenue.MinX - 1, CityLayout.SouthAvenue.MinX);
     }
 
     [Fact]
