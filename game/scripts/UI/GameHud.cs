@@ -202,7 +202,8 @@ public partial class GameHud : Control
         var p = me.VisualPosition;
         var zoneCode = Distrito.Server.Core.Combat.CombatRules.ZoneAt(new System.Numerics.Vector3(p.X, p.Y, p.Z));
         var free = Distrito.Server.Core.World.MapPresence.InDocks(p.X, p.Z);
-        var zoneName = Distrito.Server.Core.World.CityLayout.BarrioAt(p.X, p.Z)?.Area.Name ?? TerritoryRules.NameOf(zoneCode);
+        var zoneName = Distrito.Server.Core.World.CityLayout.BarrioAt(p.X, p.Z)?.Area.Name
+            ?? (Distrito.Server.Core.World.Station.Area.Contains(p.X, p.Z) ? Distrito.Server.Core.World.Station.Area.Name : TerritoryRules.NameOf(zoneCode));
         _zone.Text = free ? $"{zoneName} · zona libre: te pueden atacar y robar" : zoneName;
         _zone.AddThemeColorOverride("font_color", free ? Danger : new Color(0.78f, 0.74f, 0.66f));
         if (zoneName != _lastZone)

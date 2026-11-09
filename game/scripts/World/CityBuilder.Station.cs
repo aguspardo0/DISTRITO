@@ -84,9 +84,12 @@ public static partial class CityBuilder
         // Carteles: en la plaza, para el que baja del tren, y donde la avenida llega al Centro.
         node.AddChild(new Label3D
         {
-            Name = "ToMainStreet", Text = "↓ AVENIDA DE LA ESTACIÓN\nAl Centro y a la Calle Principal", Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
-            FontSize = 52, OutlineSize = 10, PixelSize = 0.01f, Modulate = new Color(0.95f, 0.85f, 0.6f), Position = new Vector3(Station.AxisX + 8, 4, Station.PlazaMaxZ - 2),
+            // Cartel en un poste al borde de la plaza, de cara a los que salen de la estación (miran hacia el sur, +Z).
+            Name = "ToMainStreet", Text = "AVENIDA DE LA ESTACIÓN\n↑ Al Centro y a la Calle Principal", FontSize = 40, OutlineSize = 8, PixelSize = 0.008f,
+            Modulate = new Color(0.95f, 0.88f, 0.68f), Position = new Vector3(Station.AxisX + 10.5f, 3.1f, Station.PlazaMaxZ - 0.05f), Rotation = new Vector3(0, Mathf.Pi, 0),
         });
+        Visual(node, "SignPost", new Vector3(0.14f, 3.6f, 0.14f), new Vector3(Station.AxisX + 10.5f, 1.8f, Station.PlazaMaxZ + 0.1f), Iron);
+        Visual(node, "SignBoard", new Vector3(5.2f, 1.1f, 0.08f), new Vector3(Station.AxisX + 10.5f, 3.1f, Station.PlazaMaxZ + 0.02f), new Color(0.12f, 0.16f, 0.13f));
         node.AddChild(new Label3D
         {
             Name = "ToStation", Text = "↑ ESTACIÓN BELLMONT", Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
