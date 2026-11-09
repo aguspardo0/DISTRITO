@@ -159,6 +159,12 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
 - [x] Rubro café (2026-11-08): tope de 6 turnos por día, la competencia (Café La Perla y El Gato Negro) y las misiones «El café de Don Aldo» (plata de la familia que encarga + fama del puesto)
 - [x] Día y noche visibles (2026-11-08): sol y luna con el reloj de Bellmont, cielo y luz por hora, faroles, neones y ventanas que se prenden de noche, y la hora de Bellmont en pantalla
 - [x] Sonido (2026-11-08): efectos generados por código (pasos, tiros, piñas, la urna, la taza, motores, la calle y bocinas), reproductor de música para discos de dominio público y volúmenes en Opciones. Ver `docs/SONIDO.md`
+- [x] Calle Principal (2026-11-09): el Mercado rehecho como calle comercial con cada negocio en su lote, locales de las familias en la boca de su avenida, Avenida del Puerto y Los Muelles en el borde contra el agua. Ver `docs/CIUDAD.md`
+- [x] Interiores sin teletransporte (2026-11-09): cada salón adentro de su edificio, puerta con física (E), vidrieras. Ver `docs/INTERIORES.md`
+- [x] Pantalla de juego minimalista, mapa con zoom, estilo de época y sonido de interfaz (2026-11-08). Ver `docs/INTERFAZ.md`
+- [x] Modelos .glb sin tocar código (2026-11-09): personas, autos, muebles, objetos y fachadas con escala, orientación y animaciones automáticas. Ver `docs/MODELOS.md`
+- [x] Escenas de la ciudad, tránsito y vecinos en los locales (2026-11-09): 18 escenas editables (calle, eventos, crimen), 16 autos que circulan y frenan, vecinos que entran por la puerta. Ver `docs/ESCENAS.md`
+- [ ] Demo de marzo de 2027 (plan de 16 semanas): rendimiento y prueba cerrada; que se vea profesional (modelos, animaciones, luz); contenido de la demo (estación de tren, una familia a fondo, contrabando); terminación
 - [ ] Mapa, fase 2: la bahía, el puerto grande, la aduana, el barrio obrero y la estación; el anillo para autos
 
 ## Más adelante (sin orden fijado)
