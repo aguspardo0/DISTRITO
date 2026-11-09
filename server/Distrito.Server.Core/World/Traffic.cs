@@ -73,7 +73,10 @@ public sealed class TrafficCar(int route, float distance, int paint)
 
 public sealed class TrafficSim
 {
-    public const float Cruise = 8.5f, Accel = 2.6f, Brake = 7f, LookAhead = 9f, HalfWidth = 1.5f;
+    public const float Cruise = 8.5f, Accel = 2.6f, Brake = 7f, LookAhead = 16f, HalfWidth = 1.5f;
+
+    /// <summary>A cuántos metros (desde el centro del auto) se para de lo que tiene adelante.</summary>
+    public const float StopGap = 5f;
 
     public List<TrafficCar> Cars { get; } = [];
 
@@ -107,20 +110,32 @@ public sealed class TrafficSim
                 car.Speed = 0;
                 continue;
             }
-            var blocked = people.Any(p => Ahead(car, p)) || Cars.Any(o => o != car && !o.Parked && Vector2.Dot(o.Heading, car.Heading) > 0.5f && Ahead(car, o.Position, 6.5f));
-            car.Speed = blocked ? MathF.Max(0, car.Speed - Brake * dt) : MathF.Min(Cruise, car.Speed + Accel * dt);
+            // Lo más cercano que tiene adelante (una persona, o un auto que va para el mismo lado: los que cruzan no cuentan).
+            var gap = float.MaxValue;
+            foreach (var p in people)
+                gap = MathF.Min(gap, Ahead(car, p));
+            foreach (var o in Cars)
+                if (o != car && !o.Parked && Vector2.Dot(o.Heading, car.Heading) > 0.5f)
+                    gap = MathF.Min(gap, Ahead(car, o.Position) - 1.5f);
+            // Velocidad que le permite frenar a tiempo; si alguien se le cruzó muy cerca, frena en seco.
+            var wanted = gap <= StopGap ? 0f : MathF.Min(Cruise, (gap - StopGap) * 1.6f + 0.5f);
+            if (car.Speed > wanted)
+                car.Speed = MathF.Max(wanted, car.Speed - (gap <= StopGap + 0.5f ? 25f : Brake) * dt);
+            else
+                car.Speed = MathF.Min(wanted, car.Speed + Accel * dt);
             car.Distance += car.Speed * dt;
             car.Place();
         }
     }
 
-    private static bool Ahead(TrafficCar car, Vector2 p, float range = LookAhead)
+    /// <summary>A cuántos metros adelante en su carril está <paramref name="p"/> (o infinito si no está en su camino).</summary>
+    private static float Ahead(TrafficCar car, Vector2 p)
     {
         var d = p - car.Position;
         var along = Vector2.Dot(d, car.Heading);
-        if (along < 0.5f || along > range)
-            return false;
+        if (along < 0.5f || along > LookAhead)
+            return float.MaxValue;
         var side = MathF.Abs(d.X * car.Heading.Y - d.Y * car.Heading.X);
-        return side < HalfWidth;
+        return side < HalfWidth ? along : float.MaxValue;
     }
 }

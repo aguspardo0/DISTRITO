@@ -20,6 +20,11 @@ public sealed class LifePlace
     [JsonPropertyName("z")] public double Z { get; set; }
     /// <summary>Lugar cerrado: al llegar, el habitante entra y deja de verse (hasta que sale).</summary>
     [JsonPropertyName("adentro")] public bool Indoor { get; set; }
+    /// <summary>
+    /// Lugar cerrado que se ve desde la calle (los locales de la Calle Principal, con vidriera y puerta de verdad): el
+    /// habitante entra caminando y se lo sigue viendo adentro. Sigue contando como refugio.
+    /// </summary>
+    [JsonPropertyName("seVe")] public bool Visible { get; set; }
 }
 
 public sealed class LifeProfession

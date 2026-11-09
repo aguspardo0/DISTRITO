@@ -161,7 +161,7 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
         return s with
         {
             Activity = best.Activity, Place = best.Place, X = toX, Z = toZ, FromX = fromX, FromZ = fromZ, Path = path,
-            Indoor = best.Place == HomePlace || best.Place.StartsWith(VisitPrefix, StringComparison.Ordinal) || cfg.Place(best.Place)?.Indoor == true,
+            Indoor = best.Place == HomePlace || best.Place.StartsWith(VisitPrefix, StringComparison.Ordinal) || cfg.Place(best.Place) is { Indoor: true, Visible: false },
             Since = at, ArrivesAt = arrives, Until = until, Money = Math.Max(0, money),
             Decision = Describe(best.Activity, best.Place), Reason = best.Reason, Decisions = s.Decisions + 1,
             Bag = s.Activity == LifeActivities.Shopping, // sale del local con la bolsa (etapa 8)
@@ -438,7 +438,7 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
                 .Append((Code: HomePlace, Name: "su casa", X: r.HomeX, Z: r.HomeZ))
                 .OrderBy(p => (p.X - x) * (p.X - x) + (p.Z - z) * (p.Z - z)).First();
             return (Travel(r, s, now, LifeActivities.Hiding, refuge.Code, refuge.X, refuge.Z, RunSpeed * 0.8, 30, $"esconderse en {refuge.Name}",
-                $"vio {what} y se metió en {refuge.Name} (miedo {fear:0.00})", indoor: true) with { ScaredUntil = now + scaredFor }, "escondidos");
+                $"vio {what} y se metió en {refuge.Name} (miedo {fear:0.00})", indoor: !refuge.Visible) with { ScaredUntil = now + scaredFor }, "escondidos");
         }
         if ((1 - r.Trait("desconfiado")) * (0.5 + 0.5 * r.Trait("pacifico")) > 0.42)
             return (s with { Reason = $"vio {what} y avisó a la policía", ScaredUntil = now + scaredFor / 2 }, "avisaron");
