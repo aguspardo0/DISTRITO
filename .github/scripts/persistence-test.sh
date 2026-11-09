@@ -85,10 +85,10 @@ fi
 
 grep -h "Posición guardada" persist-server.log | while IFS= read -r l; do echo "::warning title=Servidor (ubicación)::${l#*\] }"; done
 
-# --- Ubicación segura: posiciones guardadas corruptas (fuera del barrio / dentro de un edificio) ---
+# --- Ubicación segura: posiciones guardadas corruptas (fuera del barrio / dentro de un edificio: la barbería de la Calle Principal) ---
 PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -q -c "
   UPDATE distrito.characters SET pos_x = 500, pos_y = 1, pos_z = 500 WHERE name = 'Bot Alfa';
-  UPDATE distrito.characters SET pos_x = -14, pos_y = 0, pos_z = -14 WHERE name = 'Bot Beta';"
+  UPDATE distrito.characters SET pos_x = 66, pos_y = 0, pos_z = 19 WHERE name = 'Bot Beta';"
 for who in "bot_alfa:Bot Alfa:fuera del barrio" "bot_beta:Bot Beta:dentro de un edificio"; do
   IFS=: read -r acc name why <<< "$who"
   timeout 60 "$GODOT" --headless --path game -- \

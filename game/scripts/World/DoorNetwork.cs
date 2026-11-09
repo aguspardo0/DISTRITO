@@ -40,6 +40,9 @@ public partial class DoorNetwork : Node
             Instance = null;
     }
 
+    /// <summary>Para las capturas de prueba: deja una puerta abierta sin pasar por el servidor.</summary>
+    public void PreviewOpen(string code) => _openSince[code] = _clock + 1000;
+
     public static bool IsOpen(string code) => Instance?._openSince.ContainsKey(code) == true;
 
     /// <summary>Texto para el cartel de abajo, si hay una puerta al lado.</summary>

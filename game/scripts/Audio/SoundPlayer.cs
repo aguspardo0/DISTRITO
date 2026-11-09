@@ -17,6 +17,7 @@ public partial class SoundPlayer : Node
     private AudioStreamPlayer _street = null!;
     private readonly List<AudioStreamPlayer> _ui = new();
     private int _nextUi;
+    private bool _hooked;
     private double _hornIn = 25, _tick;
     private readonly Random _rng = new();
 
@@ -50,6 +51,7 @@ public partial class SoundPlayer : Node
         }
         // Cada botón que aparece en pantalla suena al apretarlo (también los de ventanas que se arman después).
         GetTree().NodeAdded += OnNodeAdded;
+        _hooked = true;
         foreach (var existing in GetTree().Root.FindChildren("*", "BaseButton", recursive: true, owned: false))
             OnNodeAdded(existing);
         _street = new AudioStreamPlayer { Bus = Bus, Stream = Sfx.Street, VolumeDb = -20 };
@@ -64,7 +66,7 @@ public partial class SoundPlayer : Node
         if (_instance == this)
             _instance = null;
         Distrito.Game.UI.GameSettings.EffectsVolumeChanged -= ApplyVolume;
-        if (IsInsideTree())
+        if (IsInsideTree() && _instance is null && _hooked)
             GetTree().NodeAdded -= OnNodeAdded;
     }
 

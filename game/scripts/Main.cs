@@ -729,6 +729,16 @@ public partial class Main : Node3D
                     me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(0);
                 }
             }),
+            ("puerta-abierta", () =>
+            {
+                // El diner con la puerta abierta: se ve el salón desde la vereda de enfrente.
+                Distrito.Game.World.DoorNetwork.Instance?.PreviewOpen("diner");
+                if (_network.LocalPlayer is { } me)
+                {
+                    me.GlobalPosition = new Vector3(-21.2f, 0.2f, 4f);
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Pi);
+                }
+            }),
             ("calle-principal", () =>
             {
                 // La Calle Principal entera, desde la punta este mirando hacia el Barrio Moretti.
