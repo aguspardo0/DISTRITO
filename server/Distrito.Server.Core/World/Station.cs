@@ -142,8 +142,10 @@ public static class Station
     public static Vector3 ArrivalSpot(int slot)
     {
         var door = CoachDoors[Math.Abs(slot) % CoachDoors.Length];
-        var offset = (Math.Abs(slot) / CoachDoors.Length % 4 - 1.5f) * 1.4f;
-        return new Vector3(door + offset, 1f, PlatformZ);
+        var k = Math.Abs(slot) / CoachDoors.Length;
+        var offset = (k % 4 - 1.5f) * 1.4f;
+        var row = k / 4 % 2 == 0 ? 0f : 1.5f; // segunda fila, más cerca del hall
+        return new Vector3(door + offset, 1f, PlatformZ + row);
     }
 
     /// <summary>¿Es la posición de un personaje recién creado (todavía no se movió nunca)?</summary>

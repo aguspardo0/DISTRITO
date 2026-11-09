@@ -621,7 +621,7 @@ public static class SceneScripts
             var board = TrainDeparts - 22 + rng.NextDouble() * 10;
             tracks.Add(new("persona", looks[rng.Next(looks.Length)],
             [
-                new(0, spot, -411.5f + (float)rng.NextDouble() * 2, "quieto"), new(board, spot, -411.5f, "quieto"),
+                new(0, spot, -411.6f - (float)rng.NextDouble() * 1.4f, "quieto"), new(board, spot, -411.8f, "quieto"),
                 new(board + MathF.Abs(door - spot) / 1.4 + 2, door, -416.2f, "cargar"), new(board + MathF.Abs(door - spot) / 1.4 + 2.5, door, -416.2f, "subir"),
             ], 1f, 200 + i));
         }
