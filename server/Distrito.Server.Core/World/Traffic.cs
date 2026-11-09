@@ -12,8 +12,9 @@ public static class TrafficRoutes
     /// <summary>Recorridos cerrados, ya sobre su carril (mano derecha).</summary>
     public static readonly IReadOnlyList<Vector2[]> Routes =
     [
-        // A: Calle Principal y Avenida del Puerto, ida por el carril sur y vuelta por el norte, con la vuelta en U en las puntas.
-        [new(-24, 3.2f), new(238, 3.2f), new(243, 0), new(238, -3.2f), new(-24, -3.2f), new(-28.5f, 0)],
+        // A: la mitad este de la Calle Principal y la Avenida del Puerto, ida por el carril sur y vuelta por el norte, con
+        // la vuelta en U en las puntas. La mitad oeste (los locales de las familias, donde aparece la gente) queda peatonal.
+        [new(62, 3.2f), new(238, 3.2f), new(243, 0), new(238, -3.2f), new(62, -3.2f), new(57.5f, 0)],
         // B: anillo grande por las calles x = ±189 y z = ±189 (en el sentido de las agujas del reloj, carril de adentro).
         [new(-186, -186), new(186, -186), new(186, 186), new(-186, 186)],
         // C: anillo al este (x de 114 a 189, z de −114 a 114), cruza la Avenida del Puerto.
