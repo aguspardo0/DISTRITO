@@ -18,9 +18,6 @@ namespace Distrito.Game;
 /// </summary>
 public partial class Main : Node3D
 {
-    private const string ControlsHelp =
-        "WASD: moverse   Shift: correr   Clic: piña/disparar   1-4: arma   Mouse: cámara   Espacio: saltar   E: hablar   G: subir/bajar del vehículo   I: inventario   C: cuadrilla   J: tablero   L: encargos   P: precios   K: habilidades   M: mapa   Esc: opciones   F11: pantalla completa   F3: métricas";
-
     private GameNetwork _network = null!;
     private EconomyNetwork _economy = null!;
     private CrewNetwork _crews = null!;
@@ -62,7 +59,7 @@ public partial class Main : Node3D
     private Distrito.Game.Life.LifeNetwork? _life;
     private AccountSession? _account;
     private ConnectMenu? _menu;
-    private Label? _hud;
+    private GameHud? _gameHud;
 
     public LaunchOptions Options { get; private set; } = LaunchOptions.Default;
 
@@ -351,10 +348,12 @@ public partial class Main : Node3D
     {
         var layer = new CanvasLayer { Name = "Hud" };
         AddChild(layer);
-        _hud = new Label { Position = new Vector2(12, 10), Text = "" };
-        _hud.AddThemeColorOverride("font_shadow_color", Colors.Black);
-        layer.AddChild(_hud);
-        layer.AddChild(UiAnchor.Wrap(new MetricsOverlay { Name = "Metrics", PlayerCount = () => _network.PlayerCount },
+        _gameHud = new GameHud { Name = "GameHud" };
+        layer.AddChild(_gameHud);
+        _gameHud.Me = () => _network.LocalPlayer;
+        _gameHud.Snapshot = () => _economy.LastSnapshot;
+        _gameHud.Ammo = () => _combat.AmmoText;
+        layer.AddChild(UiAnchor.Wrap(new MetricsOverlay { Name = "Metrics", PlayerCount = () => _network.PlayerCount, Visible = Options.UiSnapshotDir is not null },
             UiAnchor.End, UiAnchor.Start, name: "MetricsArea"));
 
         var interaction = new NpcInteractionController { Name = "NpcInteraction" };
@@ -415,7 +414,7 @@ public partial class Main : Node3D
         _encargoPanel.Initialize(_encargos, _economy);
         _encargoPanel.PreviewData = () => _encargoPreview;
         _encargoTracker = new EncargoTracker { Name = "EncargoTracker" };
-        layer.AddChild(UiAnchor.Wrap(_encargoTracker, UiAnchor.End, UiAnchor.Start, right: 16, top: 150, name: "EncargoTrackerArea"));
+        layer.AddChild(UiAnchor.Wrap(_encargoTracker, UiAnchor.End, UiAnchor.Start, right: 16, top: 170, name: "EncargoTrackerArea"));
         _encargoTracker.Initialize(_economy, () => _network.LocalPlayer?.VisualPosition, () => _encargoPreview);
         _encargoTracker.HiddenWhen = () => _encargoPanel is { IsOpen: true } || _mapPanel is { Visible: true };
         _encargoMarkers = new EncargoMarkers { Name = "EncargoMarkers" };
@@ -426,17 +425,18 @@ public partial class Main : Node3D
         _economy.DialogReceived += dialog => _rewardBanner.ShowIfCompleted(dialog.Text);
         // Tutorial de inicio: arriba a la izquierda, debajo de los avisos; marca a dónde ir como los encargos.
         _tutorial = new TutorialGuide { Name = "Tutorial" };
-        layer.AddChild(UiAnchor.Wrap(_tutorial, UiAnchor.Start, UiAnchor.Start, left: 12, top: 96, name: "TutorialArea"));
+        layer.AddChild(UiAnchor.Wrap(_tutorial, UiAnchor.Start, UiAnchor.Start, left: 20, top: 20, name: "TutorialArea"));
         _tutorial.Initialize(() => _economy.LastSnapshot, () => _network.LocalCharacterId,
             () => _mapPanel is { Visible: true }, () => _encargoPanel is { IsOpen: true });
         _tutorial.ShiftDone = () => _coffeeShift.CompletedOne;
         _encargoMarkers.Extra = () => _tutorial.Targets;
+        // La brújula apunta al paso del tutorial y, si no hay, al primer encargo.
+        _gameHud!.Objectives = () => _tutorial.Targets.Concat((_economy.LastSnapshot?.ActiveEncargos ?? []).Select(e => e.NextNpc).OfType<string>());
         _mapPanel.ExtraTargets = () => _tutorial.Targets;
         _tutorial.TargetsChanged += () => _encargoMarkers.Refresh();
         _encargos.MessageReceived += text =>
         {
-            if (_hud is not null)
-                _hud.Text = $"{text}\n{ControlsHelp}";
+            _gameHud?.Notify(text);
         };
 
         _vehicleShop = new Distrito.Game.Transport.VehicleShopPanel { Name = "VehicleShop" };
@@ -461,55 +461,21 @@ public partial class Main : Node3D
         crosshair.AddThemeFontSizeOverride("font_size", 26);
         crosshair.AddThemeColorOverride("font_shadow_color", Colors.Black);
         layer.AddChild(UiAnchor.Wrap(crosshair, UiAnchor.Center, UiAnchor.Center, name: "Crosshair"));
-        var ammo = new Label();
-        ammo.AddThemeFontSizeOverride("font_size", 18);
-        ammo.AddThemeColorOverride("font_color", new Color(0.95f, 0.8f, 0.45f));
-        ammo.AddThemeColorOverride("font_shadow_color", Colors.Black);
-        layer.AddChild(UiAnchor.Wrap(ammo, UiAnchor.End, UiAnchor.End, right: 20, bottom: 20, name: "AmmoArea"));
-        // Vida y estado propio (abajo a la derecha, arriba de las balas).
-        var health = new Label();
-        health.AddThemeFontSizeOverride("font_size", 18);
-        health.AddThemeColorOverride("font_shadow_color", Colors.Black);
-        layer.AddChild(UiAnchor.Wrap(health, UiAnchor.End, UiAnchor.End, right: 20, bottom: 46, name: "HealthArea"));
-        // Aviso al entrar a Los Muelles (zona libre).
-        var freeZone = new Label { Text = "LOS MUELLES — zona libre: acá te pueden atacar y robar", Visible = false };
-        freeZone.AddThemeFontSizeOverride("font_size", 17);
-        freeZone.AddThemeColorOverride("font_color", new Color(0.95f, 0.5f, 0.38f));
-        freeZone.AddThemeColorOverride("font_shadow_color", Colors.Black);
-        layer.AddChild(UiAnchor.Wrap(freeZone, UiAnchor.Center, UiAnchor.Start, top: 110, name: "FreeZoneArea"));
-        GetTree().ProcessFrame += () =>
-        {
-            if (!IsInstanceValid(health))
-                return;
-            var me = _network.LocalPlayer;
-            freeZone.Visible = me is not null && Distrito.Server.Core.World.MapPresence.InDocks(me.VisualPosition.X, me.VisualPosition.Z);
-            health.Text = me is null ? "" : me.Dead ? "Muerto — volvés en unos segundos"
-                : me.Downed ? "Herido — esperá que te levante un compañero"
-                : $"♥ {me.Health}";
-            health.AddThemeColorOverride("font_color", me is { Downed: true } || me?.Health < 40 ? new Color(0.9f, 0.35f, 0.3f) : new Color(0.92f, 0.88f, 0.8f));
-        };
-
-        _combat.AmmoChanged += () =>
-        {
-            ammo.Text = _combat.AmmoText;
-            crosshair.Visible = _combat.AmmoText.Length > 0;
-        };
+        // Vida, plata, zona, hora y balas: en la pantalla minimalista (GameHud).
+        _combat.AmmoChanged += () => crosshair.Visible = _combat.AmmoText.Length > 0;
 
         _combat.MessageReceived += text =>
         {
-            if (_hud is not null)
-                _hud.Text = $"{text}\n{ControlsHelp}";
+            _gameHud?.Notify(text);
         };
         _crews.MessageReceived += text =>
         {
-            if (_hud is not null)
-                _hud.Text = $"{text}\n{ControlsHelp}";
+            _gameHud?.Notify(text);
         };
 
         _network.StatusChanged += message =>
         {
-            if (_hud is not null)
-                _hud.Text = $"{message}\n{ControlsHelp}";
+            _gameHud?.Notify(message);
             _menu?.ShowStatus(message);
         };
         _network.Connected += () => _menu?.Hide();
@@ -632,6 +598,8 @@ public partial class Main : Node3D
                 _menu?.Hide();
                 _network.StartHost(7990);
             }),
+            ("controles", () => _gameHud?.ToggleControls()),
+            ("hud-limpio", () => { _gameHud?.ToggleControls(); }),
             ("dialogo", () => _interaction?.Dialog.ShowDialog(new NpcDialog(NpcInteractionRules.Deposit.Code, NpcInteractionRules.Deposit.Name,
                 "Texto de prueba del diálogo, con varias líneas para ver que el panel crezca y siga centrado abajo. "
                 + "Zona Calle del Almacén: nadie la controla todavía. Ánimo de la familia: tranquila. Próximo evento: Feria del puerto.",

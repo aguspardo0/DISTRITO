@@ -136,6 +136,8 @@ public partial class PlayerCharacter : CharacterBody3D
             tag += "\n(herido — un compañero lo levanta con E)";
         else if (Health < Distrito.Server.Core.Combat.CombatRules.MaxHealth)
             tag += $"\n♥ {Health}";
+        // El propio nombre no se muestra arriba de la cabeza (pantalla limpia); el de los demás, sí.
+        _nameTag.Visible = !(Multiplayer.HasMultiplayerPeer() && PeerId == Multiplayer.GetUniqueId());
         if (tag == _shownTag)
             return;
         _shownTag = tag;

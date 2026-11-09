@@ -52,16 +52,7 @@ public partial class DayNightCycle : Node
         }
         _sun = GetParent().GetNodeOrNull<DirectionalLight3D>("Sun");
         _env = GetParent().GetNodeOrNull<WorldEnvironment>("WorldEnvironment")?.Environment;
-        var layer = new CanvasLayer { Layer = 5 };
-        AddChild(layer);
-        _clock = new Label { Name = "BellmontClock", HorizontalAlignment = HorizontalAlignment.Right };
-        _clock.AddThemeColorOverride("font_color", new Color(0.95f, 0.88f, 0.7f));
-        _clock.AddThemeColorOverride("font_shadow_color", Colors.Black);
-        _clock.AddThemeFontSizeOverride("font_size", 15);
-        _clock.SetAnchorsPreset(Control.LayoutPreset.BottomRight);
-        _clock.Position = new Vector2(-230, -34);
-        _clock.Size = new Vector2(220, 24);
-        layer.AddChild(_clock);
+        // La hora de Bellmont se muestra en la pantalla de juego (GameHud), abajo a la derecha.
     }
 
     /// <summary>Qué tan de noche es (0 de día, 1 de noche), con media hora de transición al amanecer y al atardecer.</summary>
