@@ -34,6 +34,7 @@ public enum LaunchMode
 /// <param name="BotBusiness">El bot abre un puesto de café, lo repone, espera ventas y retira la ganancia.</param>
 /// <param name="BotContract">El bot cumple el contrato de prueba (depósito → taller) y la prueba verifica el cobro.</param>
 /// <param name="UiSnapshotDir">Prueba visual: guarda capturas de pantalla de la interfaz en esta carpeta y cierra.</param>
+/// <param name="Benchmark">Medición de rendimiento: partida local, recorrido fijo por la ciudad en las tres calidades gráficas, registra FPS y cierra.</param>
 /// <param name="ExpectMapPlayers">La prueba exige que el mapa muestre esta cantidad de jugadores al final.</param>
 /// <param name="MaxPlayers">Servidor: cuántos jugadores entran en la zona (por defecto 64; las pruebas de escala lo suben).</param>
 /// <param name="BotContractCode">Qué contrato juega el bot (por defecto, la entrega de repuestos).</param>
@@ -63,6 +64,7 @@ public sealed record LaunchOptions(
     string? BotContractCode = null,
     int? ExpectMapPlayers = null,
     string? UiSnapshotDir = null,
+    bool Benchmark = false,
     bool BotFight = false,
     string? BotFightWeapon = null,
     int MaxPlayers = NetworkDefaults.MaxPlayersPerZone)
@@ -127,6 +129,9 @@ public sealed record LaunchOptions(
                     break;
                 case "--bot-fight":
                     options = options with { Bot = true, BotFight = true };
+                    break;
+                case "--benchmark":
+                    options = options with { Benchmark = true };
                     break;
                 case "--ui-snapshot":
                     options = options with { UiSnapshotDir = RequireValue(args, ref i) };

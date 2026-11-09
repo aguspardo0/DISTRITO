@@ -113,7 +113,9 @@ public static class CityBuilder
                 lit.Commit(mesh);
                 mesh.SurfaceSetMaterial(2, DayNightCycle.LitWindows);
             }
-            body.AddChild(new MeshInstance3D { Mesh = mesh });
+            var blockMesh = new MeshInstance3D { Mesh = mesh };
+            blockMesh.AddToGroup(GraphicsQuality.FarGroup); // a lo lejos deja de dibujarse (según la calidad gráfica)
+            body.AddChild(blockMesh);
             node.AddChild(body);
         }
 
@@ -231,6 +233,7 @@ public static class CityBuilder
     {
         var area = b.Area;
         var node = new Node3D { Name = area.Code };
+        node.AddToGroup(GraphicsQuality.FarGroup);
         city.AddChild(node);
         var accent = new Color(b.Accent.R, b.Accent.G, b.Accent.B);
         var baseTone = new Color(b.Palette[0].R, b.Palette[0].G, b.Palette[0].B);

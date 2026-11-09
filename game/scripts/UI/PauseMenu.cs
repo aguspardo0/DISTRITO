@@ -13,6 +13,7 @@ public partial class PauseMenu : Control
     private HSlider _sensitivity = null!;
     private HSlider _music = null!;
     private HSlider _effects = null!;
+    private OptionButton _quality = null!;
 
     public event Action? LeaveRequested;
     public event Action? TutorialSkipRequested;
@@ -55,6 +56,16 @@ public partial class PauseMenu : Control
         _vsync.Toggled += on => { if (on != GameSettings.VSync) GameSettings.SetVSync(on); };
         box.AddChild(_vsync);
 
+        var qualityRow = new HBoxContainer();
+        qualityRow.AddChild(new Label { Text = "Calidad gráfica", SizeFlagsHorizontal = SizeFlags.ExpandFill });
+        _quality = new OptionButton();
+        _quality.AddItem("Baja (notebooks)", 0);
+        _quality.AddItem("Media", 1);
+        _quality.AddItem("Alta (placa de video)", 2);
+        _quality.ItemSelected += i => GameSettings.SetQuality((int)i);
+        qualityRow.AddChild(_quality);
+        box.AddChild(qualityRow);
+
         box.AddChild(new Label { Text = "Sensibilidad del mouse" });
         _sensitivity = new HSlider { MinValue = 0.0005, MaxValue = 0.01, Step = 0.0005, CustomMinimumSize = new Vector2(300, 0) };
         _sensitivity.ValueChanged += v => GameSettings.SetMouseSensitivity((float)v);
@@ -88,6 +99,7 @@ public partial class PauseMenu : Control
         _sensitivity.SetValueNoSignal(GameSettings.MouseSensitivity);
         _music.SetValueNoSignal(GameSettings.MusicVolume);
         _effects.SetValueNoSignal(GameSettings.EffectsVolume);
+        _quality.Select(GameSettings.Quality);
         Visible = true;
         Input.MouseMode = Input.MouseModeEnum.Visible;
     }

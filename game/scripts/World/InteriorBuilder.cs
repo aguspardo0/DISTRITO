@@ -105,6 +105,9 @@ public static class InteriorBuilder
         var room = new Node3D { Name = $"Interior_{plan.Code}", Position = new Vector3(plan.Origin.X, 0.05f, plan.Origin.Y), Rotation = new Vector3(0, plan.Yaw, 0) };
         root.AddChild(room);
         float w = plan.Width, d = plan.Depth, h = plan.Height;
+        var furniture = new Node3D { Name = "Muebles" };
+        furniture.AddToGroup(GraphicsQuality.InteriorGroup); // los muebles se dibujan solo de cerca (según la calidad gráfica)
+        room.AddChild(furniture);
         const float t = InteriorLayout.WallThickness;
         var lining = WallMaterial(plan.Wall);
         var outside = FacadeMaterial(plan.Code);
@@ -176,7 +179,7 @@ public static class InteriorBuilder
                 anchors[$"{plan.Code}:{item.Type}"] = new Vector3(p.X, 0, p.Y);
                 continue;
             }
-            Furniture(room, item, plan);
+            Furniture(furniture, item, plan);
         }
     }
 
@@ -239,7 +242,10 @@ public static class InteriorBuilder
         else if (ResourceLoader.Exists(path) && GD.Load<PackedScene>(path) is { } model)
             node.AddChild(model.Instantiate<Node3D>());
         else
+        {
             Greybox(node, item, plan);
+            MeshMerge.All(node); // rendimiento: cada mueble provisorio en una sola malla
+        }
         if (!NoCollision.Contains(item.Type) && Sizes.TryGetValue(item.Type, out var size))
         {
             var body = new StaticBody3D { Name = "Colision" };

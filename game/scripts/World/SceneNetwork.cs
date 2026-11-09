@@ -238,7 +238,7 @@ public partial class SceneNetwork : Node
         {
             _rain = new GpuParticles3D
             {
-                Amount = 2500, Lifetime = 1.2f, Preprocess = 1f, VisibilityAabb = new Aabb(new Vector3(-30, -20, -30), new Vector3(60, 40, 60)),
+                Amount = GraphicsQuality.Current.Rain, Lifetime = 1.2f, Preprocess = 1f, VisibilityAabb = new Aabb(new Vector3(-30, -20, -30), new Vector3(60, 40, 60)),
                 ProcessMaterial = new ParticleProcessMaterial
                 {
                     EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Box, EmissionBoxExtents = new Vector3(25, 0.5f, 25),
@@ -421,6 +421,7 @@ public partial class SceneNetwork : Node
             InteriorBuilder.Box(root, new Vector3(1.6f, 4, 1.6f), new Vector3(0, 8.2f, 10), red);
             for (var i = 0; i < 4; i++)
                 InteriorBuilder.Box(root, new Vector3(2.4f, 1.6f, 2.4f), new Vector3(i % 2 == 0 ? -1.5f : 1.5f, 3.5f, -8 + i * 3.2f), InteriorBuilder.Mat(new[] { new Color(0.5f, 0.2f, 0.15f), new Color(0.2f, 0.35f, 0.45f), new Color(0.45f, 0.45f, 0.3f) }[i % 3]));
+            MeshMerge.All(root);
             return root;
         }
 
@@ -437,6 +438,7 @@ public partial class SceneNetwork : Node
                 InteriorBuilder.Box(root, new Vector3(2.8f / 6, 0.05f, 1.5f), new Vector3(-1.4f + (i + 0.5f) * 2.8f / 6, 2.42f, 0), InteriorBuilder.Mat(i % 2 == 0 ? new Color(0.92f, 0.88f, 0.78f) : colors[variant % colors.Length]));
             for (var i = 0; i < 5; i++)
                 InteriorBuilder.Box(root, new Vector3(0.3f, 0.2f, 0.3f), new Vector3(-1 + i * 0.5f, 1.0f, 0), InteriorBuilder.Mat(colors[(i + variant) % colors.Length].Lightened(0.2f)));
+            MeshMerge.All(root);
             return root;
         }
     }

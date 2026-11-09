@@ -211,9 +211,20 @@ public partial class Main : Node3D
             return;
         }
 
-        if (Options.UiSnapshotDir is null)
+        if (Options.UiSnapshotDir is null && !Options.Benchmark)
             GameSettings.Load(); // la prueba visual usa la ventana que le pasa la línea de comandos
+        Distrito.Game.World.GraphicsQuality.Attach(GetTree());
         CreateHud();
+
+        if (Options.Benchmark)
+        {
+            // Medición de rendimiento: partida local, recorrido fijo por la ciudad en las tres calidades.
+            _network.StartHost(7991);
+            var bench = new Distrito.Game.Diagnostics.Benchmark { Name = "Benchmark" };
+            AddChild(bench);
+            bench.Initialize(_network);
+            return;
+        }
 
         if (Options.UiSnapshotDir is { } snapshotDir)
         {

@@ -165,6 +165,10 @@ public partial class CharacterModel : Node3D
             crown.Scale = new Vector3(1.05f, 1f, 1.12f);
             Add(m, Box(0.2f, 0.02f, 0.1f), hat, new Vector3(0, 1.835f, -0.13f));
         }
+        // Rendimiento: el cuerpo en una sola malla y cada brazo y pierna en otra (5 llamadas de dibujo en lugar de ~20).
+        Distrito.Game.World.MeshMerge.Children(m);
+        foreach (var limb in new[] { m._legL, m._legR, m._armL, m._armR })
+            Distrito.Game.World.MeshMerge.Children(limb);
         return m;
     }
 

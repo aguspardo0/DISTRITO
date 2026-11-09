@@ -170,6 +170,7 @@ public partial class VehicleBody : CharacterBody3D
         // Paragolpes cromados.
         Box(new Vector3(w * 1.0f, 0.12f, 0.12f), new Vector3(0, 0.58f, -l * 0.5f), chrome);
         Box(new Vector3(w * 0.98f, 0.1f, 0.1f), new Vector3(0, 0.58f, l * 0.49f), chrome);
+        Distrito.Game.World.MeshMerge.All(model); // rendimiento: la carrocería en una sola malla (faros, vidrios y balizas aparte)
         return model;
     }
 

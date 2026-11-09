@@ -25,6 +25,24 @@ public static class GameSettings
 
     public static event Action? EffectsVolumeChanged;
 
+    /// <summary>Calidad gráfica: 0 baja (notebooks), 1 media, 2 alta. Ver <see cref="Distrito.Game.World.GraphicsQuality"/>.</summary>
+    public static int Quality { get; private set; } = 1;
+    public static event Action? QualityChanged;
+
+    public static void SetQuality(int value)
+    {
+        Quality = Math.Clamp(value, 0, 2);
+        Save();
+        QualityChanged?.Invoke();
+    }
+
+    /// <summary>Solo para la medición automática: cambia la calidad sin guardarla.</summary>
+    public static void PreviewQuality(int value)
+    {
+        Quality = Math.Clamp(value, 0, 2);
+        QualityChanged?.Invoke();
+    }
+
     public static bool IsHeadless => DisplayServer.GetName() == "headless";
 
     public static void Load()
@@ -37,6 +55,7 @@ public static class GameSettings
             MouseSensitivity = Mathf.Clamp((float)cfg.GetValue("controles", "sensibilidad", 0.003f), 0.0005f, 0.01f);
             MusicVolume = Mathf.Clamp((float)cfg.GetValue("sonido", "musica", 0.5f), 0f, 1f);
             EffectsVolume = Mathf.Clamp((float)cfg.GetValue("sonido", "efectos", 0.8f), 0f, 1f);
+            Quality = Math.Clamp((int)cfg.GetValue("pantalla", "calidad", 1), 0, 2);
         }
         ApplyDisplay();
     }
@@ -79,6 +98,7 @@ public static class GameSettings
         cfg.SetValue("controles", "sensibilidad", MouseSensitivity);
         cfg.SetValue("sonido", "musica", MusicVolume);
         cfg.SetValue("sonido", "efectos", EffectsVolume);
+        cfg.SetValue("pantalla", "calidad", Quality);
         cfg.Save(Path);
     }
 }

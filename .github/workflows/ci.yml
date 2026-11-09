@@ -141,6 +141,22 @@ jobs:
             fi
           done
 
+      - name: Medición de rendimiento — recorrido fijo en las tres calidades gráficas
+        run: |
+          timeout 300 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path game --rendering-driver opengl3 \
+            --resolution 1280x720 -- --benchmark > bench.log 2>&1 || true
+          if grep -q BENCH_DONE bench.log; then
+            {
+              echo "### Rendimiento (máquina de CI sin placa de video: sirve para comparar, no como número final)"
+              echo "| Calidad | Lugar | FPS | Cuadro lento (ms) | Llamadas de dibujo | Objetos | Triángulos |"
+              echo "|---|---|---|---|---|---|---|"
+              grep 'BENCH calidad' bench.log | sed -E 's/.*calidad=([^ ]+) lugar=([^ ]+) fps=([^ ]+) cuadro_lento_ms=([^ ]+) dibujos=([^ ]+) objetos=([^ ]+) triangulos=([^ ]+).*/| \1 | \2 | \3 | \4 | \5 | \6 | \7 |/'
+            } >> "$GITHUB_STEP_SUMMARY"
+            grep 'BENCH calidad' bench.log | while IFS= read -r l; do echo "::notice title=Rendimiento::${l#*BENCH }"; done
+          else
+            echo "::warning title=Rendimiento::no terminó: $(grep -iE 'error|exception' bench.log | head -3 | tr '\n' ' ')"
+          fi
+
       - name: Publicar capturas en la rama ui-capturas
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
