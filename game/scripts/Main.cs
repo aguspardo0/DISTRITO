@@ -809,7 +809,7 @@ public partial class Main : Node3D
                 // La Estación Bellmont desde la plaza: el hall, la torre del reloj y la fuente.
                 if (_network.LocalPlayer is { } me)
                 {
-                    me.GlobalPosition = new Vector3(124f, 0.2f, -356f);
+                    me.GlobalPosition = new Vector3(120f, 0.2f, -364f);
                     me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Atan2(10f, 40f));
                 }
             }),
