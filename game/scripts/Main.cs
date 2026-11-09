@@ -188,6 +188,10 @@ public partial class Main : Node3D
         var scenes = new Distrito.Game.World.SceneNetwork();
         AddChild(scenes);
         scenes.Initialize(_network, life);
+        // Autos que circulan por la Calle Principal, la Avenida del Puerto y el Centro.
+        var traffic = new Distrito.Game.World.TrafficNetwork();
+        AddChild(traffic);
+        traffic.Initialize(_network);
         SpawnNpcs();
 
         if (Options.Mode == LaunchMode.Server)

@@ -97,3 +97,41 @@ public class CityScenesTests
         Assert.False(SceneScripts.Pose(track, 30).Visible);
     }
 }
+
+/// <summary>Tránsito: recorridos por la calle y autos que frenan por la gente.</summary>
+public class TrafficTests
+{
+    [Fact]
+    public void Los_recorridos_van_por_la_calle_sin_edificios()
+    {
+        foreach (var route in TrafficRoutes.Routes)
+            for (var d = 0f; d < TrafficRoutes.Length(route); d += 2f)
+            {
+                var (at, _) = TrafficRoutes.At(route, d);
+                Assert.True(CityLayout.IsWalkable(at.X, at.Y), $"el tránsito sale de la ciudad en ({at.X:0}, {at.Y:0})");
+                Assert.DoesNotContain(MapPresence.Buildings, b => MathF.Abs(at.X - b.X) < b.Width / 2 + 1f && MathF.Abs(at.Y - b.Z) < b.Depth / 2 + 1f);
+                Assert.False(CityLayout.InsideWall(at.X, at.Y));
+            }
+    }
+
+    [Fact]
+    public void Un_auto_frena_si_hay_alguien_adelante_y_sigue_cuando_se_corre()
+    {
+        var sim = new TrafficSim();
+        for (var i = 0; i < 40; i++)
+            sim.Step(0.1f, []);
+        var car = sim.Cars[0];
+        Assert.True(car.Speed > 5);
+        var person = car.Position + car.Heading * 6;
+        for (var i = 0; i < 30; i++)
+            sim.Step(0.1f, [person]);
+        Assert.Equal(0, car.Speed, 2);
+        Assert.True(System.Numerics.Vector2.Distance(car.Position, person) > 1.5f, "lo atropelló");
+        for (var i = 0; i < 30; i++)
+            sim.Step(0.1f, []);
+        Assert.True(car.Speed > 3);
+        var closed = new HashSet<int> { 0 };
+        sim.Step(0.1f, [], closed);
+        Assert.True(sim.Cars.Where(c => c.Route == 0).All(c => c.Parked && c.Speed == 0));
+    }
+}
