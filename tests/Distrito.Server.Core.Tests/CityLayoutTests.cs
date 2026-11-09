@@ -312,7 +312,7 @@ public class CityLayoutTests
             var scene = new ActiveScene(1, "tren", def.Lugares[0][0], def.Lugares[0][1], seed, 0, (long)(def.DuracionMinutos * 60_000));
             var tl = SceneScripts.Build(def, scene);
             Assert.Single(tl.Tracks, t => t.Kind == "tren");
-            Assert.True(SceneScripts.Pose(tl.Tracks[0], SceneScripts.TrainStops + 10) is { Speed: 0, X: var x } && MathF.Abs(x - Station.AxisX) < 0.01f);
+            Assert.True(SceneScripts.Pose(tl.Tracks[0], SceneScripts.TrainStops + 10) is { Speed: 0, X: var stopX } && MathF.Abs(stopX - Station.AxisX) < 0.01f);
             foreach (var track in tl.Tracks.Where(t => t.Kind == "persona"))
                 for (var i = 1; i < track.Keys.Count; i++)
                 {
