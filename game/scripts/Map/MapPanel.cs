@@ -170,6 +170,12 @@ public partial class MapPanel : Control
         foreach (var b in CityLayout.Barrios)
             DrawRect(AreaRect(b.Area), Accent(b) with { A = 0.16f });
 
+        // Los locales donde se entra: el piso un poco más claro (las paredes van encima, con el hueco de la puerta).
+        foreach (var plan in InteriorLayout.All)
+        {
+            var lot = Distrito.Server.Core.World.MainStreet.Lot(plan.Code).Plan;
+            DrawRect(new Rect2(ToMap(lot.X - lot.Width / 2, lot.Z - lot.Depth / 2), new Vector2(lot.Width * S, lot.Depth * S)), Building.Lightened(0.25f) with { A = 0.6f });
+        }
         foreach (var b in MapPresence.Buildings)
         {
             var corner = ToMap(b.X - b.Width / 2, b.Z - b.Depth / 2);

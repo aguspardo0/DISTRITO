@@ -18,6 +18,10 @@ public partial class DoorNetwork : Node
 
     public static DoorNetwork? Instance { get; private set; }
 
+    /// <summary>¿Hay un habitante a menos de tantos metros de este punto? (lo conecta Main con la vida de los NPC): abren la puerta para pasar.</summary>
+    public static Func<System.Numerics.Vector2, float, bool>? ResidentNear { get; set; }
+    private double _residentCheck;
+
     private GameNetwork _network = null!;
     private readonly Dictionary<long, double> _lastUse = new();
     private readonly Dictionary<string, double> _openSince = new(); // puertas abiertas y desde cuándo
@@ -116,6 +120,14 @@ public partial class DoorNetwork : Node
         }
         if (!Multiplayer.HasMultiplayerPeer() || !Multiplayer.IsServer())
             return;
+        // Los habitantes que entran o salen de un local abren la puerta (después se cierra sola).
+        if (ResidentNear is { } near && (_residentCheck += delta) >= 0.5)
+        {
+            _residentCheck = 0;
+            foreach (var plan in InteriorLayout.All)
+                if (!_openSince.ContainsKey(plan.Code) && (near(plan.Door, 2.2f) || near(plan.InsideDoor, 2.2f)))
+                    Set(plan.Code, true);
+        }
         // Se cierran solas si nadie está en el paso.
         foreach (var (code, since) in _openSince.ToList())
         {

@@ -54,10 +54,14 @@ public static class MapPresence
     /// <summary>Casino «El Trébol»: en su lote de la Calle Principal (lo construye el juego).</summary>
     public static readonly MapBuilding Casino = MainStreet.Lot("casino").Plan;
 
-    /// <summary>Planta de toda la ciudad: la Calle Principal, Los Muelles, los barrios, sus muros y el Centro.</summary>
+    /// <summary>
+    /// Planta de toda la ciudad: la Calle Principal (los locales con interior, solo sus paredes: se entra por la puerta),
+    /// Los Muelles, los barrios, sus muros y el Centro.
+    /// </summary>
     public static readonly IReadOnlyList<MapBuilding> Buildings =
     [
-        .. MainStreet.Buildings.Select(l => l.Plan),
+        .. MainStreet.Buildings.Where(l => InteriorLayout.Find(l.Code) is null).Select(l => l.Plan),
+        .. InteriorLayout.All.SelectMany(InteriorLayout.Walls), // los locales: solo sus paredes (con el hueco de la puerta)
         .. DocksBuildings,
         .. CityLayout.BarrioBuildings.Select(b => b.Plan),
         .. CityLayout.BarrioWalls,

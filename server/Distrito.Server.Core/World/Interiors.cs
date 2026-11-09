@@ -175,6 +175,24 @@ public static class InteriorLayout
 
     public static InteriorPlan? Find(string code) => All.FirstOrDefault(p => p.Code == code);
 
+    /// <summary>Las paredes de un local en planta (fondo, costados y el frente partido por el hueco de la puerta).</summary>
+    public static IEnumerable<MapBuilding> Walls(InteriorPlan p)
+    {
+        const float t = WallThickness;
+        float w = p.Width, d = p.Depth;
+        MapBuilding Local(float x1, float x2, float z1, float z2)
+        {
+            var a = p.ToWorld(x1, z1);
+            var b = p.ToWorld(x2, z2);
+            return new MapBuilding((a.X + b.X) / 2, (a.Y + b.Y) / 2, MathF.Abs(a.X - b.X), MathF.Abs(a.Y - b.Y));
+        }
+        yield return Local(-w / 2 - t, w / 2 + t, -d / 2 - t, -d / 2);          // fondo
+        yield return Local(-w / 2 - t, -w / 2, -d / 2, d / 2 + t);             // costado
+        yield return Local(w / 2, w / 2 + t, -d / 2, d / 2 + t);               // costado
+        yield return Local(-w / 2, p.DoorX - p.DoorWidth / 2, d / 2, d / 2 + t); // frente, a un lado de la puerta
+        yield return Local(p.DoorX + p.DoorWidth / 2, w / 2, d / 2, d / 2 + t);  // y al otro
+    }
+
     /// <summary>El salón en el que está un punto, si hay.</summary>
     public static InteriorPlan? At(float x, float z) => All.FirstOrDefault(p => p.Contains(x, z));
 

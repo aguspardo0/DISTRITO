@@ -40,6 +40,21 @@ public static class CityNavigation
                     grid[gz * Width + gx] = false;
             }
         }
+        // Las puertas de los locales: el hueco queda libre (con el margen de las paredes se cerraría), así los
+        // habitantes entran y salen caminando (la puerta la abren al pasar, ver DoorNetwork).
+        foreach (var p in InteriorLayout.All)
+        {
+            for (var along = -2f; along <= 2f; along += 0.5f)
+            for (var side = -p.DoorWidth / 2; side <= p.DoorWidth / 2; side += 0.4f)
+            {
+                var at = p.Door + p.Outward * along + p.Right * side;
+                var (gx, gz) = CellOf(at.X, at.Y);
+                var (cx, cz) = Center(gx, gz);
+                var d = new System.Numerics.Vector2(cx, cz) - p.Door;
+                if (MathF.Abs(System.Numerics.Vector2.Dot(d, p.Right)) <= p.DoorWidth / 2 + 0.05f && CityLayout.IsWalkable(cx, cz))
+                    grid[gz * Width + gx] = true;
+            }
+        }
         return grid;
     }
 
@@ -126,7 +141,36 @@ public static class CityNavigation
             anchor = next;
         }
         corners.Add((toX, toZ));
-        return corners;
+        return ThroughDoors(fromX, fromZ, corners);
+    }
+
+    /// <summary>
+    /// Si un tramo entra o sale de un local, pasa derecho por el medio de la puerta (un paso afuera y uno adentro), así
+    /// nadie roza las paredes al lado del hueco.
+    /// </summary>
+    private static List<(double X, double Z)> ThroughDoors(double fromX, double fromZ, List<(double X, double Z)> corners)
+    {
+        var result = new List<(double X, double Z)>(corners.Count + 2);
+        var prev = (X: fromX, Z: fromZ);
+        foreach (var next in corners)
+        {
+            foreach (var p in InteriorLayout.All)
+            {
+                var wasIn = p.Contains((float)prev.X, (float)prev.Z);
+                var isIn = p.Contains((float)next.X, (float)next.Z);
+                if (wasIn == isIn)
+                    continue;
+                var outside = p.Door + p.Outward * 1.2f;
+                var inside = p.Door - p.Outward * (InteriorLayout.WallThickness + 1.2f);
+                var (a, b) = wasIn ? (inside, outside) : (outside, inside);
+                result.Add((Math.Round(a.X, 2), Math.Round(a.Y, 2)));
+                result.Add((Math.Round(b.X, 2), Math.Round(b.Y, 2)));
+                break;
+            }
+            result.Add(next);
+            prev = next;
+        }
+        return result;
     }
 
     // A* con arreglos reutilizados (etapa 9: cientos de habitantes y una grilla de 400 × 400): sin diccionarios ni

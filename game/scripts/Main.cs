@@ -184,6 +184,17 @@ public partial class Main : Node3D
         life.Initialize(_network, _combat);
         _admin.UseLife(life);
         _life = life;
+        Distrito.Game.World.DoorNetwork.ResidentNear = (p, radius) =>
+        {
+            var now = DateTimeOffset.UtcNow;
+            return life.States.Values.Any(s =>
+            {
+                if (!s.Visible(now))
+                    return false;
+                var (x, z) = s.PositionAt(now);
+                return (x - p.X) * (x - p.X) + (z - p.Y) * (z - p.Y) < radius * radius;
+            });
+        };
         // Escenas de la ciudad (canillita, descargas, discusiones, lluvia, feria, barco, redadas, persecuciones…).
         var scenes = new Distrito.Game.World.SceneNetwork();
         AddChild(scenes);
