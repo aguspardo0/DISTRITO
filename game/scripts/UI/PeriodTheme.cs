@@ -28,7 +28,13 @@ public static class PeriodTheme
     /// <summary>Pone el estilo en toda la ventana del juego (y en lo que se dibuja a mano con la letra de base).</summary>
     public static void Apply(Window root)
     {
+        // El tema de la ventana raíz no pasa a través de las CanvasLayer (donde viven casi todas las ventanas), así que
+        // se mezcla con el tema por defecto del motor: así lo toma todo control, esté donde esté.
         ThemeDB.FallbackFont = Body;
+        var basis = ThemeDB.GetDefaultTheme();
+        basis.MergeWith(Build());
+        basis.DefaultFont = Body;
+        basis.DefaultFontSize = 15;
         root.Theme = Build();
     }
 
