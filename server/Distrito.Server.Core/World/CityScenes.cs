@@ -263,8 +263,10 @@ public static class SceneScripts
         var watchers = 2 + rng.Next(3);
         for (var w = 0; w < watchers; w++)
         {
-            var ang = Math.PI * (0.2 + 0.6 * w / Math.Max(1, watchers - 1)) * (rng.Next(2) == 0 ? 1 : -1);
-            var spot = at + new Vector2((float)Math.Cos(ang) * 3.2f, (float)Math.Sin(ang) * 3.2f);
+            // Los curiosos se paran del lado de la calzada (no contra las paredes).
+            var ang = Math.PI * (0.15 + 0.7 * w / Math.Max(1, watchers - 1));
+            var towardRoad = at.Y < 0 ? 1f : -1f;
+            var spot = at + new Vector2((float)Math.Cos(ang) * 3.2f, (float)Math.Abs(Math.Sin(ang)) * 2.4f * towardRoad);
             var start = 15 + w * 6;
             var far = spot + new Vector2((float)Math.Cos(ang) * 14, 0);
             tracks.Add(new("persona", w % 2 == 0 ? "vecina" : "vecino", [new(0, far.X, spot.Y, ""), new(start, far.X, spot.Y, "caminar"), new(start + 8, spot.X, spot.Y, "mirar"), new(d - 4, spot.X, spot.Y, "mirar"), new(d + 6, far.X, spot.Y, "caminar")], 1f, w + 3));
