@@ -208,6 +208,16 @@ public partial class AdminPanel : PanelContainer
             events.AddChild(b);
         }
         _content.AddChild(events);
+
+        Section("Escenas de la ciudad ahora (en el lugar más cercano)");
+        var scenes = new HFlowContainer();
+        foreach (var code in Distrito.Server.Core.World.SceneScripts.Kinds.Where(k => k != "contrabando"))
+        {
+            var b = new Button { Text = code };
+            b.Pressed += () => _admin.Tool($"escena-{code}", 1);
+            scenes.AddChild(b);
+        }
+        _content.AddChild(scenes);
     }
 
     private void ShowResidents(string text) => ShowText("Habitantes de Bellmont", text);

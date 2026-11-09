@@ -90,6 +90,7 @@ public static class Endpoints
         internalApi.MapPost("/pve/unload", async (PveUnloadRequest r, EconomyService e, CancellationToken ct) => { await e.PveUnloadAsync(r, ct); return Results.NoContent(); });
         internalApi.MapPost("/pve/rob-goods", (PveRobGoodsRequest r, EconomyService e, CancellationToken ct) => e.PveRobGoodsAsync(r, ct));
         internalApi.MapPost("/pve/rob-cash", (PveRobCashRequest r, EconomyService e, CancellationToken ct) => e.PveRobCashAsync(r, ct));
+        internalApi.MapPost("/escenas/premio", (SceneRewardRequest r, EconomyService e, CancellationToken ct) => e.SceneRewardAsync(r, ct));
         internalApi.MapPost("/economy/coffee-shift", (CoffeeShiftPayRequest r, EconomyService e, CancellationToken ct) => e.CoffeeShiftPayAsync(r, ct));
         internalApi.MapPost("/pve/contraband", async (PveContrabandRequest r, EconomyService e, CancellationToken ct) =>
             await e.PveContrabandAsync(r, ct) is { } drop ? Results.Ok(drop) : Results.NoContent());

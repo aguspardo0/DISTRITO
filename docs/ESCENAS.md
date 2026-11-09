@@ -38,7 +38,7 @@ Pedido del equipo: «más variedad de secuencias en el mapa, vida, más vida, ev
 | Crimen | **Persecución** | cualquier hora | Un auto a toda velocidad por la Calle Principal y la Avenida del Puerto, el patrullero atrás con sirena. |
 | Crimen | **Tiroteo entre familias** | 20 a 3 h | Dos autos cruzados, tres de cada lado se tirotean; uno cae, los demás escapan; llega la policía. |
 | Crimen | **Extorsión** | 10 a 20 h | Dos matones le «piden colaboración» a un comerciante; él les da un sobre. |
-| Crimen | **Contrabando** | 22 a 4 h | Una lancha en el muelle, cajones a una camioneta, uno vigila. |
+| Crimen | **Contrabando** | con el evento de PvE | Una lancha en el muelle y cajones a una camioneta. Sale junto con el contrabando de `config/eventos-pve.json` (los guardias armados son los de ese evento) y se termina con él. |
 
 Sonidos nuevos, todos generados: trueno, chispazo, acordeón, sirena de patrullero, bocina de barco, campana, chirrido de
 gomas y lluvia.
@@ -56,8 +56,21 @@ gomas y lluvia.
 - Los NPC fijos (los del mostrador y los de la calle) ahora tienen cuerpo de persona en lugar de una cápsula y miran
   hacia donde llega la gente.
 
+## Meterse en las escenas (aprobado 2026-11-09)
+
+Solo reputación, nunca plata. El backend lo da una vez por escena y personaje (`POST internal/escenas/premio`).
+
+| Escena | Cómo se mete uno | Qué pasa | Premio |
+|---|---|---|---|
+| **Extorsión** | Acercarse a menos de 10 m mientras los matones apuran al comerciante (segundos 10 a 38). | Los dos matones pasan a ser de verdad: si les pegás o les tirás, se te vienen encima a las piñas. Si los dejás tirados, el comerciante se queda en la puerta y te agradece. Si nadie se mete, cobran y se van caminando. | +5 con la familia que cuida esa cuadra (la del local de familia más cercano) y 1 unidad de lo más barato y legal del estante de ese local, si le queda. |
+| **Tiroteo** | Estar a menos de 60 m cuando se cubren detrás de los autos. | Los seis matones pelean de verdad: se tiran entre ellos (mucho ruido, pocos heridos) y le tiran a quien les haya tirado. Termina cuando cae un lado o se acaba el tiempo; los que quedan escapan corriendo y llega la policía. El lado de la izquierda es Caruso; el otro, Moretti o Valenti (según la escena). | Ayudar a un lado (pegarle más al otro): +8 con esa familia y −8 con la otra. |
+| **Persecución** | Ponerse a menos de 5 m del auto que escapa (cortarle el paso o alcanzarlo con un auto). | El auto y el patrullero se paran ahí y se avisa a todos. | +3 con las tres familias y una nota en la sección Policiales de La Gaceta del día siguiente. |
+| **Contrabando** | El evento de PvE de siempre (bajar a los guardias, llevarse el cargamento). | La escena de la lancha va con él. | El botín de siempre, sin agregados. |
+
+Panel de administración → «Escenas de la ciudad ahora»: un botón por escena, que la empieza en su lugar más cercano a
+donde estás. Código: `Server.Core/World/CityScenes.cs` (`SceneFights`), `game/scripts/World/SceneNetwork.Fights.cs`,
+`game/scripts/Pve/PveNetwork.Goons.cs` y `backend/…/EconomyService.Scenes.cs`.
+
 ## Pendiente
 
-- Que los jugadores puedan meterse en las escenas del crimen (frenar la extorsión, sumarse al tiroteo, perseguir).
-- Botón en el panel de administración para lanzar una escena a pedido.
 - Horarios de los negocios (abren y cierran): queda para cuando se decida, porque cerrarlos de noche cambia el juego.

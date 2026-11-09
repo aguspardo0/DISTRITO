@@ -18,7 +18,7 @@ namespace Distrito.Game.Pve;
 /// </summary>
 public partial class PveNetwork : Node
 {
-    private enum Kind { Truck, Collector, Guard }
+    private enum Kind { Truck, Collector, Guard, Goon, Brute }
 
     private sealed class Actor
     {
@@ -34,6 +34,13 @@ public partial class PveNetwork : Node
         public double LeaveAt = double.MaxValue;
         public readonly Dictionary<long, float> Threat = new();
         public double NextShot;
+        // Matones de una escena (Goon con arma, Brute a las piñas): de qué escena y lado son, y a quién le tienen bronca.
+        public string Group = "";
+        public int Side;
+        public string Family = "";
+        public bool Down;
+        public readonly HashSet<long> Provoked = new();
+        public Vector3 Flee;
     }
 
     private const double StateInterval = 0.1;
@@ -58,6 +65,10 @@ public partial class PveNetwork : Node
     /// <summary>Algo que cuenta para misiones de cuadrilla (jugador, tipo de misión). Lo atiende BaseNetwork.</summary>
     public event Action<long, string, string?>? MissionEvent;
 
+    /// <summary>Servidor: empezó / terminó el contrabando de Los Muelles (la escena de la lancha va con él).</summary>
+    public event Action<Vector3>? ContrabandStarted;
+    public event Action? ContrabandEnded;
+
     public void Initialize(GameNetwork network, EconomyNetwork economy, CombatNetwork combat)
     {
         _network = network;
@@ -78,11 +89,16 @@ public partial class PveNetwork : Node
         };
         _combat.NpcShot = HitTest;
         _combat.NpcHit = OnShot;
+        _combat.NpcPunched = PunchGoon;
         _combat.ShotTransparent = () => _actors.Values.Select(a => a.Body).OfType<CollisionObject3D>().Select(b => b.GetRid()).ToList();
         _network.PlayerAdmitted += (peer, _) =>
         {
             foreach (var a in _actors.Values)
+            {
                 RpcId(peer, MethodName.ShowActor, a.Id, (int)a.Kind, a.Label, a.Body.GlobalPosition, a.Body.Rotation.Y);
+                if (a.Down)
+                    RpcId(peer, MethodName.ActorDown, a.Id);
+            }
             if (_contrabandCrates is not null)
                 RpcId(peer, MethodName.ShowCrates, _contrabandCrates.GlobalPosition);
         };
@@ -148,6 +164,7 @@ public partial class PveNetwork : Node
                 case Kind.Truck when _rules.Truck is { } t: UpdateRobbable(a, dt, t.ThreatSeconds, blockable: true); break;
                 case Kind.Collector when _rules.Collector is { } c: UpdateRobbable(a, dt, c.ThreatSeconds, blockable: false); break;
                 case Kind.Guard when _rules.Contraband is { } k: UpdateGuard(a, k); break;
+                case Kind.Goon or Kind.Brute: UpdateGoon(a, dt); break;
             }
             if (_clock > a.LeaveAt)
                 Remove(a);
@@ -234,6 +251,7 @@ public partial class PveNetwork : Node
             Spawn(new Actor { Id = $"{_contrabandEvent}-g{i}", Kind = Kind.Guard, Body = body, Label = "Guardia", Health = k.GuardHealth });
         }
         GD.Print($"[DISTRITO] PVE_CONTRABAND llega a Los Muelles ({k.Guards} guardias)");
+        ContrabandStarted?.Invoke(center);
         _combat.NotifyAll($"Llegó un cargamento de contrabando a Los Muelles, con {k.Guards} guardias armados. Dura {k.DurationMinutes} minutos.");
     }
 
@@ -248,6 +266,7 @@ public partial class PveNetwork : Node
         if (!looted)
             _combat.NotifyAll("El contrabando se fue de Los Muelles.");
         _contrabandEvent = null;
+        ContrabandEnded?.Invoke();
     }
 
     /// <summary>Camión y cobrador: avanzan por la ruta; si alguien les apunta, frenan y se van rindiendo.</summary>
@@ -442,7 +461,7 @@ public partial class PveNetwork : Node
         (string, float)? best = null;
         foreach (var a in _actors.Values)
         {
-            if (a.Kind == Kind.Guard && a.Health <= 0)
+            if (a.Kind == Kind.Guard && a.Health <= 0 || a.Down)
                 continue;
             var (radius, bottom, top) = a.Kind == Kind.Truck ? (1.4f, 0.5f, 2.6f) : (0.45f, 0.2f, 1.7f);
             var (sc, dist) = CombatNetwork.RaySegmentDistance(origin, dir, a.Body.GlobalPosition + Vector3.Up * bottom, a.Body.GlobalPosition + Vector3.Up * top);
@@ -461,6 +480,9 @@ public partial class PveNetwork : Node
             case Kind.Truck or Kind.Collector:
                 // Lo balearon: se rinde enseguida con el que tiró.
                 Rob(a, shooter.PeerId);
+                break;
+            case Kind.Goon or Kind.Brute:
+                HurtGoon(a, shooter, damage);
                 break;
             case Kind.Guard when a.Health > 0:
                 a.Health -= damage;
@@ -496,11 +518,11 @@ public partial class PveNetwork : Node
 
     // ================= Clientes =================
 
-    private static Node3D Humanoid(string look, string label, bool holdsGun)
+    private static Node3D Humanoid(string look, string label, bool holdsGun, CharacterLook? exact = null)
     {
         var root = new Node3D();
         var all = CharacterLooks.All;
-        var model = CharacterModel.Build(all[(look.Length + (holdsGun ? 1 : 0)) % all.Count]);
+        var model = CharacterModel.Build(exact ?? all[(look.Length + (holdsGun ? 1 : 0)) % all.Count]);
         if (holdsGun)
             model.SetWeapon(Weapons.Pistol.Code);
         root.AddChild(model);
@@ -514,6 +536,7 @@ public partial class PveNetwork : Node
 
     private static Node3D BuildActor(int kind, string label) => (Kind)kind switch
     {
+        Kind.Goon or Kind.Brute => GoonBody(label, (Kind)kind == Kind.Goon),
         Kind.Truck => Distrito.Game.Transport.VehicleBody.Create(new VehicleView(Guid.NewGuid(), Vehicles.Truck.Code, label, null, null, 0, 0, 0, 0)),
         Kind.Guard => Humanoid("guardia", "Guardia del contrabando", holdsGun: true),
         _ => Humanoid("cobrador", "Cobrador de Valenti\n(maletín)", holdsGun: false),
@@ -540,6 +563,8 @@ public partial class PveNetwork : Node
         if (_clientActors.Remove(id, out var node))
             node.QueueFree();
         _targets.Remove(id);
+        _models.Remove(id);
+        _lastSeen.Remove(id);
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered)]
@@ -579,6 +604,7 @@ public partial class PveNetwork : Node
                 node.GlobalPosition = node.GlobalPosition.Lerp(target.Pos, weight);
                 node.Rotation = new Vector3(0, Mathf.LerpAngle(node.Rotation.Y, target.Yaw, weight), 0);
             }
+        AnimateClientActors((float)delta);
     }
 
     /// <summary>Solo para la prueba visual: un camión, un cobrador y el contrabando con guardias cerca del jugador.</summary>

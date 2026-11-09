@@ -76,4 +76,37 @@ public class PveApiTests
         Assert.Equal(2, picked.Snapshot.QuantityOf("pistola"));
         Assert.Equal(100, picked.Snapshot.QuantityOf("bala-pistola"));
     }
+
+    [Fact]
+    public async Task Las_escenas_dan_reputacion_y_un_regalito_una_sola_vez_y_nunca_plata()
+    {
+        await using var factory = TestBackend.Create();
+        var api = TestBackend.Api(factory);
+        var me = await NewCharacter(api);
+        var before = (await api.GetEconomyAsync(Key, me)).Value!;
+        var scene = "escena-test-" + Guid.NewGuid().ToString("N")[..8];
+        var ext = (await api.SceneRewardAsync(Key, new SceneRewardRequest(me, scene, "extorsion",
+            [new(EconomyCatalog.Moretti, 5)], EconomyCatalog.Moretti, "Prueba echó a unos extorsionadores"))).Value!;
+        Assert.True(ext.Ok, ext.Message);
+        Assert.Contains("+5", ext.Message);
+        var after = (await api.GetEconomyAsync(Key, me)).Value!;
+        Assert.Equal(before.ReputationWith(EconomyCatalog.Moretti) + 5, after.ReputationWith(EconomyCatalog.Moretti));
+        Assert.Equal(before.BalanceCents, after.BalanceCents);
+        Assert.Equal(before.Inventory.Sum(i => i.Quantity) + (ext.Message.Contains("regalaron") ? 1 : 0), after.Inventory.Sum(i => i.Quantity));
+        // Reintento de la misma escena: no da dos veces.
+        await api.SceneRewardAsync(Key, new SceneRewardRequest(me, scene, "extorsion", [new(EconomyCatalog.Moretti, 5)], EconomyCatalog.Moretti, "otra vez"));
+        Assert.Equal(after.ReputationWith(EconomyCatalog.Moretti), (await api.GetEconomyAsync(Key, me)).Value!.ReputationWith(EconomyCatalog.Moretti));
+
+        // Tiroteo: +8 con una, −8 con la otra.
+        var shoot = (await api.SceneRewardAsync(Key, new SceneRewardRequest(me, scene + "-t", "tiroteo",
+            [new(EconomyCatalog.Valenti, 8), new(EconomyCatalog.Caruso, -8)], null, "Prueba se metió en un tiroteo"))).Value!;
+        Assert.True(shoot.Ok, shoot.Message);
+        var final = (await api.GetEconomyAsync(Key, me)).Value!;
+        Assert.Equal(after.ReputationWith(EconomyCatalog.Valenti) + 8, final.ReputationWith(EconomyCatalog.Valenti));
+        Assert.True(final.ReputationWith(EconomyCatalog.Caruso) <= after.ReputationWith(EconomyCatalog.Caruso));
+
+        // Fuera de rango o de tipo desconocido: no.
+        Assert.False((await api.SceneRewardAsync(Key, new SceneRewardRequest(me, scene + "-x", "tiroteo", [new(EconomyCatalog.Valenti, 500)], null, "trampa"))).Value!.Ok);
+        Assert.False((await api.SceneRewardAsync(Key, new SceneRewardRequest(me, scene + "-y", "inventada", [new(EconomyCatalog.Valenti, 1)], null, "trampa"))).Value!.Ok);
+    }
 }

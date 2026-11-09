@@ -66,8 +66,8 @@
       "lugares": [[66.8, -11], [51.8, -11], [36.3, -11], [-21.2, 11], [66, 11]],
       "frases": ["Lindo negocio el suyo, ¿eh?", "No sé de qué me hablan.", "Sería una pena que se prenda fuego.", "Está bien, está bien… tomen.", "Hasta el mes que viene, señor."] },
 
-    { "codigo": "contrabando", "nombre": "Contrabando en el muelle", "horas": [22, 4], "cadaMinutos": 30, "probabilidad": 0.5, "duracionMinutos": 8,
-      "lugares": [[297, -8]],
+    { "codigo": "contrabando", "nombre": "Contrabando en el muelle", "horas": [0, 24], "cadaMinutos": 30, "probabilidad": 0, "duracionMinutos": 10,
+      "lugares": [[297, 4]],
       "frases": ["Ojos abiertos, que la aduana anda cerca.", "Silencio… alguien viene.", "Esta caja va con cuidado, es whisky de Canadá."] }
   ]
 }

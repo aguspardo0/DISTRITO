@@ -26,6 +26,8 @@ public partial class SceneNetwork : Node
     private readonly Dictionary<long, (ActiveScene Scene, SceneTimeline Timeline)> _active = new();
     private readonly Dictionary<long, SceneView> _views = new();
     private readonly List<(long AtMs, string Kind, float X, float Z)> _incidents = new();
+    /// <summary>Pistas de cada escena que ya no siguen la coreografía (índice → segundo en que quedaron; −1 = las maneja PveNetwork).</summary>
+    private readonly Dictionary<long, Dictionary<int, double>> _taken = new();
     private long _offsetMs;
     private double _tick, _sync;
     private GpuParticles3D? _rain;
@@ -116,6 +118,7 @@ public partial class SceneNetwork : Node
         foreach (var s in ended)
         {
             _active.Remove(s.Id);
+            EndFights(s.Id);
             foreach (var peer in Multiplayer.GetPeers())
                 RpcId(peer, MethodName.ReceiveEnd, s.Id);
         }
@@ -134,18 +137,33 @@ public partial class SceneNetwork : Node
         }
     }
 
-    private static string Pack(IEnumerable<ActiveScene> scenes) =>
-        string.Join(';', scenes.Select(s => FormattableString.Invariant($"{s.Id}|{s.Code}|{s.X}|{s.Z}|{s.Seed}|{s.StartMs}|{s.DurationMs}")));
+    private string Pack(IEnumerable<ActiveScene> scenes) =>
+        string.Join(';', scenes.Select(s => FormattableString.Invariant($"{s.Id}|{s.Code}|{s.X}|{s.Z}|{s.Seed}|{s.StartMs}|{s.DurationMs}|{PackTaken(s.Id)}")));
 
-    private static IEnumerable<ActiveScene> Unpack(string data)
+    private string PackTaken(long id) => _taken.TryGetValue(id, out var t)
+        ? string.Join(',', t.Select(kv => FormattableString.Invariant($"{kv.Key}:{kv.Value:0.##}")))
+        : "";
+
+    private IEnumerable<ActiveScene> Unpack(string data)
     {
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
         foreach (var item in data.Split(';', StringSplitOptions.RemoveEmptyEntries))
         {
             var p = item.Split('|');
-            if (p.Length == 7 && long.TryParse(p[0], out var id) && float.TryParse(p[2], System.Globalization.CultureInfo.InvariantCulture, out var x)
-                && float.TryParse(p[3], System.Globalization.CultureInfo.InvariantCulture, out var z) && int.TryParse(p[4], out var seed)
+            if (p.Length >= 7 && long.TryParse(p[0], out var id) && float.TryParse(p[2], inv, out var x)
+                && float.TryParse(p[3], inv, out var z) && int.TryParse(p[4], out var seed)
                 && long.TryParse(p[5], out var start) && long.TryParse(p[6], out var duration))
+            {
+                if (p.Length >= 8 && p[7].Length > 0)
+                {
+                    var taken = new Dictionary<int, double>();
+                    foreach (var pair in p[7].Split(','))
+                        if (pair.Split(':') is [var a, var b] && int.TryParse(a, out var track) && double.TryParse(b, inv, out var at))
+                            taken[track] = at;
+                    _taken[id] = taken;
+                }
                 yield return new ActiveScene(id, p[1], x, z, seed, start, duration);
+            }
         }
     }
 
@@ -165,7 +183,11 @@ public partial class SceneNetwork : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void ReceiveEnd(long id) => _active.Remove(id);
+    public void ReceiveEnd(long id)
+    {
+        _active.Remove(id);
+        _taken.Remove(id);
+    }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void ReceiveAll(string data, long serverNowMs)
@@ -187,6 +209,8 @@ public partial class SceneNetwork : Node
             _tick = 0;
             ServerTick();
         }
+        if (Multiplayer.HasMultiplayerPeer() && Multiplayer.IsServer())
+            CheckFights(delta);
         if (DisplayServer.GetName() == "headless")
             return;
         var me = _network?.LocalPlayer;
@@ -201,6 +225,7 @@ public partial class SceneNetwork : Node
             if (t > scene.DurationMs / 1000.0 + 4)
             {
                 _active.Remove(id);
+                _taken.Remove(id);
                 continue;
             }
             raining |= timeline.Weather == "lluvia" && t >= 0;
@@ -221,7 +246,7 @@ public partial class SceneNetwork : Node
                 AddChild(view);
                 _views[id] = view;
             }
-            view.Advance(t, (float)delta);
+            view.Advance(t, (float)delta, _taken.GetValueOrDefault(id));
         }
         foreach (var id in _views.Keys.Except(_active.Keys).ToList())
             if (_views.Remove(id, out var gone))
@@ -344,12 +369,15 @@ public partial class SceneNetwork : Node
             return (track, node, model, bubble, crate, yaw);
         }
 
-        public void Advance(double t, float delta)
+        public void Advance(double t, float delta, IReadOnlyDictionary<int, double>? taken)
         {
             for (var i = 0; i < _parts.Count; i++)
             {
                 var (track, node, model, bubble, crate, yaw) = _parts[i];
                 var pose = SceneScripts.Pose(track, t);
+                if (taken is not null && taken.TryGetValue(i, out var frozen))
+                    // Alguien se metió: el que pasó a ser de verdad (PveNetwork) no se dibuja acá; el resto queda quieto.
+                    pose = frozen < 0 ? pose with { Visible = false } : SceneScripts.Pose(track, frozen) with { Speed = 0, Say = null, Act = track.Kind == "persona" ? "quieto" : "" };
                 node.Visible = pose.Visible;
                 if (!pose.Visible)
                     continue;
@@ -444,7 +472,7 @@ public partial class SceneNetwork : Node
     }
 
     /// <summary>Ropa de época para cada papel de las escenas (o el .glb de game/modelos/personas/&lt;papel&gt;.glb).</summary>
-    private static CharacterLook Look(string role, int variant)
+    internal static CharacterLook Look(string role, int variant)
     {
         string[] skins = ["#e8c3a0", "#d9a57f", "#c08a63", "#8a5a3c", "#5e3a26"];
         string[] hairs = ["#1c1612", "#3b2a1d", "#6b4a2b", "#9a8a78", "#c9a36b"];

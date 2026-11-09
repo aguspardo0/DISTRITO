@@ -8,3 +8,10 @@ public sealed record PveRobGoodsRequest(string EventId, string Supplier, Guid Ch
 public sealed record PveRobCashRequest(Guid CharacterId, string Account, long MinCents, long MaxCents, string Family, int Reputation, string Reason, string RequestId);
 public sealed record PveLootItem(string ItemCode, int Quantity);
 public sealed record PveContrabandRequest(string EventId, List<PveLootItem> Items, Guid DropId, double X, double Y, double Z, int Seconds);
+
+/// <summary>
+/// Premio por meterse en una escena de la ciudad (aprobado 2026-11-09): solo reputación (puede bajar con una familia)
+/// y, si viene GiftFrom, un regalito (1 unidad) del stock real del local de esa familia. Nunca plata.
+/// </summary>
+public sealed record SceneRewardRequest(Guid CharacterId, string SceneId, string Kind, List<ReputationDelta> Reputation, string? GiftFrom, string Reason);
+public sealed record ReputationDelta(string Family, int Amount);

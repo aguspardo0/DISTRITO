@@ -180,6 +180,17 @@ public partial class AdminNetwork : Node
             });
             return;
         }
+        if (tool.StartsWith("escena-"))
+        {
+            _ = AsAdminAsync(peer, (p, _) =>
+            {
+                var near = _network.GetPlayer(p)?.GlobalPosition ?? Vector3.Zero;
+                var text = Distrito.Game.World.SceneNetwork.Instance?.TriggerNear(tool["escena-".Length..], near) ?? "Las escenas no están disponibles.";
+                GD.Print($"[DISTRITO] ADMIN escena {tool}: {text}");
+                SendMessage(p, text);
+            });
+            return;
+        }
         _ = ToolAsync(peer, tool, amount);
     }
 

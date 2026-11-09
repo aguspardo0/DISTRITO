@@ -213,6 +213,9 @@ public sealed class DistritoApiClient(HttpClient http)
     public Task<ApiResult<EconomyActionResult>> PveRobCashAsync(string serverKey, PveRobCashRequest request, CancellationToken ct = default) =>
         SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/pve/rob-cash", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 
+    public Task<ApiResult<EconomyActionResult>> SceneRewardAsync(string serverKey, SceneRewardRequest request, CancellationToken ct = default) =>
+        SendAsync<EconomyActionResult>(HttpMethod.Post, "internal/escenas/premio", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
+
     public Task<ApiResult<DropView>> PveContrabandAsync(string serverKey, PveContrabandRequest request, CancellationToken ct = default) =>
         SendAsync<DropView>(HttpMethod.Post, "internal/pve/contraband", request, r => r.Headers.Add(ApiHeaders.ServerKey, serverKey), ct);
 

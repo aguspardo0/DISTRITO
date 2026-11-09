@@ -134,4 +134,50 @@ public class TrafficTests
         sim.Step(0.1f, [], closed);
         Assert.True(sim.Cars.Where(c => c.Route == 0).All(c => c.Parked && c.Speed == 0));
     }
+
+    [Fact]
+    public void En_el_tiroteo_y_la_extorsion_los_matones_se_pueden_volver_de_verdad()
+    {
+        var cfg = Config();
+        var shoot = cfg.Escenas.Single(e => e.Codigo == "tiroteo");
+        var s = new ActiveScene(1, "tiroteo", shoot.Lugares[0][0], shoot.Lugares[0][1], 42, 0, (long)(shoot.DuracionMinutos * 60_000));
+        var fighters = SceneFights.Fighters("tiroteo", SceneScripts.Build(shoot, s));
+        Assert.Equal(3, fighters.Count(f => f.Side < 0));
+        Assert.Equal(3, fighters.Count(f => f.Side > 0));
+        var (left, right) = SceneFights.ShootoutFamilies(s.Seed);
+        Assert.Equal("caruso", left);
+        Assert.NotEqual(left, right);
+
+        var ext = cfg.Escenas.Single(e => e.Codigo == "extorsion");
+        var e = new ActiveScene(2, "extorsion", ext.Lugares[0][0], ext.Lugares[0][1], 7, 0, (long)(ext.DuracionMinutos * 60_000));
+        var timeline = SceneScripts.Build(ext, e);
+        Assert.Equal(2, SceneFights.Fighters("extorsion", timeline).Count(f => f.Side == 0));
+        Assert.Equal("comerciante", timeline.Tracks[0].Look); // el que se queda quieto si lo salvan
+        var (from, to) = SceneFights.Window("extorsion", ext.DuracionMinutos * 60);
+        Assert.True(from < to && to < ext.DuracionMinutos * 60);
+
+        // La familia que cuida cada lugar es la del local de familia más cercano.
+        Assert.Equal("moretti", SceneFights.ZoneFamily(-21.2f, 11));
+        Assert.Equal("valenti", SceneFights.ZoneFamily(16, -11));
+        // Ayudar a un lado = pegarle al otro.
+        Assert.Equal(1, SceneFights.HelpedSide(hitsLeft: 3, hitsRight: 0));
+        Assert.Equal(-1, SceneFights.HelpedSide(hitsLeft: 0, hitsRight: 2));
+        Assert.Equal(0, SceneFights.HelpedSide(1, 1));
+        Assert.Empty(SceneFights.Fighters("persecucion", new SceneTimeline([], [])));
+    }
+
+    [Fact]
+    public void El_contrabando_sale_solo_con_el_evento_y_se_puede_terminar_antes()
+    {
+        var cfg = Config();
+        var def = cfg.Escenas.Single(e => e.Codigo == "contrabando");
+        Assert.Equal(0, def.Probabilidad);
+        var tl = SceneScripts.Build(def, new ActiveScene(1, "contrabando", def.Lugares[0][0], def.Lugares[0][1], 3, 0, (long)(def.DuracionMinutos * 60_000)));
+        Assert.DoesNotContain(tl.Tracks, t => t.Look == "maton"); // los guardias son los del evento de PvE
+        var director = new SceneDirector(cfg);
+        var scene = director.Start(def, 0);
+        Assert.True(director.End(scene.Id));
+        Assert.DoesNotContain(director.Active, a => a.Id == scene.Id);
+        Assert.False(director.End(scene.Id));
+    }
 }

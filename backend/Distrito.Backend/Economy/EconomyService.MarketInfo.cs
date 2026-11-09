@@ -303,6 +303,17 @@ public sealed partial class EconomyService
                 if (r.GetInt32(1) == 5) best ??= r.GetString(0);
             }
         }
+        // Vecinos que alcanzaron al auto de una persecución (escenas de la ciudad).
+        var heroes = new List<string>();
+        await using (var cmd = new NpgsqlCommand("""
+            SELECT description FROM distrito.ledger_transactions WHERE kind = 'scene_persecucion' AND created_at >= @since ORDER BY created_at DESC LIMIT 2
+            """, c, tx))
+        {
+            cmd.Parameters.AddWithValue("since", since);
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
+                heroes.Add(r.GetString(0));
+        }
         var growthCfg = Growth();
         var famous = new List<string>();
         await using (var cmd = new NpgsqlCommand("SELECT name, fame FROM distrito.businesses WHERE fame >= @min ORDER BY fame DESC LIMIT 3", c, tx))
@@ -319,7 +330,7 @@ public sealed partial class EconomyService
         var facts = new NewspaperFacts(day, boards, await PreviousPricesAsync(c, tx, day, ct), await LoadFamilyMoodsAsync(c, tx, ct),
             robberies, forced, newBusinesses, open, (await LoadTerritoryAsync(c, tx, Guid.Empty, ct)).Zones,
             UpcomingEvents(TimeSpan.FromHours(24)).Where(e => MarketInfoRules.DayOf(e.StartsAt) == day).ToList(), deliveries, orders,
-            reviews, agenda, famous, best);
+            reviews, agenda, famous, best, heroes);
         var edition = MarketInfoRules.Write(facts);
 
         await using (var insert = new NpgsqlCommand(

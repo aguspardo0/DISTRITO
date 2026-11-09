@@ -227,7 +227,10 @@ public partial class CombatNetwork : Node
             .OrderBy(p => p.GlobalPosition.DistanceTo(attacker.GlobalPosition))
             .FirstOrDefault();
         if (target is null)
+        {
+            NpcPunched?.Invoke(attacker, CombatRules.PunchDamage + (int)Skill(attacker.PeerId, Distrito.Shared.Progression.SkillTree.IronFists));
             return;
+        }
 
         if (CombatRules.WhyNot(N(attacker.GlobalPosition), N(target.GlobalPosition), LevelOf(peer), LevelOf(target.PeerId), _state,
                 AtWar(peer, target.PeerId)) is { } reason)

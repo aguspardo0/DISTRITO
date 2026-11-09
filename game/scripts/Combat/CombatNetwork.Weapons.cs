@@ -450,6 +450,26 @@ public partial class CombatNetwork
         SendMessage(target.PeerId, $"{attackerName} te dejó herido. Si en {CombatRules.BleedSeconds:0} s no te levanta un compañero, morís.");
     }
 
+    /// <summary>Servidor: un NPC le pega una piña a un jugador (los matones de la extorsión). Sin tiro.</summary>
+    public void NpcMelee(PlayerCharacter target, int damage, string attackerName)
+    {
+        if (damage <= 0 || target.Dead || target.Downed || target.Health <= 0)
+            return;
+        target.Health = Math.Max(0, target.Health - damage);
+        if (target.Health > 0)
+            return;
+        target.Downed = true;
+        _bleedUntil[target.PeerId] = _clock + CombatRules.BleedSeconds + Skill(target.PeerId, Distrito.Shared.Progression.SkillTree.ColdBlood);
+        GD.Print($"[DISTRITO] COMBAT_KO {attackerName} dejó tirado a {target.DisplayName}");
+        SendMessage(target.PeerId, $"{attackerName} te dejó tirado. Si en {CombatRules.BleedSeconds:0} s no te levanta un compañero, morís.");
+    }
+
+    /// <summary>Servidor: el fogonazo y el ruido de un tiro entre NPC (el tiroteo de las escenas).</summary>
+    public void NpcShotFx(Vector3 from, Vector3 to) => ShotFxEverywhere(0, from, to);
+
+    /// <summary>Servidor: piña a algo que no es un jugador (matones de las escenas). Devuelve si le pegó a alguien.</summary>
+    public Func<PlayerCharacter, int, bool>? NpcPunched { get; set; }
+
     /// <summary>Servidor: avisa algo a un jugador (asaltos, eventos).</summary>
     public void Notify(long peer, string text) => SendMessage(peer, text);
 

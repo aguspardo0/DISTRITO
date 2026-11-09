@@ -123,6 +123,9 @@ public sealed class SceneDirector(SceneConfig config, int seed = 1952)
     }
 
     public SceneDef? Find(string code) => config.Escenas.FirstOrDefault(s => s.Codigo == code);
+
+    /// <summary>Termina una escena antes de tiempo (el contrabando, cuando se termina el evento de verdad).</summary>
+    public bool End(long id) => _active.RemoveAll(a => a.Id == id) > 0;
 }
 
 /// <summary>Un momento de la coreografía de alguien: a qué segundo está dónde, qué hace y qué dice.</summary>
@@ -485,7 +488,7 @@ public static class SceneScripts
             for (var g = 0; g < 3; g++)
             {
                 var cover = car + new Vector2(side * 1.8f, -1.6f + g * 1.6f);
-                var keys = new List<SceneKey> { new(0, car.X + side * 40, car.Y, ""), new(6, car.X, car.Y, ""), new(8, cover.X, cover.Y, "apuntar", g == 0 ? line(side + 1) : null) };
+                var keys = new List<SceneKey> { new(0, car.X + side * 40, car.Y, ""), new(6, car.X, car.Y, ""), new(8, cover.X, cover.Y, "apuntar", g == 0 ? line(side < 0 ? 0 : 1) : null) };
                 for (var t = 10.0 + g; t < fight; t += 3 + rng.Next(3))
                     keys.Add(new(t, cover.X, cover.Y, "disparar"));
                 if (side == 1 && g == 1)
@@ -533,24 +536,24 @@ public static class SceneScripts
         return new(tracks, []);
     }
 
-    /// <summary>Contrabando de noche: una lancha en el muelle, cajones a una camioneta, uno vigila.</summary>
+    /// <summary>Contrabando de noche: una lancha en el muelle y cajones a una camioneta. Sale junto con el evento de contrabando.</summary>
     private static SceneTimeline Smuggling(Vector2 pier, double d, Random rng, Func<int, string> line)
     {
         var tracks = new List<SceneTrack>
         {
             new("barco", "lancha", [new(0, pier.X + 60, pier.Y, "navegar"), new(25, pier.X + 4, pier.Y, "frenar"), new(d - 25, pier.X + 4, pier.Y, "navegar"), new(d, pier.X + 60, pier.Y, "navegar")]),
             new("camioneta", "contrabando", [new(0, pier.X - 18, pier.Y + 3, "frenar"), new(d - 10, pier.X - 18, pier.Y + 3, "andar"), new(d, pier.X - 80, pier.Y + 3, "andar")]),
-            new("persona", "maton", [new(0, pier.X - 12, pier.Y - 7, "mirar", line(0)), new(d / 2, pier.X - 12, pier.Y - 7, "mirar", line(1)), new(d, pier.X - 12, pier.Y - 7, "mirar")], 1f, 80),
         };
+        // Los guardias armados son los del evento de contrabando (PveNetwork): acá solo la lancha, la camioneta y los peones.
         for (var w = 0; w < 2; w++)
         {
-            var keys = new List<SceneKey> { new(0, pier.X - 15, pier.Y + 1 + w, "quieto") };
+            var keys = new List<SceneKey> { new(0, pier.X - 15, pier.Y + 1 + w, "quieto", line(w)) };
             for (var t = 30.0 + w * 5; t + 22 < d - 12; t += 20)
             {
                 keys.Add(new(t, pier.X - 1, pier.Y + w, "caminar"));
                 keys.Add(new(t + 2, pier.X - 1, pier.Y + w, "cargar"));
                 keys.Add(new(t + 10, pier.X - 16, pier.Y + 2 + w, "cargar"));
-                keys.Add(new(t + 11, pier.X - 16, pier.Y + 2 + w, "quieto", w == 1 && t < 60 ? line(2) : null));
+                keys.Add(new(t + 11, pier.X - 16, pier.Y + 2 + w, "quieto", w == 1 && t < 60 ? line(2) : w == 0 && t > d / 2 && t < d / 2 + 20 ? line(1) : null));
             }
             tracks.Add(new("persona", "obrero", keys, 1f, 81 + w));
         }
@@ -588,4 +591,53 @@ public static class SceneScripts
         var say = k.LastOrDefault(key => key.Say is not null && key.T <= t && t - key.T < 4.0)?.Say;
         return new(x, z, yaw, speed, speed > 0.05f ? (a.Act is "" ? "caminar" : a.Act) : (a.Act is "caminar" or "correr" or "andar" ? "quieto" : a.Act), say, true);
     }
+}
+
+/// <summary>
+/// Escenas en las que el jugador se puede meter (aprobado 2026-11-09). Extorsión: si le pegás a los matones y los
+/// bajás, +5 con la familia que cuida la zona y un regalito del local. Tiroteo: los matones pasan a pelear de verdad;
+/// ayudar a un lado da +8 con esa familia y −8 con la otra. Persecución: alcanzar el auto que se escapa da +3 con las
+/// tres familias y una mención en La Gaceta. Nunca plata. El contrabando es el evento de PvE que ya existía.
+/// </summary>
+public static class SceneFights
+{
+    public const int ExtortionReputation = 5;
+    public const int ShootoutReputation = 8;
+    public const int ChaseReputation = 3;
+    public const float ExtortionNear = 10f, ShootoutNear = 60f, ChaseCatch = 5f;
+    public static readonly string[] Families = ["moretti", "valenti", "caruso"];
+
+    /// <summary>Los matones de la escena: índice de su pista y de qué lado están (−1 / +1; 0 en la extorsión).</summary>
+    public static List<(int Track, int Side)> Fighters(string code, SceneTimeline tl) =>
+        code is "tiroteo" or "extorsion"
+            ? tl.Tracks.Select((t, i) => (t, i)).Where(x => x.t.Kind == "persona" && x.t.Look == "maton")
+                .Select(x => (x.i, code == "tiroteo" ? Math.Sign(x.t.Variant) : 0)).ToList()
+            : [];
+
+    /// <summary>Cuándo se puede uno meter (segundos desde que empezó). Afuera de eso la escena sigue sola.</summary>
+    public static (double From, double To) Window(string code, double duration) => code switch
+    {
+        "extorsion" => (10, 38),
+        "tiroteo" => (8, Math.Min(50, duration * 0.5) - 2),
+        "persecucion" => (1, Math.Min(duration - 6, 28.0)),
+        _ => (0, -1),
+    };
+
+    /// <summary>Tiroteo: el lado −1 es de Caruso (gritan «¡Esto es por Tony!»); el +1, Moretti o Valenti según la semilla.</summary>
+    public static (string Left, string Right) ShootoutFamilies(int seed) => ("caruso", seed % 2 == 0 ? "moretti" : "valenti");
+
+    /// <summary>La familia que cuida un lugar: la del local de familia más cercano (depósito, taller u oficina).</summary>
+    public static string ZoneFamily(float x, float z)
+    {
+        (string Family, float X, float Z)[] shops =
+        [
+            ("moretti", Npcs.NpcInteractionRules.Deposit.Position.X, Npcs.NpcInteractionRules.Deposit.Position.Z),
+            ("caruso", Npcs.NpcInteractionRules.Workshop.Position.X, Npcs.NpcInteractionRules.Workshop.Position.Z),
+            ("valenti", Npcs.NpcInteractionRules.ValentiOffice.Position.X, Npcs.NpcInteractionRules.ValentiOffice.Position.Z),
+        ];
+        return shops.OrderBy(s => (s.X - x) * (s.X - x) + (s.Z - z) * (s.Z - z)).First().Family;
+    }
+
+    /// <summary>Quién ayudó a quién en el tiroteo: el lado al que más le pegó es el enemigo. 0 si no le pegó a nadie.</summary>
+    public static int HelpedSide(int hitsLeft, int hitsRight) => hitsLeft == hitsRight ? 0 : hitsLeft > hitsRight ? 1 : -1;
 }

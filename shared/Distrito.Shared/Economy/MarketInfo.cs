@@ -68,7 +68,8 @@ public sealed record NewspaperFacts(
     List<string>? Reviews = null,
     List<string>? Agenda = null,
     List<string>? Famous = null,
-    string? BestReviewed = null);
+    string? BestReviewed = null,
+    List<string>? Heroes = null);
 
 public static class MarketInfoRules
 {
@@ -216,6 +217,8 @@ public static class MarketInfoRules
             news.Add($"{c.Name}: buen momento con la calle. Pagan mejor los trabajos.");
         if (f.Robberies + f.VehiclesForced > 0 && !headline.StartsWith("OLA"))
             news.Add($"Policiales: {f.Robberies + f.VehiclesForced} {(f.Robberies + f.VehiclesForced == 1 ? "asalto" : "asaltos")} en las últimas 24 horas.");
+        foreach (var h in f.Heroes ?? [])
+            news.Add($"Policiales: {h}.");
         foreach (var (place, name) in stockouts.Skip(headline.StartsWith("FALTA") ? 1 : 0))
             news.Add($"Agotado: {name} en el {place}.");
         foreach (var q in rises.Skip(headline.StartsWith("SUBE") ? 1 : 0))
