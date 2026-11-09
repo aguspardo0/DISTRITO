@@ -15,3 +15,19 @@ arriba a la izquierda (la lista de controles y el último mensaje) y los textos 
 - El nombre propio ya no aparece arriba de la cabeza; el de los demás jugadores, sí.
 - Al entrar a Los Muelles sale un aviso importante: zona libre.
 - El tutorial queda arriba a la izquierda mientras dura; la libreta de encargos, a la derecha debajo de los avisos.
+
+## La plata que entra y sale
+
+Cuando cambia la plata, al lado del número sale **«+$3,00»** en verde (cobraste) o **«−$12,00»** en rojo (pagaste),
+que sube y se borra en dos segundos y medio. Como mucho se ven cuatro a la vez.
+
+## El mapa (M)
+
+- **Rueda del mouse:** acercar o alejar (de 1× a 6×), hacia donde apunta el mouse.
+- **Arrastrar con el clic izquierdo:** mover el mapa (no se va del marco).
+- **Espacio:** acercar y centrar en vos.
+- Vos sos una **flecha roja** que apunta hacia donde mira la cámara.
+- Con zoom, las referencias se esconden para no tapar; al alejar del todo vuelven.
+- Abrir el mapa suelta el mouse (como las otras ventanas); cerrarlo lo vuelve a tomar.
+
+Arreglo de paso: los avisos de la pantalla de juego contaban como «ventana abierta» y un clic no volvía a tomar el mouse.

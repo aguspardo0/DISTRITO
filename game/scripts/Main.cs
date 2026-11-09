@@ -622,6 +622,7 @@ public partial class Main : Node3D
             }),
             ("cuadrilla", () => { _crewPanel?.Toggle(); }),
             ("mapa", () => { _crewPanel?.Toggle(); _mapPanel?.Toggle(); }),
+            ("mapa-cerca", () => _mapPanel?.FocusMe()),
             ("inventario", () => { _mapPanel?.Toggle(); _inventoryPanel?.Toggle(); _inventory.Preview(); }),
             ("deposito", () => _inventoryPanel?.ShowWarehouseTab()),
             ("pedidos", () =>

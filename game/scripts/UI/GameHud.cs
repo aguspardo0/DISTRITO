@@ -38,6 +38,8 @@ public partial class GameHud : Control
     private float _life = 1;
     private string _lastZone = "";
     private double _tick;
+    private long? _lastBalance;
+    private readonly List<(string Text, Color Color, double Born)> _moneyPops = [];
 
     public const string ControlsText =
         "W A S D  moverse   ·   Shift  correr   ·   Espacio  saltar\n" +
@@ -183,6 +185,19 @@ public partial class GameHud : Control
             : $"♥ {me.Health}";
         _health.AddThemeColorOverride("font_color", me.Downed || me.Dead || _life < 0.4f ? Danger : Ink);
         _money.Text = Snapshot() is { } s ? EconomyCatalog.FormatMoney(s.BalanceCents) : "";
+        // Cuando la plata cambia, al lado sale «+$3,00» (verde) o «−$12,00» (rojo) que sube y se borra.
+        if (Snapshot() is { } snap)
+        {
+            if (_lastBalance is { } before && before != snap.BalanceCents)
+            {
+                var diff = snap.BalanceCents - before;
+                var text = (diff > 0 ? "+" : "−") + EconomyCatalog.FormatMoney(Math.Abs(diff));
+                _moneyPops.Add((text, diff > 0 ? new Color(0.55f, 0.85f, 0.45f) : Danger.Lightened(0.2f), Time.GetTicksMsec() / 1000.0));
+                if (_moneyPops.Count > 4)
+                    _moneyPops.RemoveAt(0);
+            }
+            _lastBalance = snap.BalanceCents;
+        }
 
         var p = me.VisualPosition;
         var zoneCode = Distrito.Server.Core.Combat.CombatRules.ZoneAt(new System.Numerics.Vector3(p.X, p.Y, p.Z));
@@ -223,6 +238,21 @@ public partial class GameHud : Control
         var bar = new Rect2(slot.Position - GlobalPosition + new Vector2(0, 2), new Vector2(150, 4));
         DrawRect(bar, new Color(1, 1, 1, 0.15f));
         DrawRect(new Rect2(bar.Position, new Vector2(bar.Size.X * _life, bar.Size.Y)), me.Downed || _life < 0.4f ? Danger : Ink);
+
+        // Plata que entra o sale: sube desde el número y se borra en 2,5 segundos.
+        var now = Time.GetTicksMsec() / 1000.0;
+        _moneyPops.RemoveAll(p => now - p.Born > 2.5);
+        var moneyAt = _money.GetGlobalRect();
+        var pops = 0;
+        foreach (var (text, color, born) in _moneyPops)
+        {
+            var age = (float)(now - born);
+            var spot = moneyAt.Position - GlobalPosition + new Vector2(_money.GetMinimumSize().X + 10 + pops * 4, 18 - age * 14 - pops * 16);
+            var fade = Mathf.Clamp(2.5f - age, 0, 1);
+            DrawString(ThemeDB.FallbackFont, spot + Vector2.One, text, HorizontalAlignment.Left, -1, 16, Shadow with { A = Shadow.A * fade });
+            DrawString(ThemeDB.FallbackFont, spot, text, HorizontalAlignment.Left, -1, 16, color with { A = fade });
+            pops++;
+        }
 
         // Brújula.
         const float width = 360, span = 90; // se ven 90° a cada lado

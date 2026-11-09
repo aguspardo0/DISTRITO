@@ -5,7 +5,8 @@ using Godot;
 
 namespace Distrito.Game.Map;
 
-/// <summary>Mapa de Bellmont (tecla M): barrios, edificios, lugares y todos los jugadores conectados.</summary>
+/// <summary>Mapa de Bellmont (tecla M): barrios, edificios, lugares y todos los jugadores conectados.
+/// Rueda del mouse: acercar o alejar (hacia donde apunta el mouse); arrastrar: mover; Espacio: centrar en vos.</summary>
 public partial class MapPanel : Control
 {
     // La ciudad es más alta que ancha: se fija la altura para que entre en pantalla.
@@ -21,7 +22,15 @@ public partial class MapPanel : Control
     private static readonly Color Others = new(0.85f, 0.85f, 0.8f);
     private static readonly Color Self = new(0.95f, 0.35f, 0.25f);
 
+    private const float MinZoom = 1f, MaxZoom = 6f;
+
     private GameNetwork _network = null!;
+    private float _zoom = 1f;
+    private Vector2 _pan; // corrimiento del dibujo en píxeles
+    private bool _dragging;
+
+    /// <summary>Escala actual: metros a píxeles con el zoom.</summary>
+    private float S => MapScale * _zoom;
     private MapNetwork _map = null!;
 
     /// <summary>Ánimo de las familias para mostrar al pie del mapa (lo trae la economía del jugador).</summary>
@@ -41,13 +50,89 @@ public partial class MapPanel : Control
     {
         Visible = false;
         CustomMinimumSize = new Vector2(WidthPx, HeightPx + 48);
-        MouseFilter = MouseFilterEnum.Ignore;
+        MouseFilter = MouseFilterEnum.Stop;
+        ClipContents = true;
     }
 
     public void Toggle()
     {
         Visible = !Visible;
+        if (Visible)
+        {
+            Input.MouseMode = Input.MouseModeEnum.Visible;
+            if (_zoom > MinZoom)
+                CenterOnMe(); // si lo habías acercado, vuelve a abrir mirando dónde estás
+        }
+        else if (DisplayServer.GetName() != "headless")
+            Input.MouseMode = Input.MouseModeEnum.Captured;
         QueueRedraw();
+    }
+
+    public override void _GuiInput(InputEvent @event)
+    {
+        switch (@event)
+        {
+            case InputEventMouseButton { ButtonIndex: MouseButton.WheelUp or MouseButton.WheelDown, Pressed: true } wheel:
+                ZoomAt(wheel.Position, wheel.ButtonIndex == MouseButton.WheelUp ? 1.25f : 0.8f);
+                AcceptEvent();
+                break;
+            case InputEventMouseButton { ButtonIndex: MouseButton.Left } click:
+                _dragging = click.Pressed;
+                AcceptEvent();
+                break;
+            case InputEventMouseMotion motion when _dragging:
+                _pan += motion.Relative;
+                Clamp();
+                AcceptEvent();
+                break;
+        }
+    }
+
+    public override void _UnhandledKeyInput(InputEvent @event)
+    {
+        if (Visible && @event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Space })
+        {
+            FocusMe();
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
+    /// <summary>Acerca el mapa a donde estás (Espacio).</summary>
+    public void FocusMe()
+    {
+        if (_zoom < 2.5f)
+            _zoom = 2.5f;
+        CenterOnMe();
+        QueueRedraw();
+    }
+
+    /// <summary>Acerca o aleja dejando quieto el punto que está debajo del mouse.</summary>
+    private void ZoomAt(Vector2 screen, float factor)
+    {
+        var zoom = Mathf.Clamp(_zoom * factor, MinZoom, MaxZoom);
+        var world = (screen - new Vector2(0, 24) - _pan) / _zoom;
+        _zoom = zoom;
+        _pan = screen - new Vector2(0, 24) - world * _zoom;
+        Clamp();
+    }
+
+    private void CenterOnMe()
+    {
+        if (_network?.LocalPlayer is not { } me)
+            return;
+        var p = me.VisualPosition;
+        var at = new Vector2((p.X - MapPresence.MinX) * S, (p.Z - MapPresence.MinZ) * S);
+        _pan = new Vector2(WidthPx / 2, HeightPx / 2) - at;
+        Clamp();
+    }
+
+    /// <summary>Que el mapa no se vaya del marco.</summary>
+    private void Clamp()
+    {
+        var w = (MapPresence.MaxX - MapPresence.MinX) * S;
+        var h = HeightPx * _zoom;
+        _pan.X = w <= WidthPx ? 0 : Mathf.Clamp(_pan.X, WidthPx - w, 0);
+        _pan.Y = Mathf.Clamp(_pan.Y, HeightPx - h, 0);
     }
 
     public override void _Process(double delta)
@@ -56,8 +141,8 @@ public partial class MapPanel : Control
             QueueRedraw(); // la posición propia se dibuja en vivo
     }
 
-    private static Vector2 ToMap(float x, float z) =>
-        new((x - MapPresence.MinX) * MapScale, 24 + (z - MapPresence.MinZ) * MapScale);
+    private Vector2 ToMap(float x, float z) =>
+        new Vector2((x - MapPresence.MinX) * S, 24 + (z - MapPresence.MinZ) * S) + _pan;
 
     public override void _Draw()
     {
@@ -68,10 +153,10 @@ public partial class MapPanel : Control
         // Distritos: el Mercado (neutral), las avenidas, Los Muelles (zona libre, en rojo) y el barrio de cada familia con su color.
         // El Centro (fase 1): primero, las calles; los distritos de antes van encima.
         DrawRect(new Rect2(ToMap(CityLayout.Downtown.MinX, CityLayout.Downtown.MinZ),
-            new Vector2(CityLayout.Downtown.Width * MapScale, CityLayout.Downtown.Depth * MapScale)), AvenueColor);
+            new Vector2(CityLayout.Downtown.Width * S, CityLayout.Downtown.Depth * S)), AvenueColor);
         foreach (var d in CityLayout.Districts)
         {
-            var rect = new Rect2(ToMap(d.MinX, d.MinZ), new Vector2(d.Width * MapScale, d.Depth * MapScale));
+            var rect = new Rect2(ToMap(d.MinX, d.MinZ), new Vector2(d.Width * S, d.Depth * S));
             DrawRect(rect, d.Kind == DistrictKind.Avenue ? AvenueColor : Ground);
             if (d.Kind == DistrictKind.Docks)
                 DrawRect(rect, FreeZone);
@@ -82,7 +167,7 @@ public partial class MapPanel : Control
         foreach (var b in MapPresence.Buildings)
         {
             var corner = ToMap(b.X - b.Width / 2, b.Z - b.Depth / 2);
-            DrawRect(new Rect2(corner, new Vector2(b.Width * MapScale, b.Depth * MapScale)), Building);
+            DrawRect(new Rect2(corner, new Vector2(b.Width * S, b.Depth * S)), Building);
         }
 
         // Nombres de los distritos, encima de los edificios y sobre una franja oscura para que se lean.
@@ -105,7 +190,7 @@ public partial class MapPanel : Control
         foreach (var b in Distrito.Game.Crews.BaseNetwork.Bases)
         {
             var s = Distrito.Shared.Crews.CrewBaseRules.Sheds[b.Shed];
-            DrawString(font, ToMap(s.X - s.Width / 2, s.Z), $"«{b.CrewName}»", HorizontalAlignment.Left, s.Width * MapScale, 9, Brass);
+            DrawString(font, ToMap(s.X - s.Width / 2, s.Z), $"«{b.CrewName}»", HorizontalAlignment.Left, s.Width * S, 9, Brass);
         }
 
         // Lugares: los comercios del Mercado van numerados (la lista está en las referencias); la gente de cada familia
@@ -171,13 +256,24 @@ public partial class MapPanel : Control
 
         if (_network.LocalPlayer is { } local)
         {
+            // Una flecha que apunta hacia donde mira la cámara (con yaw 0 se mira a −Z, que en el mapa es arriba).
             var p = local.VisualPosition;
-            DrawCircle(ToMap(p.X, p.Z), 6, Self);
-            DrawArc(ToMap(p.X, p.Z), 8, 0, Mathf.Tau, 20, Paper, 1.5f);
-            Plate(font, ToMap(p.X, p.Z) + new Vector2(9, -18), "Vos", 12, Self);
+            var at = ToMap(p.X, p.Z);
+            var f = GetViewport().GetCamera3D() is { } cam ? -cam.GlobalTransform.Basis.Z : new Vector3(0, 0, -1);
+            var dir = new Vector2(f.X, f.Z);
+            dir = dir.LengthSquared() < 1e-4f ? Vector2.Up : dir.Normalized();
+            var side = new Vector2(-dir.Y, dir.X);
+            Vector2[] arrow = [at + dir * 11, at - dir * 7 + side * 7, at - dir * 3, at - dir * 7 - side * 7];
+            DrawColoredPolygon(arrow, Self);
+            DrawPolyline([.. arrow, arrow[0]], Paper, 1.5f);
+            Plate(font, at + new Vector2(11, -20), "Vos", 12, Self);
         }
 
-        DrawLegend(font, territory);
+        // Lo que se pasó del marco al acercar queda tapado por la cabecera y el pie.
+        DrawRect(new Rect2(0, 0, WidthPx, 24), Paper);
+        DrawRect(new Rect2(0, 24 + HeightPx, WidthPx, 24), Paper);
+        if (_zoom <= MinZoom)
+            DrawLegend(font, territory); // con zoom, las referencias se esconden para no tapar
 
         if (economy?.Families is { } families)
         {
@@ -185,7 +281,8 @@ public partial class MapPanel : Control
             DrawString(font, new Vector2(8, HeightPx + 41), line, HorizontalAlignment.Left, WidthPx - 16, 13, Brass);
         }
         DrawRect(new Rect2(0, 24, WidthPx, HeightPx), Brass, filled: false, width: 2);
-        DrawString(font, new Vector2(8, 17), $"BELLMONT — {_map.Markers.Count} conectado(s) · [M] cerrar", HorizontalAlignment.Left, -1, 14, Brass);
+        DrawString(font, new Vector2(8, 17), $"BELLMONT — {_map.Markers.Count} conectado(s)", HorizontalAlignment.Left, -1, 14, Brass);
+        DrawString(font, new Vector2(0, 17), "rueda: zoom · arrastrar: mover · Espacio: vos · M: cerrar", HorizontalAlignment.Right, WidthPx - 8, 11, Others with { A = 0.7f });
     }
 
     /// <summary>Referencias en la esquina vacía de arriba a la izquierda: símbolos y la lista numerada del Mercado.</summary>
@@ -232,7 +329,7 @@ public partial class MapPanel : Control
         DrawString(font, topLeft + new Vector2(4, size + 1), text, HorizontalAlignment.Left, -1, size, color);
     }
 
-    private static Rect2 AreaRect(District d) => new(ToMap(d.MinX, d.MinZ), new Vector2(d.Width * MapScale, d.Depth * MapScale));
+    private Rect2 AreaRect(District d) => new(ToMap(d.MinX, d.MinZ), new Vector2(d.Width * S, d.Depth * S));
 
     private static Color Accent(BarrioPlan b) => new(b.Accent.R, b.Accent.G, b.Accent.B);
 

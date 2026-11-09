@@ -121,7 +121,10 @@ public partial class LocalPlayerController : Node
     {
         if (GetTree().CurrentScene?.GetNodeOrNull("Hud") is not { } hud)
             return false;
-        return hud.FindChildren("*", "PanelContainer", recursive: true, owned: false).OfType<Control>().Any(c => c.IsVisibleInTree());
+        // Los avisos de la pantalla de juego (GameHud) no son ventanas: no impiden volver a tomar el mouse.
+        var gameHud = hud.FindChild("GameHud", recursive: true, owned: false);
+        return hud.FindChildren("*", "PanelContainer", recursive: true, owned: false).OfType<Control>()
+            .Any(c => c.IsVisibleInTree() && (gameHud is null || !gameHud.IsAncestorOf(c)));
     }
 
     public override void _Process(double delta)
