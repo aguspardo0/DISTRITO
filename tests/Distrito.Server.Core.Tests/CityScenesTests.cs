@@ -5,7 +5,7 @@ namespace Distrito.Server.Core.Tests;
 /// <summary>Escenas de la ciudad: la configuración, las coreografías y el director.</summary>
 public class CityScenesTests
 {
-    private static SceneConfig Config()
+    internal static SceneConfig Config()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "config/escenas.json")))
@@ -138,7 +138,7 @@ public class TrafficTests
     [Fact]
     public void En_el_tiroteo_y_la_extorsion_los_matones_se_pueden_volver_de_verdad()
     {
-        var cfg = Config();
+        var cfg = CityScenesTests.Config();
         var shoot = cfg.Escenas.Single(e => e.Codigo == "tiroteo");
         var s = new ActiveScene(1, "tiroteo", shoot.Lugares[0][0], shoot.Lugares[0][1], 42, 0, (long)(shoot.DuracionMinutos * 60_000));
         var fighters = SceneFights.Fighters("tiroteo", SceneScripts.Build(shoot, s));
@@ -169,7 +169,7 @@ public class TrafficTests
     [Fact]
     public void El_contrabando_sale_solo_con_el_evento_y_se_puede_terminar_antes()
     {
-        var cfg = Config();
+        var cfg = CityScenesTests.Config();
         var def = cfg.Escenas.Single(e => e.Codigo == "contrabando");
         Assert.Equal(0, def.Probabilidad);
         var tl = SceneScripts.Build(def, new ActiveScene(1, "contrabando", def.Lugares[0][0], def.Lugares[0][1], 3, 0, (long)(def.DuracionMinutos * 60_000)));
