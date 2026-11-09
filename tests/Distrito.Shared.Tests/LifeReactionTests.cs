@@ -85,7 +85,9 @@ public class LifeReactionTests
         Assert.Equal("escondidos", outcome);
         Assert.Equal(LifeActivities.Hiding, after.Activity);
         Assert.Equal("diner", after.Place);
-        Assert.True(after.Indoor);
+        // El diner tiene vidriera y puerta de verdad: adentro se lo sigue viendo (los locales sin vidriera lo esconden).
+        Assert.True(diner.Visible);
+        Assert.False(after.Indoor);
     }
 
     [Fact]
