@@ -36,7 +36,7 @@ fi
 echo
 
 # --- Servidor de juego con cuentas ---
-"$GODOT" --headless --path game -- --server --port "$PORT" --backend "$BACKEND_URL" > persist-server.log 2>&1 &
+"$GODOT" --headless --path game -- --server --port "$PORT" --backend "$BACKEND_URL" --sin-tren > persist-server.log 2>&1 &
 server_pid=$!
 sleep 4
 
@@ -107,7 +107,7 @@ timeout 90 "$GODOT" --headless --path game -- \
 sleep 10
 kill "$server_pid" 2>/dev/null; wait "$server_pid" 2>/dev/null
 sleep 3
-"$GODOT" --headless --path game -- --server --port "$PORT" --backend "$BACKEND_URL" > persist-server-2.log 2>&1 &
+"$GODOT" --headless --path game -- --server --port "$PORT" --backend "$BACKEND_URL" --sin-tren > persist-server-2.log 2>&1 &
 server_pid=$!
 wait $rc
 line=$(result_line persist-reconnect.log)
@@ -224,6 +224,25 @@ cut_pos=$(PGPASSWORD=distrito_dev psql -h localhost -U distrito -d distrito -At 
   SELECT round(pos_x::numeric, 2), round(pos_z::numeric, 2) FROM distrito.characters WHERE name = 'Bot Corte'")
 if [ -n "$cut_pos" ] && [ "$cut_pos" != "3.00 0.00" ]; then note "Corte de cliente (guardado)" "posición guardada de Bot Corte: $cut_pos"
 else error "Corte de cliente (guardado)" "el progreso del jugador cortado no se guardó (${cut_pos:-sin personaje})"; fi
+
+# --- Llegada en tren: un personaje nuevo baja en el andén de la Estación (en otro servidor, sin --sin-tren) ---
+TRAIN_PORT=$((PORT + 1))
+"$GODOT" --headless --path game -- --server --port "$TRAIN_PORT" --backend "$BACKEND_URL" > persist-train-server.log 2>&1 &
+train_pid=$!
+sleep 4
+timeout 60 "$GODOT" --headless --path game -- \
+  --client --host 127.0.0.1 --port "$TRAIN_PORT" --backend "$BACKEND_URL" \
+  --account "viajero_$RANDOM" --password "clave-de-bot-123" --character "Viajero $(tr -dc a-z < /dev/urandom | head -c 6)" \
+  --test-seconds 8 --expect-players 1 > persist-train.log 2>&1
+kill "$train_pid" 2>/dev/null; wait "$train_pid" 2>/dev/null
+spawn=$(result_line persist-train.log | grep -o 'aparicion=[-0-9.]*,[-0-9.]*' | cut -d= -f2)
+arrived=$(grep -h "llegó en tren" persist-train-server.log | tail -1)
+train=$(grep -h "ESCENA tren" persist-train-server.log | tail -1)
+if [ -n "$arrived" ] && [ -n "$train" ] && awk -F, -v p="$spawn" 'BEGIN { split(p, a, ","); exit !(a[1] >= 66 && a[1] <= 162 && a[2] >= -417 && a[2] <= -408) }'; then
+  note "Llegada en tren" "apareció en el andén ($spawn) con el tren parado — ${arrived#*\] }"
+else
+  error "Llegada en tren" "aparicion=${spawn:-?} ${arrived:-sin aviso de llegada} ${train:-sin escena del tren}"
+fi
 
 # --- Cliente sin cuenta contra servidor con cuentas ---
 timeout 60 "$GODOT" --headless --path game -- --client --host 127.0.0.1 --port "$PORT" --test-seconds 4 > persist-guest.log 2>&1

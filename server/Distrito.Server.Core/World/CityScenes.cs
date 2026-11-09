@@ -154,7 +154,11 @@ public static class SceneScripts
         "canillita", "descarga", "discusion", "borracho", "lustrabotas", "chicos", "musico", "paseo",
         "lluvia", "feria", "apagon", "barco", "redada", "funeral",
         "persecucion", "tiroteo", "extorsion", "contrabando",
+        "tren",
     ];
+
+    /// <summary>Tren: a qué segundo frena en el andén y a cuál vuelve a salir.</summary>
+    public const double TrainStops = 42, TrainDeparts = 95;
 
     public static SceneTimeline Build(SceneDef def, ActiveScene s)
     {
@@ -183,6 +187,7 @@ public static class SceneScripts
             "tiroteo" => Shootout(at, d, rng, Line),
             "extorsion" => Extortion(at, d, rng, Line),
             "contrabando" => Smuggling(at, d, rng, Line),
+            "tren" => Train(d, rng, Line),
             _ => new SceneTimeline([], []),
         };
     }
@@ -558,6 +563,75 @@ public static class SceneScripts
             tracks.Add(new("persona", "obrero", keys, 1f, 81 + w));
         }
         return new(tracks, []);
+    }
+
+    // ---------------- Estación ----------------
+
+    /// <summary>
+    /// El tren de pasajeros: entra por el oeste, frena en el andén, bajan los que llegan (con valija) y caminan por el hall
+    /// y la plaza hasta la avenida; suben los que esperaban, el jefe de estación anuncia, pita y sale hacia el este.
+    /// </summary>
+    private static SceneTimeline Train(double d, Random rng, Func<int, string> line)
+    {
+        var z = Station.TrackZ;
+        var stop = Station.AxisX;
+        var tracks = new List<SceneTrack>
+        {
+            new("tren", "pasajeros", [new(0, stop - 820, z, "andar"), new(22, stop - 260, z, "andar"), new(32, stop - 50, z, "andar"), new(37, stop - 12, z, "andar"),
+                new(40, stop - 2, z, "andar"), new(TrainStops, stop, z, "frenar"), new(TrainDeparts, stop, z, "frenar"), new(TrainDeparts + 5, stop + 6, z, "andar"),
+                new(TrainDeparts + 11, stop + 36, z, "andar"), new(TrainDeparts + 21, stop + 220, z, "andar"), new(Math.Min(TrainDeparts + 45, d), stop + 900, z, "andar")], 1f, rng.Next(3)),
+            // El jefe de estación, en el andén frente a la boletería.
+            new("persona", "ferroviario", [new(0, stop + 3, -410.5f, "quieto"), new(30, stop + 3, -410.5f, "quieto", line(0)), new(TrainStops + 2, stop + 3, -410.5f, "gesto", line(1)),
+                new(TrainDeparts - 8, stop + 3, -410.5f, "gesto", line(2)), new(TrainDeparts + 2, stop + 3, -410.5f, "quieto"), new(d, stop + 3, -410.5f, "quieto")], 1f, 90),
+        };
+        // Los que llegan: bajan por las puertas de los coches, cruzan el hall y se van por la avenida.
+        var arrivals = 6 + rng.Next(5);
+        string[] looks = ["vecino", "vecina", "ejecutivo", "obrero", "vecino", "vecina", "chico"];
+        for (var i = 0; i < arrivals; i++)
+        {
+            var door = Station.CoachDoors[rng.Next(Station.CoachDoors.Length)] + (float)rng.NextDouble() * 2 - 1;
+            var hallDoor = Station.PlatformDoors.OrderBy(x => MathF.Abs(x - door)).First();
+            var speed = 1.25f + (float)rng.NextDouble() * 0.4f;
+            var act = rng.Next(3) == 0 ? "caminar" : "cargar"; // casi todos con la valija
+            var lane = (rng.Next(2) == 0 ? -1 : 1) * (6.4f + (float)rng.NextDouble() * 1.4f); // por la vereda de la avenida
+            var t = TrainStops + 2 + i * 1.6 + rng.NextDouble();
+            var points = new (float X, float Z)[]
+            {
+                (door, -416.2f), (hallDoor, -409.5f), (hallDoor, -405.5f), (stop + (float)rng.NextDouble() * 2 - 1, -386.5f),
+                (stop + lane * 0.4f, -381), (stop + lane, Station.PlazaMaxZ), (stop + lane, -303),
+            };
+            var keys = new List<SceneKey> { new(0, points[0].X, points[0].Z, ""), new(t, points[0].X, points[0].Z, "quieto", i % 4 == 0 ? line(3 + i / 4) : null) };
+            for (var p = 1; p < points.Length; p++)
+            {
+                var (ax, az) = points[p - 1];
+                var (bx, bz) = points[p];
+                t += MathF.Sqrt((bx - ax) * (bx - ax) + (bz - az) * (bz - az)) / speed + (p == 1 ? 0.6 : 0);
+                keys.Add(new(t, bx, bz, act));
+            }
+            keys.Add(new(t + 0.5, points[^1].X, points[^1].Z, "subir"));
+            var look = looks[rng.Next(looks.Length)];
+            tracks.Add(new("persona", look, keys, look == "chico" ? 0.8f : 1f, 100 + i));
+        }
+        // Los que se van: esperan en el andén y suben antes de que salga.
+        var leaving = 2 + rng.Next(4);
+        for (var i = 0; i < leaving; i++)
+        {
+            var spot = Station.PlatformMinX + 10 + (float)rng.NextDouble() * (Station.PlatformMaxX - Station.PlatformMinX - 20);
+            var door = Station.CoachDoors.OrderBy(x => MathF.Abs(x - spot)).First();
+            var board = TrainDeparts - 22 + rng.NextDouble() * 10;
+            tracks.Add(new("persona", looks[rng.Next(looks.Length)],
+            [
+                new(0, spot, -411.5f + (float)rng.NextDouble() * 2, "quieto"), new(board, spot, -411.5f, "quieto"),
+                new(board + MathF.Abs(door - spot) / 1.4 + 2, door, -416.2f, "cargar"), new(board + MathF.Abs(door - spot) / 1.4 + 2.5, door, -416.2f, "subir"),
+            ], 1f, 200 + i));
+        }
+        var loco = stop + 61; // la locomotora va adelante (hacia el este)
+        var sounds = new List<SceneSound>
+        {
+            new(6, "silbato", stop - 600, z), new(36, "campana", stop + 40, z), new(TrainStops, "vapor", loco, z),
+            new(TrainDeparts - 6, "campana", stop + 3, -410.5f), new(TrainDeparts - 1, "silbato", loco, z), new(TrainDeparts + 1, "vapor", loco, z),
+        };
+        return new(tracks, sounds);
     }
 
     /// <summary>

@@ -350,6 +350,9 @@ public partial class SceneNetwork : Node
                 case "barco":
                     node.AddChild(Boat(track.Look == "lancha"));
                     break;
+                case "tren":
+                    node.AddChild(Train(track.Variant));
+                    break;
                 case "pelota":
                     node.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.12f, Height = 0.24f }, MaterialOverride = InteriorBuilder.Mat(new Color(0.9f, 0.88f, 0.8f)), Position = new Vector3(0, 0.12f, 0), Name = "Bola" });
                     break;
@@ -420,7 +423,7 @@ public partial class SceneNetwork : Node
                 _played.Add(s);
                 if (Distrito.Game.Audio.Sfx.ByName(sound.Sound) is { } stream)
                     Distrito.Game.Audio.SoundPlayer.At(stream, new Vector3(sound.X, 1.5f, sound.Z), sound.Sound is "trueno" ? 4 : 0, Distrito.Game.Audio.SoundPlayer.Vary(0.04f),
-                        sound.Sound is "trueno" or "sirena-barco" or "campana" ? 400 : sound.Sound is "sirena" or "tiro" ? 120 : 60);
+                        sound.Sound is "trueno" or "sirena-barco" or "campana" or "silbato" ? 400 : sound.Sound is "sirena" or "tiro" ? 120 : 60);
             }
             _last = t;
         }
@@ -449,6 +452,66 @@ public partial class SceneNetwork : Node
             InteriorBuilder.Box(root, new Vector3(1.6f, 4, 1.6f), new Vector3(0, 8.2f, 10), red);
             for (var i = 0; i < 4; i++)
                 InteriorBuilder.Box(root, new Vector3(2.4f, 1.6f, 2.4f), new Vector3(i % 2 == 0 ? -1.5f : 1.5f, 3.5f, -8 + i * 3.2f), InteriorBuilder.Mat(new[] { new Color(0.5f, 0.2f, 0.15f), new Color(0.2f, 0.35f, 0.45f), new Color(0.45f, 0.45f, 0.3f) }[i % 3]));
+            MeshMerge.All(root);
+            return root;
+        }
+
+        /// <summary>
+        /// Tren de pasajeros a vapor (o game/modelos/autos/tren.glb): locomotora adelante (hacia −Z), ténder y cinco
+        /// coches con sus puertas donde están las del andén (<see cref="Station.CoachDoors"/>) cuando frena.
+        /// </summary>
+        private static Node3D Train(int variant)
+        {
+            var root = new Node3D();
+            if (ModelLibrary.Make("autos", "tren", new Vector3(3.2f, 4.6f, 112), ModelLibrary.Fit.Length) is { } glb)
+            {
+                glb.Position = new Vector3(0, 0, 0);
+                root.AddChild(glb);
+                return root;
+            }
+            var black = InteriorBuilder.Mat(new Color(0.07f, 0.07f, 0.08f), 0.5f, 0.4f);
+            var red = InteriorBuilder.Mat(new Color(0.55f, 0.1f, 0.08f));
+            var brass = InteriorBuilder.Mat(new Color(0.75f, 0.6f, 0.3f), 0.4f, 0.6f);
+            Color[] liveries = [new(0.38f, 0.1f, 0.1f), new(0.14f, 0.28f, 0.2f), new(0.22f, 0.26f, 0.34f)];
+            var body = InteriorBuilder.Mat(liveries[Math.Abs(variant) % liveries.Length]);
+            var roof = InteriorBuilder.Mat(new Color(0.2f, 0.2f, 0.21f));
+            var glass = InteriorBuilder.Mat(new Color(0.85f, 0.75f, 0.5f), 0.3f, 0f, 0.25f); // ventanillas con luz cálida
+            var stripe = InteriorBuilder.Mat(new Color(0.8f, 0.68f, 0.38f));
+            var center = Station.AxisX;
+            float Local(float worldX) => -(worldX - center);
+            // Locomotora.
+            var loco = Local(center + 61);
+            var boiler = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 1.25f, BottomRadius = 1.25f, Height = 9 }, MaterialOverride = black, Position = new Vector3(0, 2.4f, loco - 1.5f), Rotation = new Vector3(Mathf.Pi / 2, 0, 0) };
+            root.AddChild(boiler);
+            InteriorBuilder.Box(root, new Vector3(3, 3.4f, 4), new Vector3(0, 2.6f, loco + 4.5f), black);          // cabina
+            InteriorBuilder.Box(root, new Vector3(3.2f, 0.25f, 4.4f), new Vector3(0, 4.4f, loco + 4.5f), roof);
+            InteriorBuilder.Box(root, new Vector3(1.6f, 0.7f, 0.1f), new Vector3(0, 3.3f, loco + 2.45f), glass);   // ventanas de la cabina
+            InteriorBuilder.Box(root, new Vector3(3.1f, 0.5f, 14), new Vector3(0, 0.95f, loco), red);              // bastidor
+            root.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0.45f, BottomRadius = 0.35f, Height = 1.6f }, MaterialOverride = black, Position = new Vector3(0, 4.2f, loco - 5.2f) }); // chimenea
+            root.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.55f, Height = 1.1f }, MaterialOverride = brass, Position = new Vector3(0, 3.65f, loco - 1) }); // domo
+            root.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 1.1f, BottomRadius = 1.1f, Height = 0.15f }, MaterialOverride = brass, Position = new Vector3(0, 2.4f, loco - 6.05f), Rotation = new Vector3(Mathf.Pi / 2, 0, 0) });
+            root.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.3f, Height = 0.6f }, MaterialOverride = InteriorBuilder.Mat(new Color(1f, 0.95f, 0.7f), 0.2f, 0, 2f), Position = new Vector3(0, 3.5f, loco - 6.2f) }); // farol
+            InteriorBuilder.Box(root, new Vector3(2.6f, 0.9f, 1.2f), new Vector3(0, 0.6f, loco - 7.3f), red, new Vector3(Mathf.DegToRad(30), 0, 0)); // trompa
+            for (var w = 0; w < 4; w++)
+                foreach (var side in new[] { -1.45f, 1.45f })
+                    root.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0.85f, BottomRadius = 0.85f, Height = 0.18f }, MaterialOverride = red, Position = new Vector3(side, 0.85f, loco - 3 + w * 2.1f), Rotation = new Vector3(0, 0, Mathf.Pi / 2) });
+            // Ténder.
+            var tender = Local(center + 50.5f);
+            InteriorBuilder.Box(root, new Vector3(3, 2.6f, 6.5f), new Vector3(0, 1.9f, tender), black);
+            InteriorBuilder.Box(root, new Vector3(2.6f, 0.4f, 5.6f), new Vector3(0, 3.3f, tender), InteriorBuilder.Mat(new Color(0.05f, 0.05f, 0.05f), 1f));
+            // Coches de pasajeros.
+            foreach (var door in Station.CoachDoors)
+            {
+                var c = Local(door);
+                InteriorBuilder.Box(root, new Vector3(3, 2.9f, 16.6f), new Vector3(0, 2.25f, c), body);
+                InteriorBuilder.Box(root, new Vector3(3.15f, 0.35f, 16.8f), new Vector3(0, 3.85f, c), roof);
+                InteriorBuilder.Box(root, new Vector3(2.4f, 0.3f, 15.6f), new Vector3(0, 4.15f, c), roof); // lucernario
+                InteriorBuilder.Box(root, new Vector3(3.04f, 0.12f, 16.6f), new Vector3(0, 1.5f, c), stripe);
+                InteriorBuilder.Box(root, new Vector3(3.04f, 0.8f, 13.4f), new Vector3(0, 2.75f, c), glass);
+                InteriorBuilder.Box(root, new Vector3(3.06f, 2.2f, 1.1f), new Vector3(0, 1.85f, c), InteriorBuilder.Mat(new Color(0.18f, 0.12f, 0.08f))); // puerta del medio
+                foreach (var end in new[] { -5.8f, 5.8f })
+                    InteriorBuilder.Box(root, new Vector3(2.2f, 0.9f, 2.6f), new Vector3(0, 0.55f, c + end), black); // bogies
+            }
             MeshMerge.All(root);
             return root;
         }
@@ -484,6 +547,7 @@ public partial class SceneNetwork : Node
             "canillita" or "chico" or "lustrabotas" => new(role, "Pibe", Pick(skins, 0), Pick(hairs, 1), "#d8d2c4", "#4a3b2a", "#6b5a44", "#4a3b2a", "#2a1e16", "#3b3228", Suspenders: true),
             "nena" => new(role, "Nena", Pick(skins, 0), Pick(hairs, 1), "#e8d8c8", Pick(["#8a2a3a", "#2a4a6a", "#6a5a2a"], 2), Pick(["#8a2a3a", "#2a4a6a", "#6a5a2a"], 2), "#e8e0d0", "#2a1e16", null, LongCoat: true),
             "obrero" => new(role, "Changarín", Pick(skins, 0), Pick(hairs, 1), "#7a8a9a", "#3a3f48", "#5a4a38", "#2a2a2a", "#2a1e16", "#4a4038", Suspenders: true),
+            "ferroviario" => new(role, "Jefe de estación", Pick(skins, 0), Pick(hairs, 1), "#e8e4dc", "#1c2433", "#1c2433", "#b08a3a", "#141210", "#1c2433", Jacket: true, Mustache: true),
             "policia" => new(role, "Policía", Pick(skins, 0), Pick(hairs, 1), "#c9d0d8", "#1f2a44", "#26345a", "#1a1a1a", "#141210", "#1f2a44", Jacket: true),
             "maton" => new(role, "Matón", Pick(skins, 0), Pick(hairs, 1), "#d8d4cc", "#1e1e22", Pick(["#1e1e22", "#2b2b33", "#3a2f28"], 3), "#7a1a1a", "#111111", "#1e1e22", Jacket: true, Mustache: v % 2 == 0),
             "luto" => new(role, "Deudo", Pick(skins, 0), Pick(hairs, 1), "#e0dcd4", "#151515", "#151515", "#151515", "#0e0e0e", "#151515", Jacket: true),

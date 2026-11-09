@@ -3,8 +3,8 @@ using Distrito.Shared.Economy;
 
 namespace Distrito.Server.Core.World;
 
-/// <summary>Tipo de distrito: el Mercado (comercios), Los Muelles, el barrio de una familia o una avenida.</summary>
-public enum DistrictKind { Market, Docks, Barrio, Avenue, Downtown }
+/// <summary>Tipo de distrito: el Mercado (comercios), Los Muelles, el barrio de una familia, una avenida, el Centro o la Estación.</summary>
+public enum DistrictKind { Market, Docks, Barrio, Avenue, Downtown, Station }
 
 /// <summary>Un rectángulo caminable de la ciudad (en planta, metros).</summary>
 public sealed record District(string Code, string Name, DistrictKind Kind, float MinX, float MinZ, float MaxX, float MaxZ, string? Family = null)
@@ -144,7 +144,7 @@ public static class CityLayout
 
     /// <summary>Los distritos de antes del Centro (el Mercado, Los Muelles, las avenidas y los barrios). No se pisan.</summary>
     public static readonly IReadOnlyList<District> Districts =
-        [Market, Docks, WestAvenue, NorthAvenue, SouthAvenue, Moretti.Area, Valenti.Area, Caruso.Area];
+        [Market, Docks, WestAvenue, NorthAvenue, SouthAvenue, Moretti.Area, Valenti.Area, Caruso.Area, Station.Area];
 
     // --- El Centro (fase 1 del mapa) ---
 
@@ -431,10 +431,14 @@ public static class CityLayout
     public static IReadOnlyList<EdgeWall> Edges()
     {
         var d = Downtown;
+        var s = Station.Area; // el Barrio de la Estación sale del borde norte: ahí no hay pared
         return
         [
-            new EdgeWall(d.MinX, d.MinZ, d.MaxX, d.MinZ), new EdgeWall(d.MinX, d.MaxZ, d.MaxX, d.MaxZ),
+            new EdgeWall(d.MinX, d.MinZ, s.MinX, d.MinZ), new EdgeWall(s.MaxX, d.MinZ, d.MaxX, d.MinZ),
+            new EdgeWall(d.MinX, d.MaxZ, d.MaxX, d.MaxZ),
             new EdgeWall(d.MinX, d.MinZ, d.MinX, d.MaxZ), new EdgeWall(d.MaxX, d.MinZ, d.MaxX, d.MaxZ),
+            new EdgeWall(s.MinX, s.MinZ, s.MaxX, s.MinZ), // del otro lado del andén pasan las vías
+            new EdgeWall(s.MinX, s.MinZ, s.MinX, s.MaxZ), new EdgeWall(s.MaxX, s.MinZ, s.MaxX, s.MaxZ),
         ];
     }
 

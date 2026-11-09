@@ -38,6 +38,7 @@ public enum LaunchMode
 /// <param name="ExpectMapPlayers">La prueba exige que el mapa muestre esta cantidad de jugadores al final.</param>
 /// <param name="MaxPlayers">Servidor: cuántos jugadores entran en la zona (por defecto 64; las pruebas de escala lo suben).</param>
 /// <param name="BotContractCode">Qué contrato juega el bot (por defecto, la entrega de repuestos).</param>
+/// <param name="NoTrainArrival">Servidor: los personajes nuevos aparecen en la Calle Principal en lugar de bajar del tren en la Estación (las pruebas que dependen del punto de aparición).</param>
 public sealed record LaunchOptions(
     LaunchMode Mode,
     string Host,
@@ -67,7 +68,8 @@ public sealed record LaunchOptions(
     bool Benchmark = false,
     bool BotFight = false,
     string? BotFightWeapon = null,
-    int MaxPlayers = NetworkDefaults.MaxPlayersPerZone)
+    int MaxPlayers = NetworkDefaults.MaxPlayersPerZone,
+    bool NoTrainArrival = false)
 {
     public static LaunchOptions Default { get; } = new(
         LaunchMode.Client,
@@ -129,6 +131,9 @@ public sealed record LaunchOptions(
                     break;
                 case "--bot-fight":
                     options = options with { Bot = true, BotFight = true };
+                    break;
+                case "--sin-tren":
+                    options = options with { NoTrainArrival = true };
                     break;
                 case "--benchmark":
                     options = options with { Benchmark = true };

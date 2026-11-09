@@ -169,6 +169,13 @@ public partial class MapPanel : Control
         DrawRect(new Rect2(ToMap(CityLayout.Docks.MaxX - 3, CityLayout.Docks.MinZ), new Vector2(3 * S, CityLayout.Docks.Depth * S)), new Color(0.18f, 0.3f, 0.4f)); // el muelle, contra el agua
         foreach (var b in CityLayout.Barrios)
             DrawRect(AreaRect(b.Area), Accent(b) with { A = 0.16f });
+        // La Estación: las vías del otro lado del andén, el andén, la plaza y la avenida que baja al Centro.
+        var st = Distrito.Server.Core.World.Station.Area;
+        DrawRect(new Rect2(ToMap(st.MinX - 40, Distrito.Server.Core.World.Station.TrackZ - 1.5f), new Vector2((st.Width + 80) * S, 3 * S)), new Color(0.35f, 0.3f, 0.26f));
+        DrawRect(new Rect2(ToMap(Distrito.Server.Core.World.Station.PlatformMinX, Distrito.Server.Core.World.Station.PlatformMinZ),
+            new Vector2((Distrito.Server.Core.World.Station.PlatformMaxX - Distrito.Server.Core.World.Station.PlatformMinX) * S, 9 * S)), Building.Lightened(0.35f));
+        DrawRect(new Rect2(ToMap(Distrito.Server.Core.World.Station.AxisX - Distrito.Server.Core.World.Station.AvenueHalf, Distrito.Server.Core.World.Station.PlazaMaxZ),
+            new Vector2(2 * Distrito.Server.Core.World.Station.AvenueHalf * S, (st.MaxZ - Distrito.Server.Core.World.Station.PlazaMaxZ) * S)), AvenueColor);
 
         // Los locales donde se entra: el piso un poco más claro (las paredes van encima, con el hueco de la puerta).
         foreach (var plan in InteriorLayout.All)
@@ -194,6 +201,7 @@ public partial class MapPanel : Control
         Plate(font, ToMap(CityLayout.Market.CenterX, CityLayout.Market.MaxZ) + new Vector2(-40, 3), "CALLE PRINCIPAL", 11, Brass);
         Plate(font, ToMap(CityLayout.PortAvenue.MinX + 30, CityLayout.PortAvenue.MinZ) + new Vector2(0, -18), "AV. DEL PUERTO", 10, Brass);
         Plate(font, ToMap(CityLayout.Downtown.MinX, CityLayout.Downtown.MinZ) + new Vector2(6, 6), "EL CENTRO", 13, Brass);
+        Plate(font, ToMap(Distrito.Server.Core.World.Station.Area.MaxX, Distrito.Server.Core.World.Station.Area.MinZ) + new Vector2(6, 2), "ESTACIÓN BELLMONT", 12, Brass);
         // Locales vacíos del Centro: un cuadradito dorado (todavía no se alquilan).
         foreach (var shop in CityLayout.EmptyShops)
             DrawRect(new Rect2(ToMap(shop.X, shop.Z) - new Vector2(2, 2), new Vector2(4, 4)), Brass);

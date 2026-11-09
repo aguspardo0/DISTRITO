@@ -31,12 +31,15 @@ public static class Sfx
     public static AudioStreamWav Bell => Get("campana", MakeBell);
     public static AudioStreamWav Screech => Get("chirrido", MakeScreech);
     public static AudioStreamWav Rain => Get("lluvia", MakeRain);
+    public static AudioStreamWav Whistle => Get("silbato", MakeWhistle);
+    public static AudioStreamWav Steam => Get("vapor", MakeSteam);
 
     /// <summary>Un sonido de las escenas por su nombre (los de config/escenas.json y CityScenes).</summary>
     public static AudioStreamWav? ByName(string name) => name switch
     {
         "trueno" => Thunder, "chispa" => Spark, "acordeon" => Accordion, "sirena" => Siren, "sirena-barco" => ShipHorn,
-        "campana" => Bell, "chirrido" => Screech, "tiro" => Shot, "bocina" => Horn, "motor" => Engine, _ => null,
+        "campana" => Bell, "chirrido" => Screech, "tiro" => Shot, "bocina" => Horn, "motor" => Engine,
+        "silbato" => Whistle, "vapor" => Steam, _ => null,
     };
 
     private static AudioStreamWav Get(string key, Func<AudioStreamWav> make)
@@ -259,6 +262,41 @@ public static class Sfx
     }
 
     /// <summary>Bocina de barco: grave y larga.</summary>
+    /// <summary>Silbato de locomotora: acorde de tres notas con aire (vapor) y un temblor, dos toques.</summary>
+    private static AudioStreamWav MakeWhistle()
+    {
+        var n = (int)(Rate * 2.6);
+        var s = new float[n];
+        var air = new LowPass(0.35f);
+        for (var i = 0; i < n; i++)
+        {
+            var t = i / (float)Rate;
+            // Dos toques: uno corto y uno largo.
+            var env = t < 0.55f ? MathF.Min(1, t * 12) * MathF.Min(1, (0.55f - t) * 12) : t > 0.75f ? MathF.Min(1, (t - 0.75f) * 8) * MathF.Min(1, (2.6f - t) * 3) : 0;
+            var wobble = 1 + 0.006f * MathF.Sin(MathF.Tau * 5.5f * t);
+            var tone = MathF.Sin(MathF.Tau * 523 * wobble * t) + 0.8f * MathF.Sin(MathF.Tau * 659 * wobble * t) + 0.7f * MathF.Sin(MathF.Tau * 784 * wobble * t);
+            s[i] = (tone * 0.33f + air.Next(Noise()) * 0.35f) * env;
+        }
+        return ToWav(s, gain: 0.7f);
+    }
+
+    /// <summary>Vapor que escapa: ruido que arranca fuerte y se apaga despacio.</summary>
+    private static AudioStreamWav MakeSteam()
+    {
+        var n = (int)(Rate * 2.2);
+        var s = new float[n];
+        var hiss = new LowPass(0.6f);
+        var low = new LowPass(0.05f);
+        for (var i = 0; i < n; i++)
+        {
+            var t = i / (float)Rate;
+            var env = MathF.Min(1, t * 20) * MathF.Exp(-t * 1.4f);
+            var x = Noise();
+            s[i] = (hiss.Next(x) - low.Next(x)) * env;
+        }
+        return ToWav(s, gain: 0.8f);
+    }
+
     private static AudioStreamWav MakeShipHorn()
     {
         var n = (int)(Rate * 3.5);

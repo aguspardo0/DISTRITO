@@ -49,8 +49,9 @@ public partial class TutorialGuide : PanelContainer
         _steps =
         [
             new("Bienvenido a Bellmont",
-                "Llegaste en tren con veinte pesos en el bolsillo. Estás en la Calle Principal, el corazón neutral de la ciudad: acá están los "
-                + "proveedores y los comercios, cada familia con su local en la boca de su avenida, y alrededor, El Centro. Abrí el mapa con M para ubicarte.",
+                "Llegaste en tren con veinte pesos en el bolsillo. Saliendo de la estación, bajá derecho por la Avenida de la Estación y la calle "
+                + "del Centro hasta la Calle Principal, el corazón neutral de la ciudad: ahí están los proveedores y los comercios, cada familia con "
+                + "su local en la boca de su avenida. Abrí el mapa con M para ubicarte.",
                 () => _mapSeen, []),
             new("Tu primer trabajo",
                 "Andá a la Esquina del café (la columna de luz te marca el camino) y hablá con Don Aldo con E. Trabajá un turno de diez minutos: "

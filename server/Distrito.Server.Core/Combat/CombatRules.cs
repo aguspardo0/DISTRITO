@@ -60,8 +60,8 @@ public static class CombatRules
             return barrio.Area.Code;
         if (Distrito.Server.Core.World.CityLayout.Docks.Contains(p.X, p.Z))
             return TerritoryRules.Docks;
-        if (Distrito.Server.Core.World.CityLayout.InDowntown(p.X, p.Z))
-            return TerritoryRules.Downtown;
+        if (Distrito.Server.Core.World.CityLayout.InDowntown(p.X, p.Z) || Distrito.Server.Core.World.Station.Area.Contains(p.X, p.Z))
+            return TerritoryRules.Downtown; // la Estación tiene las reglas del Centro
         return NpcInteractionRules.Market
             .Select(n => (Zone: TerritoryRules.ZoneOfNpc(n.Code), Dist: Vector2.Distance(new(n.Position.X, n.Position.Z), new(p.X, p.Z))))
             .Where(x => x.Zone is not null)

@@ -164,6 +164,8 @@ Base: el libro central de objetos que ya existía (item_stacks + item_movements)
 - [x] Pantalla de juego minimalista, mapa con zoom, estilo de época y sonido de interfaz (2026-11-08). Ver `docs/INTERFAZ.md`
 - [x] Modelos .glb sin tocar código (2026-11-09): personas, autos, muebles, objetos y fachadas con escala, orientación y animaciones automáticas. Ver `docs/MODELOS.md`
 - [x] Escenas de la ciudad, tránsito y vecinos en los locales (2026-11-09): 18 escenas editables (calle, eventos, crimen), 16 autos que circulan y frenan, vecinos que entran por la puerta. Ver `docs/ESCENAS.md`
+- [x] Estación Bellmont (2026-11-09): barrio nuevo al norte del Centro, llegada en tren de los personajes nuevos y el tren cada 5 minutos. Ver `docs/CIUDAD.md`
+- [x] Escenas en las que uno se mete (2026-11-09): extorsión, tiroteo y persecución con premio de reputación. Ver `docs/ESCENAS.md`
 - [ ] Demo de marzo de 2027 (plan de 16 semanas): rendimiento y prueba cerrada; que se vea profesional (modelos, animaciones, luz); contenido de la demo (estación de tren, una familia a fondo, contrabando); terminación
 - [ ] Mapa, fase 2: la bahía, el puerto grande, la aduana, el barrio obrero y la estación; el anillo para autos
 

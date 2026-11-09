@@ -128,3 +128,23 @@ locales de las familias **en la boca de su avenida**, **Los Muelles al borde** c
   cuente con la ubicación nueva, hay que aprobarlo aparte.
 - Los bots de prueba que van a un NPC ahora siguen el camino de la grilla de la ciudad (`BotSteering`).
 - Se sacaron del escenario los siete edificios viejos del Mercado y su piso; todo lo arma `MainStreetBuilder`.
+
+## La Estación Bellmont y su barrio (2026-11-09)
+
+Contenido de la demo de marzo. Decisión del equipo: un barrio nuevo, y la estación sirve para la llegada del jugador y
+para darle vida a la ciudad. Código: `Server.Core/World/Station.cs` (plano) y `game/scripts/World/CityBuilder.Station.cs` (3D).
+
+- **Dónde:** al norte del Centro (x 60…168, z −417…−300), al final de la calle x = 114. Esa calle baja derecho hasta la
+  punta este de la Calle Principal: desde la plaza de la estación son unos 400 m sin doblar.
+- **Qué hay:** el andén de piedra con techo sobre postes; las vías, del otro lado del andén, que se pierden en el campo
+  (no se pisan); el hall de ladrillo de 44 × 22 m, con tres puertas al andén, una grande a la plaza, piso en damero,
+  boletería, bancos, el tablero de llegadas, una torre con un reloj que marca la hora de Bellmont y luz por los ventanales
+  a la noche; el depósito del ferrocarril, el tanque de agua y un galpón; la plaza con fuente y faroles; la Avenida de la
+  Estación; y dos manzanas de casas obreras de dos y tres pisos, con chimeneas y ventanas que se prenden a la noche.
+- **Reglas:** las del Centro (es zona «El Centro» para el combate).
+- **La llegada:** un personaje recién creado (que nunca se movió) aparece en el andén, frente a la puerta de un coche, con
+  el tren parado y los demás pasajeros bajando (si no había un tren en el andén, se pone uno que acaba de frenar). Cada
+  jugador nuevo tiene su lugar en el andén. El tutorial le dice por dónde bajar hasta la Calle Principal. Las pruebas
+  que dependen del punto de aparición viejo arrancan el servidor con `--sin-tren`.
+- **El tren** es la escena «tren» (`docs/ESCENAS.md`): cada 5 minutos reales, siempre.
+- **Modelos:** si aparece `game/modelos/autos/tren.glb`, se usa en lugar del tren armado con cajas.

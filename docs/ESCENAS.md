@@ -38,10 +38,11 @@ Pedido del equipo: «más variedad de secuencias en el mapa, vida, más vida, ev
 | Crimen | **Persecución** | cualquier hora | Un auto a toda velocidad por la Calle Principal y la Avenida del Puerto, el patrullero atrás con sirena. |
 | Crimen | **Tiroteo entre familias** | 20 a 3 h | Dos autos cruzados, tres de cada lado se tirotean; uno cae, los demás escapan; llega la policía. |
 | Crimen | **Extorsión** | 10 a 20 h | Dos matones le «piden colaboración» a un comerciante; él les da un sobre. |
+| Estación | **Llega el tren** | siempre, cada 5 min | La locomotora a vapor y cinco coches entran por el oeste y frenan en el andén con la campana y el vapor; bajan de 6 a 10 pasajeros (casi todos con valija), cruzan el hall y la plaza y se van por la avenida; suben los que esperaban; el jefe de estación anuncia, pita y el tren sale hacia el este. |
 | Crimen | **Contrabando** | con el evento de PvE | Una lancha en el muelle y cajones a una camioneta. Sale junto con el contrabando de `config/eventos-pve.json` (los guardias armados son los de ese evento) y se termina con él. |
 
 Sonidos nuevos, todos generados: trueno, chispazo, acordeón, sirena de patrullero, bocina de barco, campana, chirrido de
-gomas y lluvia.
+gomas, lluvia, silbato de locomotora y vapor.
 
 ## Vida más rica
 

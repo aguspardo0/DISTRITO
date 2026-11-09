@@ -62,6 +62,23 @@ public partial class SceneNetwork
             : "No se pudo empezar la escena.";
     }
 
+    /// <summary>
+    /// Llegó un personaje nuevo al andén: si no hay un tren parado (o llegando), se pone uno que ya frenó, así baja del
+    /// tren junto con los demás pasajeros.
+    /// </summary>
+    public void TrainAtPlatform()
+    {
+        if (!Multiplayer.HasMultiplayerPeer() || !Multiplayer.IsServer())
+            return;
+        var now = NowMs();
+        var current = _active.Values.Select(a => a.Scene).FirstOrDefault(s => s.Code == "tren");
+        if (current is not null && current.Seconds(now) < SceneScripts.TrainDeparts - 15)
+            return; // está llegando o parado: alcanza
+        if (current is not null)
+            EndScene(current.Id);
+        Trigger("tren", 0, SceneScripts.TrainStops + 1);
+    }
+
     /// <summary>Termina una escena ya, en todos lados.</summary>
     private void EndScene(long id)
     {

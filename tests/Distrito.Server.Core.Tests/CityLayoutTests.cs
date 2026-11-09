@@ -258,4 +258,74 @@ public class CityLayoutTests
 
     private static bool Intersects(MapBuilding a, MapBuilding b) =>
         MathF.Abs(a.X - b.X) < (a.Width + b.Width) / 2 && MathF.Abs(a.Z - b.Z) < (a.Depth + b.Depth) / 2;
+
+    [Fact]
+    public void La_estacion_esta_al_norte_y_se_baja_derecho_al_centro()
+    {
+        var a = Station.Area;
+        Assert.Equal(-300, a.MaxZ);
+        // La avenida de la estación sigue en la calle del Centro x = 114, que baja derecho hasta la Calle Principal.
+        Assert.Contains(CityLayout.StreetLines, l => MathF.Abs(l - Station.AxisX) < 0.01f);
+        for (var z = -350f; z < -10f; z += 2f)
+        {
+            Assert.True(CityLayout.IsWalkable(Station.AxisX, z, 0.4f), $"se corta la bajada en z = {z}");
+            Assert.DoesNotContain(MapPresence.Buildings, b => MathF.Abs(Station.AxisX - b.X) < b.Width / 2 + 0.5f && MathF.Abs(z - b.Z) < b.Depth / 2 + 0.5f);
+        }
+        Assert.Equal(TerritoryRules.Downtown, CombatRules.ZoneAt(new Vector3(Station.AxisX, 0, -380)));
+        // Del otro lado del andén (las vías) no se camina.
+        Assert.False(CityLayout.IsWalkable(Station.AxisX, Station.TrackZ));
+    }
+
+    [Fact]
+    public void El_hall_tiene_sus_puertas_y_los_que_llegan_bajan_en_el_anden()
+    {
+        bool Blocked(float x, float z) => Station.Buildings.Any(b => MathF.Abs(x - b.X) < b.Width / 2 + 0.3f && MathF.Abs(z - b.Z) < b.Depth / 2 + 0.3f);
+        foreach (var door in Station.PlatformDoors)
+            Assert.False(Blocked(door, Station.HallBack + 0.25f), $"puerta del andén en x = {door} tapada");
+        Assert.False(Blocked(Station.AxisX, Station.HallFront - 0.25f));
+        Assert.True(Blocked(Station.Hall.X - 10, Station.HallFront - 0.25f)); // el resto de la pared, cerrada
+        for (var slot = 0; slot < 40; slot++)
+        {
+            var p = Station.ArrivalSpot(slot);
+            Assert.True(Station.OnPlatform(p.X, p.Z) && CityLayout.IsWalkable(p.X, p.Z, 0.4f) && !Blocked(p.X, p.Z), $"lugar {slot} ({p.X}, {p.Z})");
+        }
+        Assert.Equal(40, Enumerable.Range(0, 40).Select(Station.ArrivalSpot).Distinct().Count());
+        Assert.True(Station.IsNewcomer(Distrito.Shared.Api.ZoneIds.NewCharacterSpawn.X, Distrito.Shared.Api.ZoneIds.NewCharacterSpawn.Y, Distrito.Shared.Api.ZoneIds.NewCharacterSpawn.Z));
+        Assert.False(Station.IsNewcomer(3.2, 1, 0));
+        // Las casas quedan en el barrio, fuera de la avenida y de la plaza.
+        foreach (var h in Station.Houses)
+        {
+            var p = h.Plan;
+            Assert.True(Station.Area.Contains(p.X - p.Width / 2, p.Z - p.Depth / 2) && Station.Area.Contains(p.X + p.Width / 2, p.Z + p.Depth / 2));
+            Assert.True(MathF.Abs(p.X - Station.AxisX) >= p.Width / 2 + Station.AvenueHalf);
+            Assert.True(p.Z - p.Depth / 2 >= Station.PlazaMaxZ);
+        }
+    }
+
+    [Fact]
+    public void Los_pasajeros_del_tren_no_atraviesan_paredes()
+    {
+        var cfg = CityScenesTests.Config();
+        var def = cfg.Escenas.Single(e => e.Codigo == "tren");
+        for (var seed = 1; seed < 30; seed++)
+        {
+            var scene = new ActiveScene(1, "tren", def.Lugares[0][0], def.Lugares[0][1], seed, 0, (long)(def.DuracionMinutos * 60_000));
+            var tl = SceneScripts.Build(def, scene);
+            Assert.Single(tl.Tracks, t => t.Kind == "tren");
+            Assert.True(SceneScripts.Pose(tl.Tracks[0], SceneScripts.TrainStops + 10) is { Speed: 0, X: var x } && MathF.Abs(x - Station.AxisX) < 0.01f);
+            foreach (var track in tl.Tracks.Where(t => t.Kind == "persona"))
+                for (var i = 1; i < track.Keys.Count; i++)
+                {
+                    var (a, b) = (track.Keys[i - 1], track.Keys[i]);
+                    if (i == 1 && a.Act == "")
+                        continue;
+                    for (var f = 0f; f <= 1f; f += 0.05f)
+                    {
+                        var (x, z) = (a.X + (b.X - a.X) * f, a.Z + (b.Z - a.Z) * f);
+                        Assert.DoesNotContain(MapPresence.Buildings, w => MathF.Abs(x - w.X) < w.Width / 2 + 0.2f && MathF.Abs(z - w.Z) < w.Depth / 2 + 0.2f);
+                    }
+                }
+            Assert.All(tl.Tracks, t => Assert.True(t.Keys[^1].T <= scene.DurationMs / 1000.0, $"{t.Look} sigue cuando termina la escena"));
+        }
+    }
 }

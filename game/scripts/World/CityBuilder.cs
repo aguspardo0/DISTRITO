@@ -8,7 +8,7 @@ namespace Distrito.Game.World;
 /// las tres avenidas, el barrio de cada familia (suelo, calles, manzanas, plaza, cuartel, faroles y carteles)
 /// y las paredes invisibles de todo el borde. El Mercado (Main.tscn) y Los Muelles (DocksBuilder) ya existían.
 /// </summary>
-public static class CityBuilder
+public static partial class CityBuilder
 {
     private static readonly Color Cobble = new(0.17f, 0.17f, 0.18f);
     private static readonly Color Sidewalk = new(0.33f, 0.32f, 0.3f);
@@ -22,6 +22,7 @@ public static class CityBuilder
         foreach (var barrio in CityLayout.Barrios)
             BuildBarrio(city, barrio);
         BuildDowntown(city);
+        BuildStation(city);
         BuildEdges(city);
     }
 

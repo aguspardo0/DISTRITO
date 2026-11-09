@@ -1,6 +1,6 @@
 {
   "_ayuda": "Escenas de la ciudad (2026-11-09). Pasan solas: cada «cadaMinutos» (minutos reales) se prueba suerte con la «probabilidad», si es la hora de Bellmont ([desde, hasta)) y el día (0 = domingo … 6 = sábado). «lugares»: puntos [x, z] donde puede pasar (para las de puerta, la puerta del local). «frases»: lo que dicen. «maximo»: cuántas iguales a la vez. Las coreografías están en Server.Core/World/CityScenes.cs. Ver docs/ESCENAS.md.",
-  "maxActivas": 7,
+  "maxActivas": 8,
   "escenas": [
     { "codigo": "canillita", "nombre": "El canillita", "horas": [6, 12], "cadaMinutos": 6, "probabilidad": 0.9, "duracionMinutos": 8, "maximo": 2,
       "lugares": [[-6, 8.5], [30, -8.5], [60, 8.5], [90, -8.5], [150, -7], [150, 7]],
@@ -68,6 +68,10 @@
 
     { "codigo": "contrabando", "nombre": "Contrabando en el muelle", "horas": [0, 24], "cadaMinutos": 30, "probabilidad": 0, "duracionMinutos": 10,
       "lugares": [[297, 4]],
-      "frases": ["Ojos abiertos, que la aduana anda cerca.", "Silencio… alguien viene.", "Esta caja va con cuidado, es whisky de Canadá."] }
+      "frases": ["Ojos abiertos, que la aduana anda cerca.", "Silencio… alguien viene.", "Esta caja va con cuidado, es whisky de Canadá."] },
+    { "codigo": "tren", "nombre": "Llega el tren", "horas": [0, 24], "cadaMinutos": 5, "probabilidad": 1, "duracionMinutos": 3.5,
+      "lugares": [[114, -412]],
+      "frases": ["¡Atención! Llega el tren de Chicago al andén uno.", "¡Bellmont! ¡Bienvenidos a Bellmont!", "¡Pasajeros al tren! ¡Último aviso!",
+        "¡Por fin, Bellmont!", "¿Para dónde queda el Centro?", "Mi primo dice que acá sobra el trabajo.", "Qué frío hace en este andén."] }
   ]
 }

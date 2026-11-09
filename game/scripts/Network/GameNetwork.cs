@@ -322,9 +322,14 @@ public partial class GameNetwork : Node
             return false;
 
         var spawnPoint = new Vector3(zoneSession.SpawnPoint.X, zoneSession.SpawnPoint.Y, zoneSession.SpawnPoint.Z);
+        // Personaje recién creado (nunca se movió): baja del tren en la Estación de Bellmont.
+        var newcomer = session is not null && TrainArrival && Distrito.Server.Core.World.Station.IsNewcomer(session.State.X, session.State.Y, session.State.Z);
+        var arrival = Distrito.Server.Core.World.Station.ArrivalSpot(zoneSession.Slot);
         var position = session is null
             ? spawnPoint
-            : SafePosition(new Vector3((float)session.State.X, (float)session.State.Y, (float)session.State.Z), spawnPoint, session.CharacterName);
+            : newcomer
+                ? new Vector3(arrival.X, arrival.Y, arrival.Z)
+                : SafePosition(new Vector3((float)session.State.X, (float)session.State.Y, (float)session.State.Z), spawnPoint, session.CharacterName);
 
         var player = _playerScene.Instantiate<PlayerCharacter>();
         player.Name = peerId.ToString();
@@ -332,11 +337,22 @@ public partial class GameNetwork : Node
         player.Look = session?.Look ?? "";
         player.SpawnPoint = new Vector3(zoneSession.SpawnPoint.X, zoneSession.SpawnPoint.Y, zoneSession.SpawnPoint.Z);
         player.Position = position;
-        player.Rotation = new Vector3(0, (float)(session?.State.Yaw ?? 0), 0);
+        player.Rotation = new Vector3(0, newcomer ? Mathf.Pi : (float)(session?.State.Yaw ?? 0), 0); // el que llega mira hacia el hall
         Interest?.Register(player); // antes de entrar al árbol, así el primer envío ya respeta el filtro
         _players.AddChild(player, forceReadableName: true);
+        if (newcomer)
+        {
+            Report($"{session!.CharacterName} llegó en tren a la Estación Bellmont ({position.X:0.0}, {position.Z:0.0}).");
+            NewcomerArrived?.Invoke(peerId);
+        }
         return true;
     }
+
+    /// <summary>Servidor: los personajes nuevos bajan del tren en la Estación (se apaga con --sin-tren).</summary>
+    public bool TrainArrival { get; set; } = true;
+
+    /// <summary>Servidor: llegó un personaje nuevo en tren (la escena del tren tiene que estar en el andén).</summary>
+    public event Action<long>? NewcomerArrived;
 
     /// <summary>
     /// Ubicación segura: la posición guardada se usa solo si está dentro del barrio y no queda adentro de un edificio.

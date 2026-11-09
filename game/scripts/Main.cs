@@ -202,6 +202,9 @@ public partial class Main : Node3D
         // Escenas en las que uno se puede meter: extorsión, tiroteo, persecución y el contrabando del muelle.
         scenes.UseFights(_pve, _combat);
         scenes.EconomyRefresh = _economy.RefreshPeer;
+        // Los personajes nuevos bajan del tren: el tren tiene que estar parado en el andén cuando aparecen.
+        _network.TrainArrival = !Options.NoTrainArrival;
+        _network.NewcomerArrived += _ => scenes.TrainAtPlatform();
         // Autos que circulan por la Calle Principal, la Avenida del Puerto y el Centro.
         var traffic = new Distrito.Game.World.TrafficNetwork();
         AddChild(traffic);
@@ -799,6 +802,25 @@ public partial class Main : Node3D
                 {
                     me.GlobalPosition = new Vector3(124f, 0.2f, 6.5f); // en la vereda de la Avenida del Puerto, mirando el tiroteo
                     me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(-Mathf.Pi / 2 + 0.15f);
+                }
+            }),
+            ("estacion", () =>
+            {
+                // La Estación Bellmont desde la plaza: el hall, la torre del reloj y la fuente.
+                if (_network.LocalPlayer is { } me)
+                {
+                    me.GlobalPosition = new Vector3(124f, 0.2f, -356f);
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Atan2(10f, 40f));
+                }
+            }),
+            ("estacion-anden", () =>
+            {
+                // El andén con el tren parado y los pasajeros bajando (lo que ve el que llega).
+                Distrito.Game.World.SceneNetwork.Instance?.Trigger("tren", 0, Distrito.Server.Core.World.SceneScripts.TrainStops + 6);
+                if (_network.LocalPlayer is { } me)
+                {
+                    me.GlobalPosition = new Vector3(140f, 0.2f, -410.5f);
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Pi / 2 - 0.12f);
                 }
             }),
             ("calle-principal", () =>
