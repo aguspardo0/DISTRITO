@@ -270,8 +270,10 @@ public partial class MapPanel : Control
         }
 
         // Lo que se pasó del marco al acercar queda tapado por la cabecera y el pie.
-        DrawRect(new Rect2(0, 0, WidthPx, 24), Paper);
-        DrawRect(new Rect2(0, 24 + HeightPx, WidthPx, 24), Paper);
+        var full = new Vector2(Mathf.Max(Size.X, WidthPx), Mathf.Max(Size.Y, HeightPx + 48));
+        DrawRect(new Rect2(0, 0, full.X, 24), Paper);
+        DrawRect(new Rect2(0, 24 + HeightPx, full.X, full.Y - 24 - HeightPx), Paper);
+        DrawRect(new Rect2(WidthPx, 0, full.X - WidthPx, full.Y), Paper);
         if (_zoom <= MinZoom)
             DrawLegend(font, territory); // con zoom, las referencias se esconden para no tapar
 
@@ -290,6 +292,10 @@ public partial class MapPanel : Control
     {
         var origin = new Vector2(10, 34);
         var y = origin.Y;
+        // Fondo propio para que el mapa no se mezcle con el texto.
+        var rows = NpcInteractionRules.Market.Count() + 1;
+        DrawRect(new Rect2(origin - new Vector2(6, 4), new Vector2(300, 22 + 16 * 5 + 16 + 12 * rows + 6)), Paper with { A = 0.9f });
+        DrawRect(new Rect2(origin - new Vector2(6, 4), new Vector2(300, 22 + 16 * 5 + 16 + 12 * rows + 6)), Brass with { A = 0.4f }, filled: false, width: 1);
         DrawString(font, new Vector2(origin.X, y + 11), "REFERENCIAS", HorizontalAlignment.Left, -1, 12, Brass);
         y += 22;
         var accent = Accent(CityLayout.Moretti);
