@@ -21,7 +21,7 @@ public class CombatRulesTests
     [Fact]
     public void Zona_segura_y_niveles()
     {
-        var nearShop = NpcInteractionRules.Deposit.Position + new Vector3(1.5f, 0, 1f);
+        var nearShop = Distrito.Server.Core.Npcs.NpcInteractionRules.Deposit.Position + new Vector3(1.5f, 0, 1f);
         Assert.True(CombatRules.InSafeZone(nearShop));
         Assert.NotNull(CombatRules.WhyNot(nearShop, Open, null, null, CombatState.None));
         Assert.Null(CombatRules.WhyNot(Open, Open, null, null, CombatState.None)); // partida local sin cuentas
