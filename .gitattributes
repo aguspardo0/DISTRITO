@@ -24,3 +24,6 @@
 
 # Retratos chicos del menú (decenas de KB): van en git normal, sin LFS.
 game/assets/portraits/*.jpg -filter -diff -merge binary
+
+# Letras chicas (menos de 200 KB): van directo en git, sin LFS.
+game/fonts/*.ttf !filter !diff !merge binary

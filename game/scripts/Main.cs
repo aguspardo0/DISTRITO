@@ -65,6 +65,7 @@ public partial class Main : Node3D
 
     public override void _Ready()
     {
+        Distrito.Game.UI.PeriodTheme.Apply(GetTree().Root); // estilo de época en todas las ventanas
         Distrito.Game.World.DocksBuilder.Build(GetNode<Node3D>("World"));
         Distrito.Game.World.DocksBuilder.BuildCasino(GetNode<Node3D>("World"));
         Distrito.Game.World.CityBuilder.Build(GetNode<Node3D>("World"));

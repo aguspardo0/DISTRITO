@@ -31,3 +31,20 @@ que sube y se borra en dos segundos y medio. Como mucho se ven cuatro a la vez.
 - Abrir el mapa suelta el mouse (como las otras ventanas); cerrarlo lo vuelve a tomar.
 
 Arreglo de paso: los avisos de la pantalla de juego contaban como «ventana abierta» y un clic no volvía a tomar el mouse.
+
+## Estilo de época en todas las ventanas (`PeriodTheme`)
+
+Todas las ventanas comparten un mismo estilo, puesto una sola vez para toda la ventana del juego (cualquier panel nuevo
+lo toma solo):
+
+- **Letra:** Libre Franklin, la versión libre de la Franklin Gothic de los diarios y carteles de EE.UU. de esa época.
+  Para títulos queda la variación `Titulo` (Oswald, dorada). Ambas con licencia OFL (`game/fonts/CREDITOS.md`).
+- **Paneles:** papel oscuro con borde de bronce.
+- **Botones:** madera oscura con filete de bronce; al pasar el mouse, borde y letra dorados.
+- **Campos, listas, pestañas, barras y deslizadores** con la misma paleta.
+- Los paneles que ya tenían colores propios (avisos, encargos, turno del café) los conservan.
+
+## Sonido de la interfaz
+
+Todo botón suena al apretarlo: un golpecito seco, como la tecla de una máquina de escribir (generado, sin archivos;
+va por el canal de efectos, así que lo regula su volumen en Opciones).

@@ -22,6 +22,7 @@ public static class Sfx
     public static AudioStreamWav Engine => Get("motor", MakeEngine);
     public static AudioStreamWav Street => Get("calle", MakeStreet);
     public static AudioStreamWav Horn => Get("bocina", MakeHorn);
+    public static AudioStreamWav Click => Get("clic", MakeClick);
 
     private static AudioStreamWav Get(string key, Func<AudioStreamWav> make)
     {
@@ -150,6 +151,22 @@ public static class Sfx
             s[i] = (MathF.Sin(MathF.Tau * 2150 * t) + 0.6f * MathF.Sin(MathF.Tau * 3300 * t) + 0.3f * MathF.Sin(MathF.Tau * 4750 * t)) * MathF.Exp(-t * 14);
         }
         return ToWav(s, gain: 0.45f);
+    }
+
+    /// <summary>Clic de la interfaz: un golpecito seco, como la tecla de una máquina de escribir.</summary>
+    private static AudioStreamWav MakeClick()
+    {
+        var n = (int)(Rate * 0.06);
+        var s = new float[n];
+        var rng = new Random(7);
+        for (var i = 0; i < n; i++)
+        {
+            var t = i / (float)Rate;
+            var noise = (float)(rng.NextDouble() * 2 - 1) * MathF.Exp(-t * 180);
+            var body = MathF.Sin(MathF.Tau * 1250 * t) * MathF.Exp(-t * 90) + 0.5f * MathF.Sin(MathF.Tau * 2900 * t) * MathF.Exp(-t * 140);
+            s[i] = 0.55f * noise + 0.6f * body;
+        }
+        return ToWav(s, gain: 0.35f);
     }
 
     private static AudioStreamWav MakeEngine()
