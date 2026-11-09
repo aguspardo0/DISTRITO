@@ -11,4 +11,8 @@
     <ProjectReference Include="..\shared\Distrito.Shared\Distrito.Shared.csproj" />
     <ProjectReference Include="..\server\Distrito.Server.Core\Distrito.Server.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Escenas de la ciudad: el mismo archivo de config/ viaja adentro del juego (servidor y clientes). -->
+    <EmbeddedResource Include="..\config\escenas.json" LogicalName="escenas.json" />
+  </ItemGroup>
 </Project>

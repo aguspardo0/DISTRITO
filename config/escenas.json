@@ -1,0 +1,73 @@
+{
+  "_ayuda": "Escenas de la ciudad (2026-11-09). Pasan solas: cada «cadaMinutos» (minutos reales) se prueba suerte con la «probabilidad», si es la hora de Bellmont ([desde, hasta)) y el día (0 = domingo … 6 = sábado). «lugares»: puntos [x, z] donde puede pasar (para las de puerta, la puerta del local). «frases»: lo que dicen. «maximo»: cuántas iguales a la vez. Las coreografías están en Server.Core/World/CityScenes.cs. Ver docs/ESCENAS.md.",
+  "maxActivas": 7,
+  "escenas": [
+    { "codigo": "canillita", "nombre": "El canillita", "horas": [6, 12], "cadaMinutos": 6, "probabilidad": 0.9, "duracionMinutos": 8, "maximo": 2,
+      "lugares": [[-6, 8.5], [30, -8.5], [60, 8.5], [90, -8.5], [150, -7], [150, 7]],
+      "frases": ["¡La Gaceta, la Gaceta! ¡Cinco centavos!", "¡Extra, extra! ¡Tiroteo en Los Muelles!", "¡Suben los precios del café!", "¡Los Valenti compran otro edificio!", "¡Gaceta de la mañana, señor!", "¡Lea todo sobre el crimen del puerto!", "¡Nuevo cine en el Centro!"] },
+
+    { "codigo": "descarga", "nombre": "Camión que descarga", "horas": [7, 16], "cadaMinutos": 8, "probabilidad": 0.6, "duracionMinutos": 3,
+      "lugares": [[-25.4, -11], [51.8, -11], [-21.2, 11], [66.8, -11], [36.3, -11]],
+      "frases": ["¡Dale, que se nos va la mañana!", "Este cajón pesa como un muerto.", "¿Dónde lo dejo, patrón?", "Uno más y almorzamos.", "Cuidado con las botellas."] },
+
+    { "codigo": "discusion", "nombre": "Discusión entre vecinos", "horas": [10, 21], "cadaMinutos": 10, "probabilidad": 0.45, "duracionMinutos": 2,
+      "lugares": [[10, -8.5], [45, 8.5], [80, -8.5], [-15, 8.5], [160, -7]],
+      "frases": ["¡Tu perro otra vez en mi vereda!", "¡Me debés diez dólares desde marzo!", "¿Y vos quién te creés que sos?", "¡A mi hermana no la mirás más!", "¡Ese lugar era mío!", "¡Te lo dije mil veces!", "¡Callate, que no sabés nada!", "¡Mentira! ¡Yo estaba en el diner!"] },
+
+    { "codigo": "borracho", "nombre": "Borracho a la salida", "horas": [21, 4], "cadaMinutos": 9, "probabilidad": 0.5, "duracionMinutos": 3,
+      "lugares": [[-21.2, 11], [95, -11], [79.5, -11]],
+      "frases": ["♪ Y la luna sobre el puerto… ♪", "¡Una más, Mabel, una más!", "Yo antes era alguien, ¿sabés?", "¿Dónde dejé el sombrero?", "♪ Oh, Marie… ♪", "Todos son mis amigos…"] },
+
+    { "codigo": "lustrabotas", "nombre": "El lustrabotas", "horas": [8, 17], "cadaMinutos": 12, "probabilidad": 0.8, "duracionMinutos": 12,
+      "lugares": [[29, -8.6], [-10, 8.6], [118, -12]],
+      "frases": ["¿Lustre, señor? ¡Diez centavos!", "¡Brillan como espejo!", "Zapatos de banquero, señor.", "¡Lustre, lustre!"] },
+
+    { "codigo": "chicos", "nombre": "Chicos jugando a la pelota", "horas": [14, 19], "cadaMinutos": 15, "probabilidad": 0.7, "duracionMinutos": 8,
+      "lugares": [[28, 19]],
+      "frases": ["¡Pasala!", "¡Gol!", "¡Fue mano!", "¡Mi mamá me llama!", "¡Vos sos el arquero!"] },
+
+    { "codigo": "musico", "nombre": "Músico callejero", "horas": [16, 23], "cadaMinutos": 14, "probabilidad": 0.6, "duracionMinutos": 6,
+      "lugares": [[30, 9.2], [70, -8.6], [100, 8.6]],
+      "frases": ["♪ Una moneda para el músico ♪", "Gracias, buena gente."] },
+
+    { "codigo": "paseo", "nombre": "Paseo del domingo", "horas": [10, 19], "dias": [0], "cadaMinutos": 7, "probabilidad": 0.8, "duracionMinutos": 3, "maximo": 3,
+      "lugares": [[40, 8.5], [40, -8.5], [160, -7], [160, 7]],
+      "frases": ["Después vamos por un helado.", "Qué lindo día.", "¿Viste el sombrero de la señora Russo?"] },
+
+    { "codigo": "lluvia", "nombre": "Lluvia", "global": true, "horas": [0, 24], "cadaMinutos": 30, "probabilidad": 0.25, "duracionMinutos": 20, "lugares": [], "frases": [] },
+
+    { "codigo": "feria", "nombre": "Feria en la Calle Principal", "horas": [9, 17], "dias": [6], "cadaMinutos": 20, "probabilidad": 0.7, "duracionMinutos": 30,
+      "lugares": [[40, 0]],
+      "frases": ["¡Manzanas frescas!", "¡Sombreros de Nueva York!", "¡Pruebe el salame, señora!", "¡Juguetes para los chicos!", "¡Flores para la novia!", "¡Fotos al minuto!", "¡Barato, barato!", "¡Lleve dos, pague uno!", "¡Directo del campo!", "¡Mire sin compromiso!", "¡Pasen y vean!", "¡Lo último de la ciudad!"] },
+
+    { "codigo": "apagon", "nombre": "Apagón", "horas": [19, 5], "cadaMinutos": 40, "probabilidad": 0.3, "duracionMinutos": 4,
+      "lugares": [[40, 0], [150, 100], [-150, -150]], "frases": [] },
+
+    { "codigo": "barco", "nombre": "Barco en el puerto", "horas": [7, 18], "cadaMinutos": 40, "probabilidad": 0.5, "duracionMinutos": 10,
+      "lugares": [[322, 0]],
+      "frases": ["¡Llegó el carguero de Génova!"] },
+
+    { "codigo": "redada", "nombre": "Redada de la policía", "horas": [9, 22], "cadaMinutos": 35, "probabilidad": 0.3, "duracionMinutos": 3,
+      "lugares": [[66.8, -11], [36.3, -11], [-21.2, 11], [95, -11]],
+      "frases": ["¡Policía de Bellmont! ¡Nadie se mueve!", "Revisamos el local, es de rutina.", "¡Yo no hice nada, oficial!", "¿Esto es por los Valenti? Yo pago mis licencias."] },
+
+    { "codigo": "funeral", "nombre": "Cortejo fúnebre", "horas": [9, 16], "cadaMinutos": 60, "probabilidad": 0.25, "duracionMinutos": 4,
+      "lugares": [[40, 0]],
+      "frases": ["Era un buen hombre… a su manera."] },
+
+    { "codigo": "persecucion", "nombre": "Persecución policial", "horas": [0, 24], "cadaMinutos": 20, "probabilidad": 0.35, "duracionMinutos": 1,
+      "lugares": [[100, 0]], "frases": [] },
+
+    { "codigo": "tiroteo", "nombre": "Tiroteo entre familias", "horas": [20, 3], "cadaMinutos": 45, "probabilidad": 0.3, "duracionMinutos": 3,
+      "lugares": [[150, 0], [210, 0], [60, 0]],
+      "frases": ["¡Esto es por Tony!", "¡Los Caruso no se meten en nuestro barrio!", "Quietos todos. Se terminó."] },
+
+    { "codigo": "extorsion", "nombre": "Extorsión a un comerciante", "horas": [10, 20], "cadaMinutos": 25, "probabilidad": 0.4, "duracionMinutos": 1.5,
+      "lugares": [[66.8, -11], [51.8, -11], [36.3, -11], [-21.2, 11], [66, 11]],
+      "frases": ["Lindo negocio el suyo, ¿eh?", "No sé de qué me hablan.", "Sería una pena que se prenda fuego.", "Está bien, está bien… tomen.", "Hasta el mes que viene, señor."] },
+
+    { "codigo": "contrabando", "nombre": "Contrabando en el muelle", "horas": [22, 4], "cadaMinutos": 30, "probabilidad": 0.5, "duracionMinutos": 8,
+      "lugares": [[297, -8]],
+      "frases": ["Ojos abiertos, que la aduana anda cerca.", "Silencio… alguien viene.", "Esta caja va con cuidado, es whisky de Canadá."] }
+  ]
+}

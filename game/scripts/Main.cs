@@ -184,6 +184,10 @@ public partial class Main : Node3D
         life.Initialize(_network, _combat);
         _admin.UseLife(life);
         _life = life;
+        // Escenas de la ciudad (canillita, descargas, discusiones, lluvia, feria, barco, redadas, persecuciones…).
+        var scenes = new Distrito.Game.World.SceneNetwork();
+        AddChild(scenes);
+        scenes.Initialize(_network, life);
         SpawnNpcs();
 
         if (Options.Mode == LaunchMode.Server)
@@ -737,6 +741,35 @@ public partial class Main : Node3D
                 {
                     me.GlobalPosition = new Vector3(-21.2f, 0.2f, 4f);
                     me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Pi);
+                }
+            }),
+            ("escena-descarga", () =>
+            {
+                // Un camión descargando en el Galpón Moretti, con los changarines llevando cajones.
+                Distrito.Game.World.SceneNetwork.Instance?.Trigger("descarga", 0, 40);
+                if (_network.LocalPlayer is { } me)
+                {
+                    me.GlobalPosition = new Vector3(-18f, 0.2f, 6f);
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Atan2(7.4f, 16f));
+                }
+            }),
+            ("escena-feria", () =>
+            {
+                Distrito.Game.World.SceneNetwork.Instance?.Trigger("feria", 0, 60);
+                if (_network.LocalPlayer is { } me)
+                {
+                    me.GlobalPosition = new Vector3(0f, 0.2f, 0f);
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(-Mathf.Pi / 2);
+                }
+            }),
+            ("escena-tiroteo", () =>
+            {
+                Distrito.Game.World.SceneNetwork.Instance?.Trigger("tiroteo", 0, 20);
+                Distrito.Game.World.SceneNetwork.Instance?.Trigger("lluvia", null, 30);
+                if (_network.LocalPlayer is { } me)
+                {
+                    me.GlobalPosition = new Vector3(150f, 0.2f, 9f);
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(0);
                 }
             }),
             ("calle-principal", () =>

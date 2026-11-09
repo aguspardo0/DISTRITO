@@ -61,17 +61,24 @@ public partial class VehicleBody : CharacterBody3D
     /// parrilla ancha de barras cromadas, paragolpes cromados, faros redondos en los guardabarros y cubiertas de banda blanca.
     /// La caja de carga sigue abierta (la carga se ve) con piso de madera.
     /// </summary>
-    private static Node3D BuildModel(VehicleType type)
+    /// <summary>
+    /// Solo el aspecto de un vehículo (para las escenas y el tránsito): <paramref name="style"/> «sedan», «policia» o
+    /// «funebre» cierra la caja de carga como un auto (y el patrullero lleva balizas); <paramref name="paint"/> cambia el color.
+    /// </summary>
+    public static Node3D Visual(VehicleType type, Color? paint = null, string? style = null) => BuildModel(type, paint, style);
+
+    private static Node3D BuildModel(VehicleType type, Color? paintOverride = null, string? style = null)
     {
         var model = new Node3D { Name = "Model" };
         // Modelo .glb (game/modelos/autos/<código>.glb): se escala al largo del vehículo; la colisión no cambia.
-        if (Distrito.Game.World.ModelLibrary.Make("autos", type.Code, new Vector3(type.Width, type.Height, type.Length), Distrito.Game.World.ModelLibrary.Fit.Length) is { } glb)
+        if (Distrito.Game.World.ModelLibrary.Make("autos", style ?? type.Code, new Vector3(type.Width, type.Height, type.Length), Distrito.Game.World.ModelLibrary.Fit.Length) is { } glb)
         {
             model.AddChild(glb);
             return model;
         }
         var truck = type.Code == Vehicles.Truck.Code;
-        var paint = new StandardMaterial3D { AlbedoColor = truck ? new Color(0.2f, 0.32f, 0.26f) : new Color(0.28f, 0.56f, 0.55f), Roughness = 0.35f, Metallic = 0.15f };
+        var closed = style is "sedan" or "policia" or "funebre";
+        var paint = new StandardMaterial3D { AlbedoColor = paintOverride ?? (truck ? new Color(0.2f, 0.32f, 0.26f) : new Color(0.28f, 0.56f, 0.55f)), Roughness = 0.35f, Metallic = 0.15f };
         var cream = new StandardMaterial3D { AlbedoColor = new Color(0.9f, 0.86f, 0.74f), Roughness = 0.35f };
         var dark = new StandardMaterial3D { AlbedoColor = new Color(0.08f, 0.08f, 0.08f) };
         var tire = new StandardMaterial3D { AlbedoColor = new Color(0.05f, 0.05f, 0.05f), Roughness = 0.9f };
@@ -87,7 +94,7 @@ public partial class VehicleBody : CharacterBody3D
             model.AddChild(mi);
             return mi;
         }
-        void Box(Vector3 size, Vector3 at, Material mat) => Add(new BoxMesh { Size = size }, at, mat);
+        MeshInstance3D Box(Vector3 size, Vector3 at, Material mat) => Add(new BoxMesh { Size = size }, at, mat);
         var alongZ = new Vector3(Mathf.Pi / 2, 0, 0);
         var alongX = new Vector3(0, 0, Mathf.Pi / 2);
 
@@ -110,6 +117,27 @@ public partial class VehicleBody : CharacterBody3D
         var (bedStart, bedEnd) = BedSpan(type);
         var bedLength = bedEnd - bedStart;
         var bedCenter = (bedStart + bedEnd) / 2;
+        if (closed)
+        {
+            // Auto: la parte de atrás cerrada (habitáculo y baúl), luneta y, el patrullero, las balizas en el techo.
+            Box(new Vector3(w * 0.9f, h * 0.36f, bedLength * 0.55f), new Vector3(0, 1.12f, bedStart + bedLength * 0.27f), paint);
+            Box(new Vector3(w * 0.92f, h * 0.22f, bedLength * 0.5f), new Vector3(0, 0.88f, bedStart + bedLength * 0.72f), paint);
+            Box(new Vector3(w * 0.76f, h * 0.14f, 0.05f), new Vector3(0, 1.36f, bedStart + bedLength * 0.55f), glass);
+            foreach (var side in new[] { -1f, 1f })
+                Box(new Vector3(0.05f, h * 0.15f, bedLength * 0.4f), new Vector3(side * w * 0.452f, 1.37f, bedStart + bedLength * 0.27f), glass);
+            if (style == "policia")
+            {
+                var red = new StandardMaterial3D { AlbedoColor = new Color(1f, 0.15f, 0.1f), EmissionEnabled = true, Emission = new Color(1f, 0.1f, 0.05f), EmissionEnergyMultiplier = 3f };
+                var blue = new StandardMaterial3D { AlbedoColor = new Color(0.2f, 0.35f, 1f), EmissionEnabled = true, Emission = new Color(0.15f, 0.3f, 1f), EmissionEnergyMultiplier = 3f };
+                Box(new Vector3(0.22f, 0.14f, 0.22f), new Vector3(-0.22f, 1.62f, -l * 0.1f), red).Name = "BalizaRoja";
+                Box(new Vector3(0.22f, 0.14f, 0.22f), new Vector3(0.22f, 1.62f, -l * 0.1f), blue).Name = "BalizaAzul";
+                var white = new StandardMaterial3D { AlbedoColor = new Color(0.92f, 0.92f, 0.9f) };
+                foreach (var side in new[] { -1f, 1f })
+                    Box(new Vector3(0.04f, 0.32f, l * 0.36f), new Vector3(side * w * 0.47f, 0.95f, -l * 0.02f), white);
+            }
+        }
+        else
+        {
         var rail = truck ? 0.9f : 0.42f;
         var sideMat = truck ? wood : paint;
         Box(new Vector3(w * 0.95f, 0.08f, bedLength), new Vector3(0, 0.72f, bedCenter), wood);
@@ -120,6 +148,7 @@ public partial class VehicleBody : CharacterBody3D
             for (var i = 0; i <= 4; i++)
                 foreach (var side in new[] { -1f, 1f })
                     Box(new Vector3(0.1f, rail + 0.25f, 0.1f), new Vector3(side * w * 0.46f, 0.76f + (rail + 0.25f) / 2, bedStart + bedLength * i / 4f), dark);
+        }
 
         // Ruedas con banda blanca y taza cromada, bajo guardabarros redondeados.
         foreach (var side in new[] { -1f, 1f })

@@ -23,6 +23,21 @@ public static class Sfx
     public static AudioStreamWav Street => Get("calle", MakeStreet);
     public static AudioStreamWav Horn => Get("bocina", MakeHorn);
     public static AudioStreamWav Click => Get("clic", MakeClick);
+    public static AudioStreamWav Thunder => Get("trueno", MakeThunder);
+    public static AudioStreamWav Spark => Get("chispa", MakeSpark);
+    public static AudioStreamWav Accordion => Get("acordeon", MakeAccordion);
+    public static AudioStreamWav Siren => Get("sirena", MakeSiren);
+    public static AudioStreamWav ShipHorn => Get("sirena-barco", MakeShipHorn);
+    public static AudioStreamWav Bell => Get("campana", MakeBell);
+    public static AudioStreamWav Screech => Get("chirrido", MakeScreech);
+    public static AudioStreamWav Rain => Get("lluvia", MakeRain);
+
+    /// <summary>Un sonido de las escenas por su nombre (los de config/escenas.json y CityScenes).</summary>
+    public static AudioStreamWav? ByName(string name) => name switch
+    {
+        "trueno" => Thunder, "chispa" => Spark, "acordeon" => Accordion, "sirena" => Siren, "sirena-barco" => ShipHorn,
+        "campana" => Bell, "chirrido" => Screech, "tiro" => Shot, "bocina" => Horn, "motor" => Engine, _ => null,
+    };
 
     private static AudioStreamWav Get(string key, Func<AudioStreamWav> make)
     {
@@ -167,6 +182,142 @@ public static class Sfx
             s[i] = 0.55f * noise + 0.6f * body;
         }
         return ToWav(s, gain: 0.35f);
+    }
+
+    /// <summary>Trueno: un estallido y un retumbo grave que se va.</summary>
+    private static AudioStreamWav MakeThunder()
+    {
+        var n = Rate * 4;
+        var s = new float[n];
+        var low = new LowPass(0.02f);
+        var lower = new LowPass(0.006f);
+        for (var i = 0; i < n; i++)
+        {
+            var t = i / (float)Rate;
+            var crack = t < 0.25f ? Noise() * MathF.Exp(-t * 12) : 0;
+            var rumble = lower.Next(low.Next(Noise())) * 14 * MathF.Exp(-t * 0.9f) * (1 + 0.5f * MathF.Sin(t * 7));
+            s[i] = crack * 0.6f + rumble;
+        }
+        return ToWav(s, gain: 0.9f);
+    }
+
+    /// <summary>Chispazo de un transformador (el apagón).</summary>
+    private static AudioStreamWav MakeSpark()
+    {
+        var n = (int)(Rate * 0.7);
+        var s = new float[n];
+        for (var i = 0; i < n; i++)
+        {
+            var t = i / (float)Rate;
+            var burst = Rng.NextDouble() < 0.15 ? Noise() : 0;
+            s[i] = (burst + 0.3f * MathF.Sin(MathF.Tau * 120 * t) * MathF.Exp(-t * 6)) * MathF.Exp(-t * 4);
+        }
+        return ToWav(s, gain: 0.6f);
+    }
+
+    /// <summary>Acordeón: una melodía corta de vals (16 s) con dos lengüetas apenas desafinadas y vibrato.</summary>
+    private static AudioStreamWav MakeAccordion()
+    {
+        int[] melody = [0, 4, 7, 12, 11, 7, 9, 5, 4, 0, 2, 4, 5, 7, 4, 0, 7, 9, 11, 12, 11, 9, 7, 4];
+        int[] bass = [0, 0, 5, 5, 7, 7, 0, 0];
+        const float beat = 0.66f;
+        var n = (int)(Rate * melody.Length * beat);
+        var s = new float[n];
+        for (var i = 0; i < n; i++)
+        {
+            var t = i / (float)Rate;
+            var k = (int)(t / beat);
+            var local = t - k * beat;
+            var env = MathF.Min(1, local * 30) * (0.75f + 0.25f * MathF.Exp(-local * 3)) * MathF.Min(1, (beat - local) * 25);
+            var f = 349.23f * MathF.Pow(2, melody[k % melody.Length] / 12f) * (1 + 0.004f * MathF.Sin(MathF.Tau * 5.5f * t));
+            float Reed(float freq) => 2 * (freq * t % 1) - 1;
+            var tone = (Reed(f) + Reed(f * 1.004f)) * 0.5f;
+            var fb = 87.31f * MathF.Pow(2, bass[(k / 3) % bass.Length] / 12f);
+            var chord = (k % 3 == 0 ? Reed(fb) : (Reed(fb * 1.5f) + Reed(fb * 2.52f)) * 0.5f) * (local < 0.3f ? 1 : 0.2f);
+            s[i] = (tone * env * 0.55f + chord * 0.35f) * 0.8f;
+        }
+        var lp = new LowPass(0.25f);
+        for (var i = 0; i < n; i++)
+            s[i] = lp.Next(s[i]);
+        return ToWav(s, gain: 0.45f);
+    }
+
+    /// <summary>Sirena de patrullero de los 50: el aullido que sube y baja.</summary>
+    private static AudioStreamWav MakeSiren()
+    {
+        var n = Rate * 6;
+        var s = new float[n];
+        var phase = 0f;
+        for (var i = 0; i < n; i++)
+        {
+            var t = i / (float)Rate;
+            var f = 650 + 550 * (0.5f - 0.5f * MathF.Cos(MathF.Tau * t / 3f));
+            phase += MathF.Tau * f / Rate;
+            s[i] = (MathF.Sin(phase) + 0.3f * MathF.Sin(2 * phase)) * MathF.Min(1, t * 4) * MathF.Min(1, (6 - t) * 2);
+        }
+        return ToWav(s, gain: 0.5f);
+    }
+
+    /// <summary>Bocina de barco: grave y larga.</summary>
+    private static AudioStreamWav MakeShipHorn()
+    {
+        var n = (int)(Rate * 3.5);
+        var s = new float[n];
+        for (var i = 0; i < n; i++)
+        {
+            var t = i / (float)Rate;
+            var env = MathF.Min(1, t * 3) * MathF.Min(1, (3.5f - t) * 2);
+            s[i] = (MathF.Sin(MathF.Tau * 92 * t) + 0.6f * MathF.Sin(MathF.Tau * 184 * t) + 0.25f * MathF.Sin(MathF.Tau * 276 * t)) * env;
+        }
+        return ToWav(s, gain: 0.85f);
+    }
+
+    /// <summary>Campana de iglesia (el cortejo).</summary>
+    private static AudioStreamWav MakeBell()
+    {
+        var n = Rate * 5;
+        var s = new float[n];
+        float[] partials = [1f, 2.0f, 2.4f, 3.0f, 4.2f];
+        for (var i = 0; i < n; i++)
+        {
+            var t = i / (float)Rate;
+            var v = 0f;
+            for (var p = 0; p < partials.Length; p++)
+                v += MathF.Sin(MathF.Tau * 220 * partials[p] * t) * MathF.Exp(-t * (0.6f + p * 0.5f)) / (p + 1);
+            s[i] = v;
+        }
+        return ToWav(s, gain: 0.6f);
+    }
+
+    /// <summary>Chirrido de gomas (arranca la persecución).</summary>
+    private static AudioStreamWav MakeScreech()
+    {
+        var n = (int)(Rate * 1.3);
+        var s = new float[n];
+        var band = new LowPass(0.35f);
+        var hp = new LowPass(0.08f);
+        for (var i = 0; i < n; i++)
+        {
+            var t = i / (float)Rate;
+            var x = band.Next(Noise());
+            var y = x - hp.Next(x);
+            s[i] = (y * 3 + 0.4f * MathF.Sin(MathF.Tau * (1800 + 200 * MathF.Sin(t * 30)) * t)) * MathF.Min(1, t * 10) * MathF.Exp(-t * 1.2f);
+        }
+        return ToWav(s, gain: 0.5f);
+    }
+
+    /// <summary>Lluvia en bucle (ruido filtrado con gotas).</summary>
+    private static AudioStreamWav MakeRain()
+    {
+        var n = Rate * 4;
+        var s = new float[n + Rate / 2];
+        var lp = new LowPass(0.3f);
+        for (var i = 0; i < s.Length; i++)
+        {
+            var drop = Rng.NextDouble() < 0.004 ? Noise() * 3 : 0;
+            s[i] = lp.Next(Noise()) * 0.6f + drop * 0.3f;
+        }
+        return ToWav(Seamless(s, Rate / 2), loop: true, gain: 0.5f);
     }
 
     private static AudioStreamWav MakeEngine()

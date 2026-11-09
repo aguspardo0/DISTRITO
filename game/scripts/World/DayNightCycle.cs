@@ -15,6 +15,12 @@ public partial class DayNightCycle : Node
     /// <summary>Faroles con luz de verdad: se prenden de noche.</summary>
     public static readonly List<OmniLight3D> Lamps = new();
 
+    /// <summary>Nublado (0 a 1): con lluvia, menos sol, cielo gris y más niebla (lo pone SceneNetwork).</summary>
+    public static float Overcast { get; set; }
+
+    /// <summary>Apagón: los faroles a menos de este radio de este punto quedan apagados (lo pone SceneNetwork).</summary>
+    public static (Vector3 At, float Radius)? Blackout { get; set; }
+
     /// <summary>Materiales que brillan (cabezas de los faroles, carteles): de noche, más fuerte.</summary>
     public static readonly List<(StandardMaterial3D Material, float DayEnergy)> Glows = new();
 
@@ -89,8 +95,9 @@ public partial class DayNightCycle : Node
         var t = (float)Math.Clamp((hour - a.Hour) / (b.Hour - a.Hour), 0, 1);
         if (_env is not null)
         {
-            var sky = a.Sky.Lerp(b.Sky, t);
+            var sky = a.Sky.Lerp(b.Sky, t).Lerp(new Color(0.32f, 0.34f, 0.37f) * (0.4f + 0.6f * (1 - NightFactor(hour))), Overcast * 0.75f);
             _env.BackgroundColor = sky;
+            _env.FogDensity = Mathf.Lerp(0.008f, 0.02f, Overcast);
             _env.FogLightColor = sky.Lerp(new Color(0.5f, 0.5f, 0.55f), 0.2f);
             _env.AmbientLightColor = a.Ambient.Lerp(b.Ambient, t);
             _env.AmbientLightEnergy = Mathf.Lerp(a.AmbientEnergy, b.AmbientEnergy, t);
@@ -98,7 +105,7 @@ public partial class DayNightCycle : Node
         if (_sun is not null)
         {
             _sun.LightColor = a.Sun.Lerp(b.Sun, t);
-            _sun.LightEnergy = Mathf.Lerp(a.SunEnergy, b.SunEnergy, t);
+            _sun.LightEnergy = Mathf.Lerp(a.SunEnergy, b.SunEnergy, t) * (1 - 0.6f * Overcast);
             // De día el sol cruza de este a oeste; de noche, la luna hace el mismo camino.
             var arc = hour is >= 6 and < 18 ? (hour - 6) / 12 : ((hour + 6) % 24) / 12;
             var elevation = Mathf.DegToRad(8 + 57 * (float)Math.Sin(Math.PI * arc));
@@ -108,7 +115,7 @@ public partial class DayNightCycle : Node
         var night = NightFactor(hour);
         Lamps.RemoveAll(l => !IsInstanceValid(l));
         foreach (var lamp in Lamps)
-            lamp.Visible = night > 0.5f;
+            lamp.Visible = night > 0.5f && !(Blackout is { } b0 && lamp.IsInsideTree() && lamp.GlobalPosition.DistanceTo(b0.At) < b0.Radius);
         Glows.RemoveAll(g => !IsInstanceValid(g.Material));
         foreach (var (material, dayEnergy) in Glows)
             material.EmissionEnergyMultiplier = Mathf.Lerp(dayEnergy, dayEnergy * 2.2f + 0.6f, night);
