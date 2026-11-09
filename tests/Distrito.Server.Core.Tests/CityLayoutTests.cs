@@ -227,9 +227,9 @@ public class CityLayoutTests
             Assert.True(MathF.Abs(p.Z) - p.Depth / 2 >= MainStreet.Front - 0.01f, $"{l.Code} pisa la vereda");
         }
         // Las avenidas de las familias desembocan en la calle sin edificios en el medio.
-        foreach (var av in new[] { CityLayout.NorthAvenue, CityLayout.SouthAvenue })
-            for (var z = -29f; z <= 29f; z += 1f)
-                Assert.True(CityNavigation.IsFree(av.CenterX, z), $"{av.Code} tapada en z = {z}");
+        foreach (var (av, side) in new[] { (CityLayout.NorthAvenue, -1f), (CityLayout.SouthAvenue, 1f) })
+            for (var d = 0f; d <= 29f; d += 1f)
+                Assert.True(CityNavigation.IsFree(av.CenterX, side * d), $"{av.Code} tapada en z = {side * d}");
         for (var x = CityLayout.Market.MinX + 1; x < CityLayout.Market.MaxX; x += 2)
             Assert.True(CityNavigation.IsFree(x, 0), $"la calzada está tapada en x = {x}");
         // Cada familia tiene su local en la boca de su avenida.

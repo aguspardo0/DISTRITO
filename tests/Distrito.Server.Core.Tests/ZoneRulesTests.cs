@@ -33,7 +33,7 @@ public class ZoneRulesTests
     [Fact]
     public void Los_muelles_son_zona_libre_lejos_de_los_locales()
     {
-        var docks = new System.Numerics.Vector3(60, 0, 0);
+        var docks = new System.Numerics.Vector3(270, 0, 0); // Los Muelles, en el borde este
         Assert.Equal(TerritoryRules.Docks, CombatRules.ZoneAt(docks));
         var (rules, _) = ZoneRules.Parse(File.ReadAllText(RepoFile("config/zonas.json")));
         Assert.True(CombatRules.PermissionsAt(docks, rules!, new CombatState(new HashSet<string>(), new HashSet<string>(), rules)).Pvp);

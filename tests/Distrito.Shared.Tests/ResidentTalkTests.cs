@@ -62,7 +62,7 @@ public class ResidentTalkTests
         var vecinos = t.People.Where(p => p.Profession == "vecino").ToList();
         Resident witness = vecinos[0], friend = vecinos[1], stranger = vecinos[2];
         t.States[friend.Id] = t.States[friend.Id] with { Ties = new() { [witness.Id] = 0.8 } };
-        var rumor = new LifeRumor(IncidentKinds.Shot, 0, 14, Afternoon.AddMinutes(-10), ResidentTalk.NearestPlaceName(t.Cfg, 0, 14), new HashSet<Guid> { witness.Id });
+        var rumor = new LifeRumor(IncidentKinds.Shot, -20, 13, Afternoon.AddMinutes(-10), ResidentTalk.NearestPlaceName(t.Cfg, -20, 13), new HashSet<Guid> { witness.Id });
         Assert.Equal("Diner La Estrella", rumor.PlaceName);
         var rumors = new List<LifeRumor> { rumor };
 

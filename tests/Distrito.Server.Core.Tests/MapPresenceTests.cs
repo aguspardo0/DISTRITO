@@ -32,10 +32,11 @@ public class MapPresenceTests
     {
         Assert.All(MapPresence.Buildings, b =>
         {
-            Assert.InRange(b.X - b.Width / 2, MapPresence.MinX, MapPresence.MaxX);
-            Assert.InRange(b.X + b.Width / 2, MapPresence.MinX, MapPresence.MaxX);
-            Assert.InRange(b.Z - b.Depth / 2, MapPresence.MinZ, MapPresence.MaxZ);
-            Assert.InRange(b.Z + b.Depth / 2, MapPresence.MinZ, MapPresence.MaxZ);
+            const float e = 0.01f; // redondeo de float en los edificios pegados al borde
+            Assert.InRange(b.X - b.Width / 2, MapPresence.MinX - e, MapPresence.MaxX + e);
+            Assert.InRange(b.X + b.Width / 2, MapPresence.MinX - e, MapPresence.MaxX + e);
+            Assert.InRange(b.Z - b.Depth / 2, MapPresence.MinZ - e, MapPresence.MaxZ + e);
+            Assert.InRange(b.Z + b.Depth / 2, MapPresence.MinZ - e, MapPresence.MaxZ + e);
         });
     }
 }
