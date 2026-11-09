@@ -80,3 +80,22 @@ Sin colisión (decorado): caja-registradora, balanza, cartel, cuadro, lampara-co
 | Botica | Venda $15 · Tónico $25 · Botiquín $60 | La venda cura 30 de salud en 3 s. El tónico hace que te levantes más rápido cuando quedás herido. El botiquín cura todo, fuera de pelea |
 | Sastrería | Gorra $40 · Sombrero fedora $80 · Campera de cuero $120 · Traje cruzado $250 | Cambian el aspecto del personaje. El traje podría pedirse para la mesa VIP del casino |
 | Diner | Café $5 · Sándwich $8 · Tarta de manzana $6 | Se consumen ahí: un poco de salud. Es lugar de encuentro de cuadrillas y, más adelante, un negocio que se puede comprar |
+
+## Sin teletransporte: los salones en su lugar (2026-11-09)
+
+Pedido del equipo: «que la puerta tenga física, que puedas entrar y que no haya un salto hacia el lugar ni una carga».
+
+- **Cada salón está adentro de su edificio** de la Calle Principal. El lote mide lo mismo que el salón más sus paredes
+  (0,3 m) y la pared de la puerta queda sobre la línea de edificación. `InteriorPlan.Origin`, `ToWorld` y `Yaw` lo
+  calculan a partir de la puerta (`Door`, `Outward`, `DoorX`); los muebles y objetos siguen en coordenadas del salón.
+- **La puerta es un objeto con física:** una hoja con colisión que gira sobre su bisagra hacia adentro. Con **E** al lado
+  (de afuera o de adentro) se abre o se cierra; lo decide el servidor y lo ven todos igual (`DoorNetwork`). Se cierra
+  sola a los 12 segundos si no hay nadie en el paso. Los que entran después reciben cómo está cada puerta.
+- **Se entra caminando:** no hay salto ni pantalla de carga. Por las vidrieras (comercios, diner y oficina) se ve de
+  la calle hacia adentro y al revés.
+- **Paredes:** de afuera, el color de la fachada del lote; de adentro, el revestimiento del local. Arriba del techo del
+  salón sigue el resto del edificio (los pisos de arriba no se recorren).
+- **Reglas que se mantienen:** adentro sigue siendo zona segura (no se pelea ni se dispara a través de la vidriera, ni
+  de adentro hacia afuera) y vale la zona de la calle donde está la puerta.
+- Lo que cambió para quien estaba guardado en los salones viejos (lejos de la ciudad): aparece en su punto de aparición.
+- Captura de prueba nueva: `puerta-abierta` (el diner con la puerta abierta, desde la vereda de enfrente).
