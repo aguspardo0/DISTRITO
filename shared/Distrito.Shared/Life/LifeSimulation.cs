@@ -434,11 +434,11 @@ public sealed class LifeSimulation(LifeConfig cfg, LifeSimulation.Router? route 
         if (fear > 0.5)
         {
             var refuge = cfg.Places.Where(p => p.Indoor)
-                .Select(p => (Code: p.Code, Name: p.Name, p.X, p.Z))
-                .Append((Code: HomePlace, Name: "su casa", X: r.HomeX, Z: r.HomeZ))
+                .Select(p => (Code: p.Code, Name: p.Name, p.X, p.Z, Seen: p.Visible))
+                .Append((Code: HomePlace, Name: "su casa", X: r.HomeX, Z: r.HomeZ, Seen: false))
                 .OrderBy(p => (p.X - x) * (p.X - x) + (p.Z - z) * (p.Z - z)).First();
             return (Travel(r, s, now, LifeActivities.Hiding, refuge.Code, refuge.X, refuge.Z, RunSpeed * 0.8, 30, $"esconderse en {refuge.Name}",
-                $"vio {what} y se metió en {refuge.Name} (miedo {fear:0.00})", indoor: !refuge.Visible) with { ScaredUntil = now + scaredFor }, "escondidos");
+                $"vio {what} y se metió en {refuge.Name} (miedo {fear:0.00})", indoor: !refuge.Seen) with { ScaredUntil = now + scaredFor }, "escondidos");
         }
         if ((1 - r.Trait("desconfiado")) * (0.5 + 0.5 * r.Trait("pacifico")) > 0.42)
             return (s with { Reason = $"vio {what} y avisó a la policía", ScaredUntil = now + scaredFor / 2 }, "avisaron");
