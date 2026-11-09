@@ -151,7 +151,7 @@ public partial class MapPanel : Control
         var economy = Economy?.Invoke();
         DrawRect(new Rect2(0, 0, WidthPx, HeightPx + 48), Paper);
 
-        // Distritos: el Mercado (neutral), las avenidas, Los Muelles (zona libre, en rojo) y el barrio de cada familia con su color.
+        // Distritos: la Calle Principal (neutral), las avenidas, Los Muelles (zona libre, en rojo) y el barrio de cada familia con su color.
         // El Centro (fase 1): primero, las calles; los distritos de antes van encima.
         DrawRect(new Rect2(ToMap(CityLayout.Downtown.MinX, CityLayout.Downtown.MinZ),
             new Vector2(CityLayout.Downtown.Width * S, CityLayout.Downtown.Depth * S)), AvenueColor);
@@ -162,6 +162,11 @@ public partial class MapPanel : Control
             if (d.Kind == DistrictKind.Docks)
                 DrawRect(rect, FreeZone);
         }
+        // La calzada de la Calle Principal y la Avenida del Puerto, que sigue derecho hasta Los Muelles; y el agua al este.
+        var road = new Rect2(ToMap(CityLayout.Market.MinX, -Distrito.Server.Core.World.MainStreet.RoadHalf),
+            new Vector2((CityLayout.Docks.MinX - CityLayout.Market.MinX) * S, 2 * Distrito.Server.Core.World.MainStreet.RoadHalf * S));
+        DrawRect(road, AvenueColor.Darkened(0.25f));
+        DrawRect(new Rect2(ToMap(CityLayout.Docks.MaxX - 3, CityLayout.Docks.MinZ), new Vector2(3 * S, CityLayout.Docks.Depth * S)), new Color(0.18f, 0.3f, 0.4f)); // el muelle, contra el agua
         foreach (var b in CityLayout.Barrios)
             DrawRect(AreaRect(b.Area), Accent(b) with { A = 0.16f });
 
@@ -180,7 +185,8 @@ public partial class MapPanel : Control
             var corner = b.Inward.Y > 0 ? new Vector2(rect.Position.X + 4, rect.End.Y - 23) : rect.Position + new Vector2(4, 4);
             Plate(font, corner, b.Area.Name.ToUpperInvariant(), 13, Accent(b).Lightened(0.3f));
         }
-        Plate(font, ToMap(CityLayout.Market.MinX, CityLayout.Market.MaxZ) + new Vector2(2, -17), "EL MERCADO", 11, Brass);
+        Plate(font, ToMap(CityLayout.Market.CenterX, CityLayout.Market.MinZ) + new Vector2(-40, 2), "CALLE PRINCIPAL", 11, Brass);
+        Plate(font, ToMap(CityLayout.PortAvenue.MinX + 30, CityLayout.PortAvenue.MinZ) + new Vector2(0, -18), "AV. DEL PUERTO", 10, Brass);
         Plate(font, ToMap(CityLayout.Downtown.MinX, CityLayout.Downtown.MinZ) + new Vector2(6, 6), "EL CENTRO", 13, Brass);
         // Locales vacíos del Centro: un cuadradito dorado (todavía no se alquilan).
         foreach (var shop in CityLayout.EmptyShops)
@@ -194,7 +200,7 @@ public partial class MapPanel : Control
             DrawString(font, ToMap(s.X - s.Width / 2, s.Z), $"«{b.CrewName}»", HorizontalAlignment.Left, s.Width * S, 9, Brass);
         }
 
-        // Lugares: los comercios del Mercado van numerados (la lista está en las referencias); la gente de cada familia
+        // Lugares: los comercios de la Calle Principal van numerados (la lista está en las referencias); la gente de cada familia
         // con un punto de su color y el capo con un rombo.
         var territory = economy?.Territory;
         var number = 0;

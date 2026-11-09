@@ -4,7 +4,7 @@ using Godot;
 namespace Distrito.Game.World;
 
 /// <summary>
-/// Construye Los Muelles (zona libre al este del barrio) a partir de MapPresence.DocksBuildings, igual en el servidor
+/// Construye Los Muelles (zona libre en el borde este de la ciudad, contra el agua) a partir de MapPresence.DocksBuildings, igual en el servidor
 /// y en los clientes: piso, calle, galpones, pilas de cajones, muelle, agua y las paredes del borde.
 /// </summary>
 public static class DocksBuilder
@@ -22,7 +22,8 @@ public static class DocksBuilder
         Visual(docks, "Street", new Vector3(width, 0.02f, 6), new Vector3(centerX, 0.01f, 0), new Color(0.17f, 0.17f, 0.18f));
         // Tablones del muelle sobre el borde y agua más allá de la pared.
         Visual(docks, "Pier", new Vector3(3, 0.06f, depth), new Vector3(area.MaxX - 1.5f, 0.03f, 0), new Color(0.36f, 0.27f, 0.18f));
-        Visual(docks, "Water", new Vector3(40, 0.02f, depth + 40), new Vector3(area.MaxX + 20, -0.35f, 0), new Color(0.12f, 0.2f, 0.26f));
+        // El agua: una bahía grande del lado este de toda la ciudad (los muelles quedan contra el borde).
+        Visual(docks, "Water", new Vector3(400, 0.02f, 700), new Vector3(area.MaxX + 200, -0.35f, 0), new Color(0.12f, 0.2f, 0.26f));
 
         var i = 0;
         foreach (var b in MapPresence.DocksBuildings)

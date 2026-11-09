@@ -1,5 +1,5 @@
 {
-  "_ayuda": "Asaltos a NPC (eventos PvE). Aprobado por el equipo 2026-11-01. Se editan sin tocar código: el servidor de juego los toma solo. Plata en centavos (3000 = $30). Rutas: puntos [x, z] del mapa. Los asaltos a NPC no dependen de las reglas de zona (son contra NPC, no contra jugadores).",
+  "_ayuda": "Asaltos a NPC (eventos PvE). Aprobado por el equipo 2026-11-01. Se editan sin tocar código: el servidor de juego los toma solo. Plata en centavos (3000 = $30). Rutas: puntos [x, z] del mapa (el camión va por la Calle Principal y la Avenida del Puerto hasta Los Muelles; el cobrador da la vuelta por las veredas del centro de la calle). Los asaltos a NPC no dependen de las reglas de zona (son contra NPC, no contra jugadores).",
   "camion": {
     "cadaMinutos": 20,
     "familia": "moretti",
@@ -8,7 +8,7 @@
     "minimo": 10,
     "maximo": 15,
     "velocidad": 4.5,
-    "ruta": [[-6, -5.5], [10, -5.5], [28, -5.5], [50, -5.5], [70, -5.5], [50, -5.5], [28, -5.5], [10, -5.5], [-6, -5.5]],
+    "ruta": [[-18, -3], [40, -3], [104, -3], [180, -3], [252, -3], [180, -3], [104, -3], [40, -3], [-18, -3]],
     "segundosAmenaza": 3,
     "reputacion": -10
   },
@@ -19,14 +19,14 @@
     "centavosMinimo": 3000,
     "centavosMaximo": 6000,
     "velocidad": 1.6,
-    "ruta": [[-9, 1], [-3, 4], [4, 4], [10, 4], [12, -4], [4, -5], [-3, -5], [-9, -1]],
+    "ruta": [[-6, -8.5], [8, -8.5], [24, -8.5], [34, -8.5], [34, 8.5], [24, 8.5], [8, 8.5], [-6, 8.5]],
     "segundosAmenaza": 3,
     "reputacion": -10
   },
   "contrabando": {
     "horas": [13, 19, 23],
     "duracionMinutos": 10,
-    "lugar": [78, 4],
+    "lugar": [294, 4],
     "guardias": 2,
     "vidaGuardia": 60,
     "danoGuardia": 25,

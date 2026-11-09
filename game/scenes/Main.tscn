@@ -1,4 +1,4 @@
-[gd_scene load_steps=29 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.cs" id="1_main"]
 
@@ -11,84 +11,6 @@ ambient_light_energy = 0.6
 fog_enabled = true
 fog_light_color = Color(0.6, 0.62, 0.66, 1)
 fog_density = 0.008
-
-[sub_resource type="BoxMesh" id="Mesh_ground"]
-size = Vector3(60, 1, 60)
-
-[sub_resource type="BoxShape3D" id="Shape_ground"]
-size = Vector3(60, 1, 60)
-
-[sub_resource type="StandardMaterial3D" id="Mat_ground"]
-albedo_color = Color(0.3, 0.29, 0.27, 1)
-
-[sub_resource type="BoxMesh" id="Mesh_street"]
-size = Vector3(60, 0.02, 6)
-
-[sub_resource type="StandardMaterial3D" id="Mat_street"]
-albedo_color = Color(0.17, 0.17, 0.18, 1)
-
-[sub_resource type="BoxMesh" id="Mesh_b0"]
-size = Vector3(8, 10, 8)
-
-[sub_resource type="BoxShape3D" id="Shape_b0"]
-size = Vector3(8, 10, 8)
-
-[sub_resource type="StandardMaterial3D" id="Mat_b0"]
-albedo_color = Color(0.45, 0.3, 0.25, 1)
-
-[sub_resource type="BoxMesh" id="Mesh_b1"]
-size = Vector3(6, 7, 5)
-
-[sub_resource type="BoxShape3D" id="Shape_b1"]
-size = Vector3(6, 7, 5)
-
-[sub_resource type="StandardMaterial3D" id="Mat_b1"]
-albedo_color = Color(0.55, 0.5, 0.42, 1)
-
-[sub_resource type="BoxMesh" id="Mesh_b2"]
-size = Vector3(7, 12, 7)
-
-[sub_resource type="BoxShape3D" id="Shape_b2"]
-size = Vector3(7, 12, 7)
-
-[sub_resource type="StandardMaterial3D" id="Mat_b2"]
-albedo_color = Color(0.35, 0.33, 0.38, 1)
-
-[sub_resource type="BoxMesh" id="Mesh_b3"]
-size = Vector3(6, 6, 10)
-
-[sub_resource type="BoxShape3D" id="Shape_b3"]
-size = Vector3(6, 6, 10)
-
-[sub_resource type="StandardMaterial3D" id="Mat_b3"]
-albedo_color = Color(0.5, 0.36, 0.28, 1)
-
-[sub_resource type="BoxMesh" id="Mesh_b4"]
-size = Vector3(7, 8, 9)
-
-[sub_resource type="BoxShape3D" id="Shape_b4"]
-size = Vector3(7, 8, 9)
-
-[sub_resource type="StandardMaterial3D" id="Mat_b4"]
-albedo_color = Color(0.4, 0.4, 0.36, 1)
-
-[sub_resource type="BoxMesh" id="Mesh_b5"]
-size = Vector3(8, 9, 7)
-
-[sub_resource type="BoxShape3D" id="Shape_b5"]
-size = Vector3(8, 9, 7)
-
-[sub_resource type="StandardMaterial3D" id="Mat_b5"]
-albedo_color = Color(0.48, 0.42, 0.34, 1)
-
-[sub_resource type="BoxMesh" id="Mesh_b6"]
-size = Vector3(12, 5, 5)
-
-[sub_resource type="BoxShape3D" id="Shape_b6"]
-size = Vector3(12, 5, 5)
-
-[sub_resource type="StandardMaterial3D" id="Mat_b6"]
-albedo_color = Color(0.38, 0.3, 0.27, 1)
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -105,91 +27,6 @@ transform = Transform3D(1, 0, 0, 0, 0.82, 0.574, 0, -0.574, 0.82, 0, 22, 30)
 current = true
 
 [node name="World" type="Node3D" parent="."]
-
-[node name="Ground" type="StaticBody3D" parent="World"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
-
-[node name="Mesh" type="MeshInstance3D" parent="World/Ground"]
-mesh = SubResource("Mesh_ground")
-surface_material_override/0 = SubResource("Mat_ground")
-
-[node name="Collision" type="CollisionShape3D" parent="World/Ground"]
-shape = SubResource("Shape_ground")
-
-[node name="Street" type="MeshInstance3D" parent="World"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 0)
-mesh = SubResource("Mesh_street")
-surface_material_override/0 = SubResource("Mat_street")
-
-[node name="Building0" type="StaticBody3D" parent="World"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 5.0, -14)
-
-[node name="Mesh" type="MeshInstance3D" parent="World/Building0"]
-mesh = SubResource("Mesh_b0")
-surface_material_override/0 = SubResource("Mat_b0")
-
-[node name="Collision" type="CollisionShape3D" parent="World/Building0"]
-shape = SubResource("Shape_b0")
-
-[node name="Building1" type="StaticBody3D" parent="World"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 3.5, -16)
-
-[node name="Mesh" type="MeshInstance3D" parent="World/Building1"]
-mesh = SubResource("Mesh_b1")
-surface_material_override/0 = SubResource("Mat_b1")
-
-[node name="Collision" type="CollisionShape3D" parent="World/Building1"]
-shape = SubResource("Shape_b1")
-
-[node name="Building2" type="StaticBody3D" parent="World"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 6.0, -15)
-
-[node name="Mesh" type="MeshInstance3D" parent="World/Building2"]
-mesh = SubResource("Mesh_b2")
-surface_material_override/0 = SubResource("Mat_b2")
-
-[node name="Collision" type="CollisionShape3D" parent="World/Building2"]
-shape = SubResource("Shape_b2")
-
-[node name="Building3" type="StaticBody3D" parent="World"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 3.0, -12)
-
-[node name="Mesh" type="MeshInstance3D" parent="World/Building3"]
-mesh = SubResource("Mesh_b3")
-surface_material_override/0 = SubResource("Mat_b3")
-
-[node name="Collision" type="CollisionShape3D" parent="World/Building3"]
-shape = SubResource("Shape_b3")
-
-[node name="Building4" type="StaticBody3D" parent="World"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 4.0, 6)
-
-[node name="Mesh" type="MeshInstance3D" parent="World/Building4"]
-mesh = SubResource("Mesh_b4")
-surface_material_override/0 = SubResource("Mat_b4")
-
-[node name="Collision" type="CollisionShape3D" parent="World/Building4"]
-shape = SubResource("Shape_b4")
-
-[node name="Building5" type="StaticBody3D" parent="World"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 4.5, 8)
-
-[node name="Mesh" type="MeshInstance3D" parent="World/Building5"]
-mesh = SubResource("Mesh_b5")
-surface_material_override/0 = SubResource("Mat_b5")
-
-[node name="Collision" type="CollisionShape3D" parent="World/Building5"]
-shape = SubResource("Shape_b5")
-
-[node name="Building6" type="StaticBody3D" parent="World"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 17)
-
-[node name="Mesh" type="MeshInstance3D" parent="World/Building6"]
-mesh = SubResource("Mesh_b6")
-surface_material_override/0 = SubResource("Mat_b6")
-
-[node name="Collision" type="CollisionShape3D" parent="World/Building6"]
-shape = SubResource("Shape_b6")
 
 [node name="Players" type="Node3D" parent="."]
 

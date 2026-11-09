@@ -49,8 +49,8 @@ public partial class TutorialGuide : PanelContainer
         _steps =
         [
             new("Bienvenido a Bellmont",
-                "Llegaste en tren con veinte pesos en el bolsillo. Estás en el Mercado, el corazón neutral de la ciudad: acá están los proveedores "
-                + "y los comercios, y alrededor, El Centro. Abrí el mapa con M para ubicarte.",
+                "Llegaste en tren con veinte pesos en el bolsillo. Estás en la Calle Principal, el corazón neutral de la ciudad: acá están los "
+                + "proveedores y los comercios, cada familia con su local en la boca de su avenida, y alrededor, El Centro. Abrí el mapa con M para ubicarte.",
                 () => _mapSeen, []),
             new("Tu primer trabajo",
                 "Andá a la Esquina del café (la columna de luz te marca el camino) y hablá con Don Aldo con E. Trabajá un turno de diez minutos: "
@@ -64,7 +64,7 @@ public partial class TutorialGuide : PanelContainer
                 () => _snapshot()?.QuantityOf(EconomyCatalog.CoffeeBagItem) > 0 || HasWork(), [EconomyCatalog.DepositNpc]),
             new("Las familias",
                 "Bellmont tiene tres familias rivales, cada una en su barrio: los Moretti al oeste, los Valenti al norte y los Caruso al sur. "
-                + "Salí del Mercado por una avenida y hablá con su gente: Tano Ricci, Lupo o Beppe. Tomá un encargo.",
+                + "Salí de la Calle Principal por la avenida de una familia y hablá con su gente: Tano Ricci, Lupo o Beppe. Tomá un encargo.",
                 HasWork, streetPeople),
             new("Tu primer encargo",
                 "Cumplí el encargo: lo que tenés que hacer aparece arriba a la derecha, con la distancia, y el destino brilla en el mundo y en el mapa.",

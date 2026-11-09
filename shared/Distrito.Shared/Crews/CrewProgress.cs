@@ -15,8 +15,8 @@ public static class CrewBaseRules
     /// <summary>Galpones de Los Muelles que se pueden comprar como sede (centro y tamaño en planta; puerta hacia la calle).</summary>
     public static readonly IReadOnlyList<(float X, float Z, float Width, float Depth)> Sheds =
     [
-        (42, -20, 12, 9), (60, -20, 14, 9), (77, -21, 10, 8), (46, 19, 10, 7), (66, 20, 14, 7),
-    ];
+        (258, -20, 12, 9), (276, -20, 14, 9), (293, -21, 10, 8), (262, 19, 10, 7), (282, 20, 14, 7),
+    ]; // Los Muelles en el borde este (2026-11-09): los mismos galpones de antes, corridos 216 m
 
     /// <summary>Lado de la puerta: los galpones del norte (z &lt; 0) abren hacia +z (la calle); los del sur, hacia −z.</summary>
     public static float DoorSide(int shed) => Sheds[shed].Z < 0 ? 1 : -1;

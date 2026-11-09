@@ -69,6 +69,7 @@ public partial class Main : Node3D
         Distrito.Game.World.DocksBuilder.Build(GetNode<Node3D>("World"));
         Distrito.Game.World.DocksBuilder.BuildCasino(GetNode<Node3D>("World"));
         Distrito.Game.World.CityBuilder.Build(GetNode<Node3D>("World"));
+        Distrito.Game.World.MainStreetBuilder.Build(GetNode<Node3D>("World")); // la Calle Principal (antes, el Mercado)
         AddChild(new Distrito.Game.World.DayNightCycle { Name = "DayNight" });
         AddChild(new Distrito.Game.World.MusicPlayer { Name = "Music" });
         AddChild(new Distrito.Game.Audio.SoundPlayer { Name = "Sound" });
@@ -665,8 +666,8 @@ public partial class Main : Node3D
             {
                 if (_network.LocalPlayer is { } me)
                 {
-                    me.GlobalPosition = new Vector3(40f, 0.2f, 6f); // Los Muelles, con lugar
-                    _pve.Preview(new Vector3(40f, 0, 6f));
+                    me.GlobalPosition = new Vector3(256f, 0.2f, 6f); // Los Muelles (borde este), con lugar
+                    _pve.Preview(new Vector3(256f, 0, 6f));
                 }
             }),
             // Barrios de las familias: parado en el bulevar, mirando hacia la plaza y el cuartel.
@@ -700,8 +701,8 @@ public partial class Main : Node3D
                 _market.Preview();
                 if (_network.LocalPlayer is { } me)
                 {
-                    me.GlobalPosition = new Vector3(-9f, 0.2f, 0.5f); // en la calle: el Almacén y su pizarra, el kiosco de diarios más allá
-                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Atan2(4f, 6f));
+                    me.GlobalPosition = new Vector3(-7f, 0.2f, -1f); // en la calle: el Almacén Moretti y su pizarra
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Atan2(7f, 8.3f));
                 }
             }),
             ("clientes", () =>
@@ -709,8 +710,8 @@ public partial class Main : Node3D
                 // La Esquina del café con gente haciendo cola (los clientes del último ciclo) y su pizarra.
                 if (_network.LocalPlayer is { } me)
                 {
-                    me.GlobalPosition = new Vector3(-1f, 0.2f, 0.5f);
-                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Pi + 0.25f);
+                    me.GlobalPosition = new Vector3(21f, 0.2f, 1f); // La Esquina, del otro lado de la calle
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Atan2(-2f, -12f));
                 }
             }),
             ("libreta-precios", () => { _marketPanel?.Open(MarketPanel.Notes); _market.Preview(); }),
@@ -724,8 +725,26 @@ public partial class Main : Node3D
                 // Afuera: la calle con las puertas, los toldos y los cajones con física.
                 if (_network.LocalPlayer is { } me)
                 {
-                    me.GlobalPosition = new Vector3(2f, 0.2f, -6f);
+                    me.GlobalPosition = new Vector3(-6f, 0.2f, 2f);
                     me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(0);
+                }
+            }),
+            ("calle-principal", () =>
+            {
+                // La Calle Principal entera, desde la punta este mirando hacia el Barrio Moretti.
+                if (_network.LocalPlayer is { } me)
+                {
+                    me.GlobalPosition = new Vector3(100f, 0.2f, -2f);
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(Mathf.Pi / 2);
+                }
+            }),
+            ("avenida-del-puerto", () =>
+            {
+                // La Avenida del Puerto hacia Los Muelles y el agua.
+                if (_network.LocalPlayer is { } me)
+                {
+                    me.GlobalPosition = new Vector3(110f, 0.2f, 0f);
+                    me.GetNodeOrNull<Distrito.Game.Player.LocalPlayerController>("LocalController")?.LookToward(-Mathf.Pi / 2);
                 }
             }),
             ("diario", () => _marketPanel?.Open(MarketPanel.Paper)),

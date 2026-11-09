@@ -160,11 +160,16 @@ public static class CityBuilder
             }
         }
 
-        // Cartel en cada esquina del Mercado hacia el Centro.
+        // Cartel donde la Calle Principal sale al Centro, y otro sobre la Avenida del Puerto.
         node.AddChild(new Label3D
         {
             Name = "DowntownSign", Text = "EL CENTRO\nBellmont · 1952", Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, FontSize = 64,
-            OutlineSize = 12, PixelSize = 0.01f, Modulate = new Color(0.95f, 0.85f, 0.6f), Position = new Vector3(-36, 6, -36),
+            OutlineSize = 12, PixelSize = 0.01f, Modulate = new Color(0.95f, 0.85f, 0.6f), Position = new Vector3(CityLayout.Market.MaxX + 9, 7, -16),
+        });
+        node.AddChild(new Label3D
+        {
+            Name = "PortAvenueSign", Text = "AVENIDA DEL PUERTO\n→ Los Muelles", Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, FontSize = 56,
+            OutlineSize = 10, PixelSize = 0.01f, Modulate = new Color(0.95f, 0.85f, 0.6f), Position = new Vector3(CityLayout.PortAvenue.MinX + 25, 6, -10),
         });
     }
 

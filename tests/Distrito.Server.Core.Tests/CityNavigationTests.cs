@@ -50,10 +50,10 @@ public class CityNavigationTests
     }
 
     [Theory]
-    [InlineData(-104, 0, 13, 104)]    // de Moretti a Caruso: Avenida Oeste, Mercado, Avenida Sur
-    [InlineData(24, -104, 70, 0)]     // de Valenti a Los Muelles
-    [InlineData(-20, -20, 20, 20)]    // cruzar el Mercado en diagonal (hay edificios en el medio)
-    [InlineData(0, 14.5, -8.5, -8.5)] // del diner al almacén
+    [InlineData(-104, 0, 13, 104)]    // de Moretti a Caruso: Avenida Oeste, Calle Principal, Avenida Sur
+    [InlineData(24, -104, 270, 0)]    // de Valenti a Los Muelles (borde este, por la Avenida del Puerto)
+    [InlineData(-35, -20, 30, 20)]    // cruzar la Calle Principal en diagonal (hay edificios en el medio)
+    [InlineData(-20, 9, -14, -9.3)]   // del diner al almacén
     public void El_camino_va_por_las_veredas_y_llega(double fx, double fz, double tx, double tz)
     {
         var route = CityNavigation.Route(fx, fz, tx, tz);

@@ -73,12 +73,15 @@ public partial class BusinessBot : Node
         }
     }
 
+    private readonly BotSteering _steer = new();
+
     private void Arrive(PlayerCharacter player, LocalPlayerController controller, NpcDefinition npc, Step next)
     {
-        var toTarget = new Vector2(npc.Position.X, npc.Position.Z) - new Vector2(player.GlobalPosition.X, player.GlobalPosition.Z);
+        var target = new Vector2(npc.Position.X, npc.Position.Z);
+        var toTarget = target - new Vector2(player.GlobalPosition.X, player.GlobalPosition.Z);
         if (toTarget.Length() > ArriveDistance)
         {
-            controller.ScriptedDirection = toTarget.Normalized();
+            controller.ScriptedDirection = _steer.Direction(player.GlobalPosition, target);
             return;
         }
         controller.ScriptedDirection = Vector2.Zero;

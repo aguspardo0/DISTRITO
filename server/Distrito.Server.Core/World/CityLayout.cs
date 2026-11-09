@@ -78,12 +78,13 @@ public sealed record BarrioPlan(District Area, District Avenue, Vector2 Inward, 
 
 /// <summary>
 /// Plano de Bellmont (pedido del equipo, 2026-11-01): las familias son rivales y no se mezclan, cada una en su barrio;
-/// los proveedores y comercios están en el Mercado (el barrio original, terreno neutral), con Los Muelles al este.
+/// los proveedores y comercios están en la Calle Principal (antes «el Mercado», terreno neutral) y Los Muelles quedan en
+/// el borde este, contra el agua, al final de la Avenida del Puerto (rehecho el 2026-11-09).
 /// Los barrios no se tocan entre sí: solo se llega a cada uno por su avenida desde el Mercado.
 ///
 ///                    Barrio Valenti (norte)
 ///                          │ Avenida Norte
-///   Barrio Moretti ── Av. Oeste ── EL MERCADO ── Los Muelles
+///   Barrio Moretti ── Av. Oeste ── CALLE PRINCIPAL ── Avenida del Puerto ── Los Muelles (borde este)
 ///                          │ Avenida Sur
 ///                    Barrio Caruso (sur)
 ///
@@ -100,8 +101,24 @@ public static class CityLayout
     public const string MarketZone = "el-mercado";
     public const float HqFront = 76f; // el cuartel ocupa el fondo del eje central
 
-    public static readonly District Market = new(MarketZone, "El Mercado", DistrictKind.Market, -30, -30, 30, 30);
-    public static readonly District Docks = new(TerritoryRules.Docks, "Los Muelles", DistrictKind.Docks, 30, -30, 84, 30);
+    /// <summary>
+    /// La Calle Principal (rehecha a pedido del equipo, 2026-11-09; el código sigue siendo «el-mercado»): una calle
+    /// comercial de 135 m que va de la entrada del Barrio Moretti (Avenida Oeste) a la calle del Centro en x = 114, con
+    /// los negocios a los dos lados, cada uno en su lote. Ver <see cref="MainStreet"/>.
+    /// </summary>
+    public static readonly District Market = new(MarketZone, "Calle Principal", DistrictKind.Market, -30, -30, 105, 30);
+
+    /// <summary>Los Muelles: zona libre en el borde este de la ciudad, contra el agua (antes estaban pegados al Mercado).</summary>
+    public static readonly District Docks = new(TerritoryRules.Docks, "Los Muelles", DistrictKind.Docks, 246, -30, 300, 30);
+
+    /// <summary>Cuánto se corrieron Los Muelles al mudarse al borde (sus galpones y su gente se corren igual).</summary>
+    public const float DocksShift = 216f;
+
+    /// <summary>
+    /// Avenida del Puerto: sigue derecho a la Calle Principal (mismo eje, z = 0) hasta Los Muelles, entre las manzanas
+    /// del Centro. Es calle del Centro (no un distrito aparte): solo corta las manzanas.
+    /// </summary>
+    public static readonly DowntownBlock PortAvenue = new(105, -9, 246, 9);
 
     // Avenidas: salen del Mercado por los huecos entre edificios que ya existían.
     public static readonly District WestAvenue = new("avenida-oeste", "Avenida Oeste", DistrictKind.Avenue, -60, -5, -30, 5, EconomyCatalog.Moretti);
@@ -132,6 +149,8 @@ public static class CityLayout
     // --- El Centro (fase 1 del mapa) ---
 
     public const float DowntownHalf = 300f;
+    /// <summary>Medio ancho del cuadrado del Mercado original (60 m): la grilla del Centro se arma alrededor de él.</summary>
+    public const float CoreHalf = 30f;
     /// <summary>De eje a eje de calle (manzanas de 57 m con calles de 18 m: 11 m de calzada y dos veredas de 3,5 m). Ver <see cref="StreetLines"/>.</summary>
     public const float BlockPitch = 75f;
     public const float StreetWidth = 18f;
@@ -226,7 +245,7 @@ public static class CityLayout
 
     private static float[] MakeLines()
     {
-        var first = Market.MaxX + StreetWidth / 2;
+        var first = CoreHalf + StreetWidth / 2; // la grilla sigue centrada donde estaba el Mercado
         var lines = new List<float> { -DowntownHalf, DowntownHalf };
         for (var v = first; v < DowntownHalf - StreetWidth; v += BlockPitch)
         {
@@ -251,6 +270,7 @@ public static class CityLayout
         var lines = StreetLines;
         float HalfAt(float line) => MathF.Abs(line) >= DowntownHalf ? 0 : StreetWidth / 2;
         var keepOut = Districts.Select(d => new DowntownBlock(d.MinX - StreetWidth, d.MinZ - StreetWidth, d.MaxX + StreetWidth, d.MaxZ + StreetWidth)).ToList();
+        keepOut.Add(PortAvenue); // 18 m entre manzanas, como cualquier calle (las veredas son de las manzanas)
         var blocks = new List<DowntownBlock>();
         for (var j = 0; j + 1 < lines.Length; j++)
         for (var i = 0; i + 1 < lines.Length; i++)
@@ -397,6 +417,8 @@ public static class CityLayout
             return true;
         if (ToStreetLine(x) <= StreetWidth / 2 && ToStreetLine(z) <= StreetWidth / 2)
             return true; // esquina (cruce peatonal)
+        if (PortAvenue.Contains(x, z) && ToStreetLine(x) <= StreetWidth / 2)
+            return true; // cruce de la Avenida del Puerto en cada calle
         return DowntownBlocks.Any(b => b.Contains(x, z, SidewalkWidth) && !b.Contains(x, z, -0.01f));
     }
 

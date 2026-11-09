@@ -38,7 +38,7 @@ public class CityLayoutTests
     [InlineData(-30.5f, 0f)] [InlineData(-29.5f, 0f)] [InlineData(-59.5f, 0f)] [InlineData(-60.5f, 0f)] // Avenida Oeste
     [InlineData(24.5f, -29.5f)] [InlineData(24.5f, -30.5f)] [InlineData(24.5f, -60.5f)]           // Avenida Norte
     [InlineData(13f, 29.5f)] [InlineData(13f, 30.5f)] [InlineData(13f, 60.5f)]                    // Avenida Sur
-    [InlineData(30.5f, 0f)]                                                                       // Mercado → Muelles
+    [InlineData(104.5f, 0f)] [InlineData(106f, 0f)] [InlineData(180f, 0f)] [InlineData(247f, 0f)] // Calle Principal → Avenida del Puerto → Muelles
     public void Las_uniones_quedan_abiertas(float x, float z) => Assert.True(CityLayout.IsWalkable(x, z, 0.4f));
 
     [Theory]
@@ -202,9 +202,57 @@ public class CityLayoutTests
         Assert.Equal(TerritoryRules.BarrioMoretti, CombatRules.ZoneAt(new Vector3(-45, 0, 0)));
         Assert.Equal(TerritoryRules.BarrioValenti, CombatRules.ZoneAt(new Vector3(24.5f, 0, -100)));
         Assert.Equal(TerritoryRules.BarrioCaruso, CombatRules.ZoneAt(new Vector3(13, 0, 100)));
-        Assert.Equal(TerritoryRules.Docks, CombatRules.ZoneAt(new Vector3(60, 0, 0)));
+        Assert.Equal(TerritoryRules.Docks, CombatRules.ZoneAt(new Vector3(270, 0, 0)));
+        Assert.Equal(TerritoryRules.Downtown, CombatRules.ZoneAt(new Vector3(180, 0, 0))); // Avenida del Puerto
         Assert.Equal(TerritoryRules.Warehouse, CombatRules.ZoneAt(new Vector3(-9, 0, -9)));
         Assert.Equal("Barrio Caruso", TerritoryRules.NameOf(TerritoryRules.BarrioCaruso));
+    }
+
+    [Fact]
+    public void La_calle_principal_tiene_cada_negocio_en_su_lote_y_las_avenidas_la_cruzan()
+    {
+        var lots = MainStreet.Lots;
+        Assert.Equal(lots.Count, lots.Select(l => l.Code).Distinct().Count());
+        foreach (var side in new[] { true, false })
+        {
+            var row = lots.Where(l => l.North == side).OrderBy(l => l.MinX).ToList();
+            for (var i = 0; i + 1 < row.Count; i++)
+                Assert.True(row[i + 1].MinX - row[i].MaxX >= 2f, $"{row[i].Code} y {row[i + 1].Code} están pegados");
+            Assert.All(row, l => Assert.True(l.MinX >= CityLayout.Market.MinX && l.MaxX <= CityLayout.Market.MaxX));
+        }
+        foreach (var l in MainStreet.Buildings)
+        {
+            var p = l.Plan;
+            Assert.True(CityLayout.Market.Contains(p.X - p.Width / 2, p.Z - p.Depth / 2) && CityLayout.Market.Contains(p.X + p.Width / 2, p.Z + p.Depth / 2), $"{l.Code} se sale de la calle");
+            Assert.True(MathF.Abs(p.Z) - p.Depth / 2 >= MainStreet.Front - 0.01f, $"{l.Code} pisa la vereda");
+        }
+        // Las avenidas de las familias desembocan en la calle sin edificios en el medio.
+        foreach (var av in new[] { CityLayout.NorthAvenue, CityLayout.SouthAvenue })
+            for (var z = -29f; z <= 29f; z += 1f)
+                Assert.True(CityNavigation.IsFree(av.CenterX, z), $"{av.Code} tapada en z = {z}");
+        for (var x = CityLayout.Market.MinX + 1; x < CityLayout.Market.MaxX; x += 2)
+            Assert.True(CityNavigation.IsFree(x, 0), $"la calzada está tapada en x = {x}");
+        // Cada familia tiene su local en la boca de su avenida.
+        Assert.True(InteriorLayout.Find("galpon-moretti")!.Door.X < CityLayout.Market.MinX + 15);
+        Assert.InRange(InteriorLayout.Find("oficina-valenti")!.Door.X, CityLayout.NorthAvenue.MinX - 1, CityLayout.NorthAvenue.MinX);
+        Assert.InRange(InteriorLayout.Find("taller-caruso")!.Door.X, CityLayout.SouthAvenue.MinX - 1, CityLayout.SouthAvenue.MinX);
+    }
+
+    [Fact]
+    public void La_avenida_del_puerto_va_derecho_de_la_calle_principal_a_los_muelles()
+    {
+        Assert.Equal(CityLayout.Market.MaxX, CityLayout.PortAvenue.MinX);
+        Assert.Equal(CityLayout.Docks.MinX, CityLayout.PortAvenue.MaxX);
+        Assert.Equal(CityLayout.Downtown.MaxX, CityLayout.Docks.MaxX); // los muelles dan contra el agua
+        Assert.DoesNotContain(CityLayout.DowntownBlocks, k => k.MinX < CityLayout.PortAvenue.MaxX && CityLayout.PortAvenue.MinX < k.MaxX
+                                                               && k.MinZ < CityLayout.PortAvenue.MaxZ && CityLayout.PortAvenue.MinZ < k.MaxZ);
+        for (var x = CityLayout.PortAvenue.MinX; x <= CityLayout.PortAvenue.MaxX; x += 3)
+        {
+            Assert.True(CityLayout.IsWalkable(x, 0, 0.4f), $"la avenida está cortada en x = {x}");
+            Assert.DoesNotContain(MapPresence.Buildings, p => MathF.Abs(x - p.X) < p.Width / 2 && MathF.Abs(p.Z) < p.Depth / 2);
+            Assert.True(CityLayout.NpcArea(x, -7) && CityLayout.NpcArea(x, 7), $"sin vereda en x = {x}"); // los habitantes van por las veredas
+        }
+        Assert.All(CityLayout.DowntownBuildings, b => Assert.False(MathF.Abs(b.Plan.Z) < b.Plan.Depth / 2 + 9 && b.Plan.X > 105 && b.Plan.X < 246, $"edificio en la avenida en ({b.Plan.X}, {b.Plan.Z})"));
     }
 
     private static bool Intersects(MapBuilding a, MapBuilding b) =>

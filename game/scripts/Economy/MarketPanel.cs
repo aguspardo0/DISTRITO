@@ -272,7 +272,7 @@ public partial class MarketPanel : PanelContainer
         _content.AddChild(EncargoLook.Text("Lo que sabe Nino", EncargoLook.Gold, size: 20));
         if (info.Report is not { } report)
         {
-            _content.AddChild(EncargoLook.Text($"Nino vende información en el callejón del este del Mercado, detrás de los galpones: "
+            _content.AddChild(EncargoLook.Text($"Nino vende información en un pasaje de la Calle Principal, entre la ferretería y el correo: "
                 + $"{EconomyCatalog.FormatMoney(MarketInfoRules.InformantPriceCents)} por una hora. Sabe lo que no sale en el diario: cuánta mercadería le queda "
                 + "a cada uno, quién tiene cola de pedidos, qué vende el Taller Caruso por la puerta de atrás y qué fletes andan por la calle.", EncargoLook.Muted, 860));
             return;

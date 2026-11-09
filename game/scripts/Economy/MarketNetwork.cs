@@ -68,7 +68,7 @@ public partial class MarketNetwork : Node3D
     private static readonly Dictionary<string, Vector3> SignOffsets = new()
     {
         [EconomyCatalog.DepositNpc] = new(2.3f, 0, 1.2f),
-        [EconomyCatalog.WorkshopNpc] = new(-2.3f, 0, 1.2f),
+        [EconomyCatalog.WorkshopNpc] = new(2.3f, 0, 1.2f),
         [EconomyCatalog.CoffeeCornerNpc] = new(2.3f, 0, 0),
         [EconomyCatalog.JazzClubNpc] = new(-2.3f, 0, 0.6f),
         [MarketInfoRules.KioskNpc] = new(2.4f, 0, 0.4f),
@@ -90,8 +90,8 @@ public partial class MarketNetwork : Node3D
                 var wood = new StandardMaterial3D { AlbedoColor = new Color(0.36f, 0.25f, 0.15f) };
                 foreach (var x in new[] { -0.7f, 0.7f })
                     stand.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.07f, 1.95f, 0.07f) }, MaterialOverride = wood, Position = new Vector3(x, 0.97f, 0.05f) });
-                // La pizarra mira hacia donde llega la gente (el centro del Mercado); el texto se ve siempre de frente.
-                stand.Rotation = new Vector3(0, Mathf.Atan2(-at.X, -at.Z), 0);
+                // La pizarra mira hacia donde llega la gente (la calzada de la Calle Principal); el texto se ve siempre de frente.
+                stand.Rotation = new Vector3(0, Mathf.Atan2(0, -at.Z), 0);
                 stand.AddChild(new MeshInstance3D
                 {
                     Mesh = new BoxMesh { Size = new Vector3(1.7f, 1.55f, 0.05f) },
@@ -137,8 +137,8 @@ public partial class MarketNetwork : Node3D
         AddChild(crowd);
         _crowds[board.NpcCode] = crowd;
         var rng = new Random(board.NpcCode.GetHashCode());
-        // La cola mira hacia el centro del Mercado (de donde llega la gente), en semicírculo y en dos filas.
-        var toCenter = Mathf.Atan2(-npc.Position.Z, -npc.Position.X);
+        // La cola mira hacia la calzada (de donde llega la gente), en semicírculo y en dos filas.
+        var toCenter = Mathf.Atan2(-npc.Position.Z, 0);
         for (var i = 0; i < count; i++)
         {
             var ring = i < 7 ? 1.9f : 3.0f;

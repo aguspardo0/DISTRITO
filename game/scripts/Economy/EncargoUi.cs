@@ -25,7 +25,7 @@ public static class EncargoLook
             return Name(code);
         var spot = npc.MapPosition;
         var zone = CityLayout.BarrioAt(spot.X, spot.Y)?.Area.Name
-                   ?? (CityLayout.Docks.Contains(spot.X, spot.Y) ? "Los Muelles" : "El Mercado");
+                   ?? (CityLayout.Docks.Contains(spot.X, spot.Y) ? "Los Muelles" : CityLayout.Market.Contains(spot.X, spot.Y) ? "Calle Principal" : "El Centro");
         return $"{Name(code)} ({zone})";
     }
 

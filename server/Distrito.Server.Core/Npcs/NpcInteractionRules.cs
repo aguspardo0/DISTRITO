@@ -49,11 +49,12 @@ public static class NpcInteractionRules
     public const string InformantOption = "ui:informe";
     public const string LedgerOption = "ui:libro";
 
-    // Los tres de las familias atienden en la vereda y también en el mostrador de adentro (galpón, taller y oficina).
-    public static readonly NpcDefinition Deposit = new(EconomyCatalog.DepositNpc, "Almacén Moretti", new Vector3(-8.5f, 0, -8.5f), [Inside("galpon-moretti")]);
-    public static readonly NpcDefinition Workshop = new(EconomyCatalog.WorkshopNpc, "Taller Caruso", new Vector3(10f, 0, 3f), [Inside("taller-caruso")]);
+    // Los tres de las familias atienden en la vereda y también en el mostrador de adentro (galpón, taller y oficina). Desde
+    // el 2026-11-09 cada uno está en la boca de la avenida de su familia sobre la Calle Principal (ver MainStreet).
+    public static readonly NpcDefinition Deposit = new(EconomyCatalog.DepositNpc, "Almacén Moretti", new Vector3(-14f, 0, -9.3f), [Inside("galpon-moretti")]);
+    public static readonly NpcDefinition Workshop = new(EconomyCatalog.WorkshopNpc, "Taller Caruso", new Vector3(10f, 0, 15.5f), [Inside("taller-caruso")]);
 
-    public static readonly NpcDefinition ValentiOffice = new(EconomyCatalog.ValentiOfficeNpc, "Oficina Valenti", new Vector3(-11.5f, 0, -1.5f), [Inside("oficina-valenti")]);
+    public static readonly NpcDefinition ValentiOffice = new(EconomyCatalog.ValentiOfficeNpc, "Oficina Valenti", new Vector3(21.3f, 0, -15f), [Inside("oficina-valenti")]);
 
     private static Vector3 Inside(string interior)
     {
@@ -68,18 +69,18 @@ public static class NpcInteractionRules
     public static readonly NpcDefinition Sastreria = new(SastreriaNpc, "Bianchi, el sastre", Inside("sastreria"));
     public static readonly NpcDefinition Diner = new(DinerNpc, "Mabel (Diner La Estrella)", Inside("diner"));
     public static readonly IReadOnlyList<NpcDefinition> Shops = [Ramos, Botica, Sastreria, Diner];
-    public static readonly NpcDefinition CoffeeCorner = new(EconomyCatalog.CoffeeCornerNpc, "Esquina del café", new Vector3(-3f, 0, 8f));
+    public static readonly NpcDefinition CoffeeCorner = new(EconomyCatalog.CoffeeCornerNpc, "Esquina del café", new Vector3(23f, 0, 13f));
 
-    public static readonly NpcDefinition JazzClub = new(EconomyCatalog.JazzClubNpc, "Club de jazz", new Vector3(8f, 0, -7f));
+    public static readonly NpcDefinition JazzClub = new(EconomyCatalog.JazzClubNpc, "Club de jazz", new Vector3(94f, 0, -9.3f));
 
     /// <summary>Casino «El Trébol» de la familia Valenti (aprobado 2026-11-01), en la puerta del local.</summary>
-    public static readonly NpcDefinition Casino = new(CasinoRules.Npc, CasinoRules.Name, new Vector3(24f, 0, 15.6f));
+    public static readonly NpcDefinition Casino = new(CasinoRules.Npc, CasinoRules.Name, new Vector3(47f, 0, 9.3f));
 
-    /// <summary>Kiosco de diarios (2026-11-02): vende La Gaceta de Bellmont, en la vereda oeste de la calle principal.</summary>
-    public static readonly NpcDefinition Kiosk = new(MarketInfoRules.KioskNpc, MarketInfoRules.KioskName, new Vector3(-18.5f, 0, -5.5f));
+    /// <summary>Kiosco de diarios (2026-11-02): vende La Gaceta de Bellmont, en la plazoleta de La Esquina.</summary>
+    public static readonly NpcDefinition Kiosk = new(MarketInfoRules.KioskNpc, MarketInfoRules.KioskName, new Vector3(33f, 0, 13.5f));
 
-    /// <summary>Nino, el informante: en el callejón detrás de los galpones del Mercado.</summary>
-    public static readonly NpcDefinition Informant = new(MarketInfoRules.InformantNpc, MarketInfoRules.InformantName, new Vector3(20.5f, 0, -6.5f));
+    /// <summary>Nino, el informante: en un pasaje entre la ferretería y el correo de la Calle Principal.</summary>
+    public static readonly NpcDefinition Informant = new(MarketInfoRules.InformantNpc, MarketInfoRules.InformantName, new Vector3(91f, 0, 14f));
 
     // Jefes de familia: esperan en la plaza de su barrio, frente al cuartel.
     public static readonly NpcDefinition MorettiBoss = Boss(EconomyCatalog.MorettiBossNpc, World.CityLayout.Moretti);
@@ -99,7 +100,7 @@ public static class NpcInteractionRules
     }).ToList();
 
     /// <summary>Gaetano, el marinero de Los Muelles: entrega los paquetes de los encargos.</summary>
-    public static readonly NpcDefinition DocksContact = new(EncargoRules.DocksContact, "Gaetano, el marinero", new Vector3(47f, 0, 3.4f));
+    public static readonly NpcDefinition DocksContact = new(EncargoRules.DocksContact, "Gaetano, el marinero", new Vector3(47f + World.CityLayout.DocksShift, 0, 3.4f));
 
     public static readonly IReadOnlyList<NpcDefinition> All = [Deposit, Workshop, ValentiOffice, CoffeeCorner, JazzClub, Casino, Kiosk, Informant, .. Shops, .. Bosses, .. FamilyContacts, DocksContact];
 

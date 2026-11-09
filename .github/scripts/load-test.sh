@@ -20,7 +20,7 @@ PORT=7801
 "$GODOT" --headless --path game -- --server --port $PORT --interest-radius 12 > interest-server.log 2>&1 &
 srv=$!
 sleep 4
-client interest-a.log $PORT --bot-goto -8,12 --test-seconds 20 --expect-players 2 --expect-visible-end 1 --expect-map-players 2 & a=$!
+client interest-a.log $PORT --bot-goto -8,4 --test-seconds 20 --expect-players 2 --expect-visible-end 1 --expect-map-players 2 & a=$!
 client interest-b.log $PORT --bot-goto 12,-5 --test-seconds 20 --expect-players 2 --expect-visible-end 1 --expect-map-players 2 & b=$!
 wait $a; wait $b
 kill $srv 2>/dev/null; wait $srv 2>/dev/null
@@ -30,23 +30,24 @@ for x in a b; do
 done
 
 # ---------- 1b. Colisiones: un bot intenta atravesar un edificio, otro salir del barrio ----------
-# Edificio 0 ocupa x,z en [-18,-10]. El otro bot cruza Los Muelles, dobla por la calle que los rodea y sigue por la calle
-# z = 39 (la que rodea al Mercado y cruza todo el Centro) hasta el borde de la ciudad, en x = 300 (pared invisible).
+# El Galpón Moretti ocupa x en [-28,-8] y z en [-27,-11]: el bot apunta a su centro (-18,-19) y tiene que quedar contra
+# el frente. El otro bot va por la Calle Principal y la Avenida del Puerto, cruza Los Muelles y llega al borde de la
+# ciudad, en x = 300 (pared invisible, del otro lado está el agua).
 PORT=7803
 "$GODOT" --headless --path game -- --server --port $PORT > walls-server.log 2>&1 &
 srv=$!
 sleep 4
-client walls-a.log $PORT --bot-goto -14,-14 --test-seconds 20 --expect-players 2 & a=$!
-client walls-b.log $PORT --bot-route "0,-1;60,-1;100,-1;100,39;400,39" --test-seconds 110 --expect-players 2 & b=$!
+client walls-a.log $PORT --bot-goto -18,-19 --test-seconds 20 --expect-players 2 & a=$!
+client walls-b.log $PORT --bot-route "0,-1;100,-1;240,-1;400,-1" --test-seconds 110 --expect-players 2 & b=$!
 wait $a; wait $b
 kill $srv 2>/dev/null; wait $srv 2>/dev/null
 pos_of() { grep -h NET_TEST_ "$1" | tail -1 | grep -o ' pos=[-0-9.,]*' | cut -d= -f2; }
 pa=$(pos_of walls-a.log); pb=$(pos_of walls-b.log)
-if grep -q NET_TEST_OK walls-a.log && echo "$pa" | awk -F, '{ dx=$1+14; dz=$2+14; if (dx<0) dx=-dx; if (dz<0) dz=-dz; exit !(dx > 4.2 || dz > 4.2) }'; then
+if grep -q NET_TEST_OK walls-a.log && echo "$pa" | awk -F, '{ dx=$1+18; dz=$2+19; if (dx<0) dx=-dx; if (dz<0) dz=-dz; exit !(dx > 4.2 || dz > 4.2) }'; then
   note "Colisión con edificio" "el bot quedó afuera, en ${pa}"
 else error "Colisión con edificio" "posición final ${pa:-?}: atravesó el edificio o falló ($(grep -h NET_TEST_ walls-a.log | tail -1))"; fi
 if grep -q NET_TEST_OK walls-b.log && echo "$pb" | awk -F, '{ exit !($1 >= 250 && $1 <= 300.2) }'; then
-  note "Borde de la ciudad" "el bot cruzó el Centro y el borde lo frenó en ${pb}"
+  note "Borde de la ciudad" "el bot fue por la Calle Principal y la Avenida del Puerto, cruzó Los Muelles y el borde lo frenó en ${pb}"
 else error "Borde de la ciudad" "posición final ${pb:-?} ($(grep -h NET_TEST_ walls-b.log | tail -1 | cut -c1-200))"; fi
 
 # ---------- 1d. Barrios de las familias: se llega por las avenidas y el borde de la ciudad frena ----------

@@ -94,8 +94,10 @@ public partial class ContractBot : Node
         }
     }
 
-    /// <summary>Camina en línea recta hacia el NPC. Devuelve true al llegar.</summary>
-    private static bool WalkTo(PlayerCharacter player, LocalPlayerController controller, NpcDefinition npc)
+    private readonly BotSteering _steer = new();
+
+    /// <summary>Camina hacia el NPC (por el camino de la grilla de la ciudad). Devuelve true al llegar.</summary>
+    private bool WalkTo(PlayerCharacter player, LocalPlayerController controller, NpcDefinition npc)
     {
         var target = new Vector2(npc.Position.X, npc.Position.Z);
         var here = new Vector2(player.GlobalPosition.X, player.GlobalPosition.Z);
@@ -105,7 +107,7 @@ public partial class ContractBot : Node
             controller.ScriptedDirection = Vector2.Zero;
             return true;
         }
-        controller.ScriptedDirection = toTarget.Normalized();
+        controller.ScriptedDirection = _steer.Direction(player.GlobalPosition, target);
         return false;
     }
 

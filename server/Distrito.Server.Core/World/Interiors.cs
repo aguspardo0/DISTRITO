@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace Distrito.Server.Core.World;
 
-// Interiores (pedido del equipo, 2026-11-02): se entra por la puerta de cada edificio a un salón armado aparte, lejos de
+// Interiores (pedido del equipo, 2026-11-02; puertas mudadas a la Calle Principal el 2026-11-09): se entra por la puerta de cada edificio a un salón armado aparte, lejos de
 // la ciudad (más allá del radio de interés, así adentro solo se ve a quien está adentro). Primero el Mercado: mayoristas
 // en galpones y tiendas minoristas. El aspecto es provisorio (greybox): cada mueble es un «lugar» con un tipo; si existe
 // res://assets/interiores/<tipo>.glb se usa ese modelo, si no, la forma provisoria. Ver docs/INTERIORES.md.
@@ -69,7 +69,7 @@ public static class InteriorLayout
     [
         // Galpón mayorista de los Moretti: oficina con mostrador a la entrada, tres filas de estanterías altas con la
         // mercadería real, la zona de pedidos listos y el portón de carga al fondo.
-        new("galpon-moretti", "Galpón Moretti", Wholesale, new(-10f, -12.5f), new(1, 0), 0, 26f, 18f, 7f, "hormigon", "ladrillo", -9f,
+        new("galpon-moretti", "Galpón Moretti", Wholesale, new(-18f, -11f), new(0, 1), 0, 26f, 18f, 7f, "hormigon", "ladrillo", -9f,
         [
             new("mostrador", -8.5f, 3.6f), new("caja-registradora", -9.6f, 3.6f), new("escritorio", -11.2f, 6.2f, 90), new("archivo", -12.4f, 1.6f, 90),
             new("cartel", -9f, 8.85f, 180, "OFICINA · PEDIDOS POR MAYOR"),
@@ -85,7 +85,7 @@ public static class InteriorLayout
         ]),
 
         // Taller Caruso: un auto en el elevador, banco de trabajo, pared de herramientas, mostrador y la puerta del fondo.
-        new("taller-caruso", "Taller Caruso", Workshop, new(11f, 7f), new(-1, 0), 1, 18f, 14f, 6f, "hormigon", "chapa", -4f,
+        new("taller-caruso", "Taller Caruso", Workshop, new(7.5f, 19f), new(1, 0), 1, 18f, 14f, 6f, "hormigon", "chapa", -4f,
         [
             new("mostrador", -5.5f, 2.4f), new("caja-registradora", -6.4f, 2.4f), new("elevador-auto", 3.5f, -1.5f),
             new("banco-trabajo", 7.6f, 3.5f, 90), new("pared-herramientas", 8.9f, -2f, 270), new("puerta-trasera", -6f, -6.9f, 0, "SOLO PERSONAL"),
@@ -97,7 +97,7 @@ public static class InteriorLayout
         ]),
 
         // Oficina Valenti: recepción con mostrador, sillones de espera, archivos y el despacho del fondo.
-        new("oficina-valenti", "Oficina Valenti", Office, new(-12.5f, 4f), new(1, 0), 2, 12f, 9f, 4f, "parquet", "empapelado", 0f,
+        new("oficina-valenti", "Oficina Valenti", Office, new(19f, -19f), new(1, 0), 2, 12f, 9f, 4f, "parquet", "empapelado", 0f,
         [
             new("mostrador", 0f, -1.8f), new("escritorio", -3.5f, -3f), new("archivo", -5.4f, -1f, 90), new("archivo", -5.4f, 0.2f, 90),
             new("sillon", 3.8f, 2.2f, 270), new("sillon", 3.8f, 0.8f, 270), new("planta", 5.3f, 3.8f), new("caja-fuerte", 5.2f, -3.6f, 270),
@@ -106,7 +106,7 @@ public static class InteriorLayout
         []),
 
         // Ramos generales: estanterías en las paredes, mostrador con balanza y caja, heladera, barriles y bolsas.
-        new("ramos-generales", "Ramos generales La Esperanza", Retail, new(6f, -11.5f), new(0, 1), 3, 13f, 9f, 4.5f, "baldosa", "madera", 0f,
+        new("ramos-generales", "Ramos generales La Esperanza", Retail, new(57f, -11f), new(0, 1), 3, 13f, 9f, 4.5f, "baldosa", "madera", 0f,
         [
             new("mostrador", 3.5f, -0.6f), new("balanza", 2.6f, -0.6f), new("caja-registradora", 4.6f, -0.6f), new("heladera", -5.8f, -3f, 90),
             new("estante", -3f, -4.1f), new("estante", 0f, -4.1f), new("estante", 3f, -4.1f), new("estante", -6.1f, 1f, 90),
@@ -115,7 +115,7 @@ public static class InteriorLayout
         [new("barril", -4.5f, 2.6f), new("barril", -3.6f, 2.9f), new("bolsa", 5.5f, 3f, 0.15f), new("bolsa", 5.8f, 2.3f, 0.15f), new("caja", -1f, 3.4f)]),
 
         // Botica: estanterías de frascos, mostrador con balanza de precisión, vidriera y la trastienda.
-        new("botica", "Botica Ferri", Retail, new(-4f, -13.5f), new(0, 1), 4, 9f, 7f, 4f, "baldosa", "azulejo", 0f,
+        new("botica", "Botica Ferri", Retail, new(2f, -11f), new(0, 1), 4, 9f, 7f, 4f, "baldosa", "azulejo", 0f,
         [
             new("mostrador", 0f, -0.6f), new("balanza", -0.8f, -0.6f), new("estante-frascos", -2.5f, -3.1f), new("estante-frascos", 2.5f, -3.1f),
             new("vidriera", -3.8f, 1.6f, 90), new("puerta-trasera", 4.1f, -2f, 270, "LABORATORIO"),
@@ -124,7 +124,7 @@ public static class InteriorLayout
         [new("caja", 3f, 2.4f)]),
 
         // Sastrería: maniquíes, percheros, espejo, mesa de corte, probador y mostrador.
-        new("sastreria", "Sastrería Bianchi", Retail, new(16f, -7f), new(0, 1), 5, 10f, 8f, 4f, "parquet", "empapelado", 0f,
+        new("sastreria", "Sastrería Bianchi", Retail, new(38f, -11f), new(0, 1), 5, 10f, 8f, 4f, "parquet", "empapelado", 0f,
         [
             new("mostrador", -2.5f, -0.8f), new("mesa-corte", 2f, -2.5f), new("maniqui", -4f, 2.5f), new("maniqui", -2.8f, 2.8f),
             new("perchero", 4.2f, 1.5f, 90), new("perchero", 4.2f, -0.5f, 90), new("espejo", -4.85f, -1.5f, 90), new("probador", 3.8f, -3.2f),
@@ -133,7 +133,7 @@ public static class InteriorLayout
         [new("caja", -1f, 3f)]),
 
         // Diner: barra larga con taburetes, reservados contra la ventana, rocola y dos mesas con sillas sueltas.
-        new("diner", "Diner La Estrella", Bar, new(0f, 14.5f), new(0, -1), 6, 15f, 9f, 4f, "damero", "cromado", 0f,
+        new("diner", "Diner La Estrella", Bar, new(-20f, 11f), new(0, -1), 6, 15f, 9f, 4f, "damero", "cromado", 0f,
         [
             new("barra", -1f, -3.4f), new("caja-registradora", 3.5f, -3.4f), new("taburete", -5f, -2.3f), new("taburete", -3.5f, -2.3f),
             new("taburete", -2f, -2.3f), new("taburete", -0.5f, -2.3f), new("taburete", 1f, -2.3f), new("taburete", 2.5f, -2.3f),
@@ -148,12 +148,13 @@ public static class InteriorLayout
     ];
 
     /// <summary>Cajones, barriles y basura en las veredas del Mercado (física compartida), lejos de los mostradores y de la calle.</summary>
+    /// <summary>Cajones, barriles y basura en las veredas y pasajes de la Calle Principal (física compartida), lejos de las puertas y de la calzada.</summary>
     public static readonly IReadOnlyList<PhysicsProp> MarketProps =
     [
-        new("cajon", -9.4f, -15.8f, 0.15f), new("cajon", -9.4f, -15.8f, 0.75f), new("cajon", -9.4f, -17f, 0.15f), new("barril", -9.3f, -10.4f),
-        new("tacho", 9.8f, -11f), new("cajon", 10.2f, -12.6f, 0.15f), new("tacho", -7.4f, -12.9f), new("barril", 19.6f, 3.9f),
-        new("barril", 19.4f, 4.8f), new("neumatico", 11.5f, 11.9f), new("cajon", -12f, 11.2f, 0.15f), new("tacho", 6.6f, 13.9f),
-        new("caja", -6.6f, 13.9f), new("cajon", 13.4f, -6.4f, 0.15f),
+        new("cajon", -26.5f, -10.2f, 0.15f), new("cajon", -26.5f, -10.2f, 0.75f), new("cajon", -25.4f, -10.2f, 0.15f), new("barril", -9.5f, -10.3f),
+        new("tacho", -6f, -12f), new("tacho", 9.5f, -12f), new("barril", 6.5f, 10.3f), new("barril", 5.6f, 10.4f),
+        new("neumatico", 9f, 25f), new("cajon", -11f, 10.3f, 0.15f), new("tacho", -10f, 13f), new("caja", 59f, 10.3f),
+        new("cajon", 66.5f, -10.3f, 0.15f), new("tacho", 91f, 21f), new("barril", 83f, -10.3f),
     ];
 
     public static InteriorPlan? Find(string code) => All.FirstOrDefault(p => p.Code == code);
