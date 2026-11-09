@@ -11,7 +11,7 @@ arriba a la izquierda (la lista de controles y el último mensaje) y los textos 
 | Arriba a la derecha | **Avisos**: aparecen, se leen y se van solos a los 5 segundos (8 los importantes, con borde rojo); como mucho tres; el mismo aviso no se repite. |
 
 - **F1** muestra y oculta los controles (al entrar aparece el aviso «F1: ver los controles»).
-- **F3** muestra los datos de rendimiento (antes estaban siempre a la vista).
+- **F3** muestra los datos de rendimiento a la derecha, a media altura (antes estaban siempre a la vista y tapaban los avisos).
 - El nombre propio ya no aparece arriba de la cabeza; el de los demás jugadores, sí.
 - Al entrar a Los Muelles sale un aviso importante: zona libre.
 - El tutorial queda arriba a la izquierda mientras dura; la libreta de encargos, a la derecha debajo de los avisos.

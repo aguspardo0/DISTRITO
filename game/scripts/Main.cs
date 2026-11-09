@@ -354,7 +354,7 @@ public partial class Main : Node3D
         _gameHud.Snapshot = () => _economy.LastSnapshot;
         _gameHud.Ammo = () => _combat.AmmoText;
         layer.AddChild(UiAnchor.Wrap(new MetricsOverlay { Name = "Metrics", PlayerCount = () => _network.PlayerCount, Visible = Options.UiSnapshotDir is not null },
-            UiAnchor.End, UiAnchor.Start, name: "MetricsArea"));
+            UiAnchor.End, UiAnchor.Center, name: "MetricsArea"));
 
         var interaction = new NpcInteractionController { Name = "NpcInteraction" };
         _interaction = interaction;

@@ -74,7 +74,7 @@ public partial class GameHud : Control
         // Arriba al medio: el objetivo debajo de la brújula.
         _objective = Text(13, Gold, HorizontalAlignment.Center);
         _objective.CustomMinimumSize = new Vector2(400, 0);
-        Pin(_objective, 0.5f, 0, new Vector2(0, 44), Control.GrowDirection.Both, Control.GrowDirection.End);
+        Pin(_objective, 0.5f, 0, new Vector2(0, 50), Control.GrowDirection.Both, Control.GrowDirection.End);
 
         // Arriba a la derecha: los avisos.
         _toasts = Pin(new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Begin }, 1, 0, new Vector2(-24, 20), Control.GrowDirection.Begin, Control.GrowDirection.End);
@@ -227,7 +227,7 @@ public partial class GameHud : Control
         // Brújula.
         const float width = 360, span = 90; // se ven 90° a cada lado
         var cx = Size.X / 2;
-        const float y = 22;
+        const float y = 30;
         DrawLine(new Vector2(cx - width / 2, y), new Vector2(cx + width / 2, y), new Color(1, 1, 1, 0.25f), 1);
         var font = ThemeDB.FallbackFont;
         string[] names = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
