@@ -27,7 +27,7 @@ que sube y se borra en dos segundos y medio. Como mucho se ven cuatro a la vez.
 - **Arrastrar con el clic izquierdo:** mover el mapa (no se va del marco).
 - **Espacio:** acercar y centrar en vos.
 - Vos sos una **flecha roja** que apunta hacia donde mira la cámara.
-- Con zoom, las referencias se esconden para no tapar; al alejar del todo vuelven.
+- Las referencias (símbolos y la lista de lugares) van en una columna a la derecha del mapa, así no tapan nada.
 - Abrir el mapa suelta el mouse (como las otras ventanas); cerrarlo lo vuelve a tomar.
 
 Arreglo de paso: los avisos de la pantalla de juego contaban como «ventana abierta» y un clic no volvía a tomar el mouse.

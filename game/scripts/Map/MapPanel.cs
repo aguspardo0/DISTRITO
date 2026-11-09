@@ -23,6 +23,7 @@ public partial class MapPanel : Control
     private static readonly Color Self = new(0.95f, 0.35f, 0.25f);
 
     private const float MinZoom = 1f, MaxZoom = 6f;
+    private const float LegendWidth = 290f; // las referencias van en una columna a la derecha del mapa
 
     private GameNetwork _network = null!;
     private float _zoom = 1f;
@@ -49,7 +50,7 @@ public partial class MapPanel : Control
     public override void _Ready()
     {
         Visible = false;
-        CustomMinimumSize = new Vector2(WidthPx, HeightPx + 48);
+        CustomMinimumSize = new Vector2(WidthPx + LegendWidth, HeightPx + 48);
         MouseFilter = MouseFilterEnum.Stop;
         ClipContents = true;
     }
@@ -274,28 +275,24 @@ public partial class MapPanel : Control
         DrawRect(new Rect2(0, 0, full.X, 24), Paper);
         DrawRect(new Rect2(0, 24 + HeightPx, full.X, full.Y - 24 - HeightPx), Paper);
         DrawRect(new Rect2(WidthPx, 0, full.X - WidthPx, full.Y), Paper);
-        if (_zoom <= MinZoom)
-            DrawLegend(font, territory); // con zoom, las referencias se esconden para no tapar
+        DrawLegend(font, territory);
 
         if (economy?.Families is { } families)
         {
             var line = string.Join("   ", families.Select(f => $"{f.Name.Replace("Familia ", "")}: {Distrito.Shared.Economy.FamilyRules.Display(f.Mood).Split(' ')[0]}"));
-            DrawString(font, new Vector2(8, HeightPx + 41), line, HorizontalAlignment.Left, WidthPx - 16, 13, Brass);
+            DrawString(font, new Vector2(8, HeightPx + 41), line, HorizontalAlignment.Left, WidthPx + LegendWidth - 16, 13, Brass);
         }
         DrawRect(new Rect2(0, 24, WidthPx, HeightPx), Brass, filled: false, width: 2);
         DrawString(font, new Vector2(8, 17), $"BELLMONT — {_map.Markers.Count} conectado(s)", HorizontalAlignment.Left, -1, 14, Brass);
-        DrawString(font, new Vector2(0, 17), "rueda: zoom · arrastrar: mover · Espacio: vos · M: cerrar", HorizontalAlignment.Right, WidthPx - 8, 11, Others with { A = 0.7f });
+        DrawString(font, new Vector2(0, 17), "rueda: zoom · arrastrar: mover · Espacio: vos · M: cerrar", HorizontalAlignment.Right, WidthPx + LegendWidth - 8, 11, Others with { A = 0.7f });
     }
 
     /// <summary>Referencias en la esquina vacía de arriba a la izquierda: símbolos y la lista numerada del Mercado.</summary>
     private void DrawLegend(Font font, Distrito.Shared.Economy.TerritoryView? territory)
     {
-        var origin = new Vector2(10, 34);
+        var origin = new Vector2(WidthPx + 12, 34);
         var y = origin.Y;
-        // Fondo propio para que el mapa no se mezcle con el texto.
-        var rows = NpcInteractionRules.Market.Count() + 1;
-        DrawRect(new Rect2(origin - new Vector2(6, 4), new Vector2(300, 22 + 16 * 5 + 16 + 12 * rows + 6)), Paper with { A = 0.9f });
-        DrawRect(new Rect2(origin - new Vector2(6, 4), new Vector2(300, 22 + 16 * 5 + 16 + 12 * rows + 6)), Brass with { A = 0.4f }, filled: false, width: 1);
+
         DrawString(font, new Vector2(origin.X, y + 11), "REFERENCIAS", HorizontalAlignment.Left, -1, 12, Brass);
         y += 22;
         var accent = Accent(CityLayout.Moretti);
