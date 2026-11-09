@@ -32,6 +32,7 @@ public partial class GameHud : Control
     private Label _money = null!, _zone = null!, _clock = null!, _ammo = null!, _objective = null!, _health = null!;
     private VBoxContainer _toasts = null!;
     private PanelContainer _controls = null!;
+    private Control? _barSlot;
     private float _heading;
     private float? _bearing;
     private float _life = 1;
@@ -48,21 +49,22 @@ public partial class GameHud : Control
 
     public override void _Ready()
     {
-        SetAnchorsPreset(LayoutPreset.FullRect);
+        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Ignore;
 
         // Abajo a la izquierda: vida, plata y zona.
-        var left = Box(new VBoxContainer(), LayoutPreset.BottomLeft, new Vector2(24, -96));
+        var left = Pin(new VBoxContainer(), 0, 1, new Vector2(24, -24), Control.GrowDirection.End, Control.GrowDirection.Begin);
         _health = Text(13, Ink);
         left.AddChild(_health);
-        left.AddChild(new Control { CustomMinimumSize = new Vector2(150, 8) }); // la barra se dibuja acá (en _Draw)
+        _barSlot = new Control { CustomMinimumSize = new Vector2(150, 8), MouseFilter = MouseFilterEnum.Ignore };
+        left.AddChild(_barSlot); // la barra se dibuja acá (en _Draw)
         _money = Text(18, Ink);
         left.AddChild(_money);
         _zone = Text(12, new Color(0.78f, 0.74f, 0.66f));
         left.AddChild(_zone);
 
         // Abajo a la derecha: balas (con arma) y la hora.
-        var right = Box(new VBoxContainer { Alignment = BoxContainer.AlignmentMode.End }, LayoutPreset.BottomRight, new Vector2(-224, -64));
+        var right = Pin(new VBoxContainer { Alignment = BoxContainer.AlignmentMode.End }, 1, 1, new Vector2(-24, -24), Control.GrowDirection.Begin, Control.GrowDirection.Begin);
         right.CustomMinimumSize = new Vector2(200, 0);
         _ammo = Text(18, Gold, HorizontalAlignment.Right);
         right.AddChild(_ammo);
@@ -71,13 +73,11 @@ public partial class GameHud : Control
 
         // Arriba al medio: el objetivo debajo de la brújula.
         _objective = Text(13, Gold, HorizontalAlignment.Center);
-        _objective.SetAnchorsPreset(LayoutPreset.CenterTop);
-        _objective.Position = new Vector2(-200, 40);
-        _objective.Size = new Vector2(400, 20);
-        AddChild(_objective);
+        _objective.CustomMinimumSize = new Vector2(400, 0);
+        Pin(_objective, 0.5f, 0, new Vector2(0, 44), Control.GrowDirection.Both, Control.GrowDirection.End);
 
         // Arriba a la derecha: los avisos.
-        _toasts = Box(new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Begin }, LayoutPreset.TopRight, new Vector2(-384, 20));
+        _toasts = Pin(new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Begin }, 1, 0, new Vector2(-24, 20), Control.GrowDirection.Begin, Control.GrowDirection.End);
         _toasts.CustomMinimumSize = new Vector2(360, 0);
         _toasts.AddThemeConstantOverride("separation", 6);
 
@@ -85,18 +85,21 @@ public partial class GameHud : Control
         _controls = new PanelContainer { Visible = false, MouseFilter = MouseFilterEnum.Ignore };
         _controls.AddThemeStyleboxOverride("panel", EncargoLook.Panel(0.88f, Gold));
         _controls.AddChild(Text(14, Ink, HorizontalAlignment.Center, ControlsText));
-        _controls.SetAnchorsPreset(LayoutPreset.Center);
-        _controls.Position = new Vector2(-300, -80);
-        AddChild(_controls);
+        Pin(_controls, 0.5f, 0.5f, Vector2.Zero, Control.GrowDirection.Both, Control.GrowDirection.Both);
 
         Notify("F1: ver los controles");
     }
 
-    private T Box<T>(T box, LayoutPreset preset, Vector2 offset) where T : Control
+    /// <summary>Clava un control a un punto de la pantalla (0..1) con un corrimiento en píxeles; crece hacia donde se le diga.</summary>
+    private T Pin<T>(T box, float ax, float ay, Vector2 offset, Control.GrowDirection growX, Control.GrowDirection growY) where T : Control
     {
         box.MouseFilter = MouseFilterEnum.Ignore;
-        box.SetAnchorsPreset(preset);
-        box.Position = offset;
+        box.AnchorLeft = box.AnchorRight = ax;
+        box.AnchorTop = box.AnchorBottom = ay;
+        box.OffsetLeft = box.OffsetRight = offset.X;
+        box.OffsetTop = box.OffsetBottom = offset.Y;
+        box.GrowHorizontal = growX;
+        box.GrowVertical = growY;
         AddChild(box);
         return box;
     }
@@ -216,7 +219,8 @@ public partial class GameHud : Control
         if (Me() is not { } me)
             return;
         // Barra de vida (abajo a la izquierda, debajo del número).
-        var bar = new Rect2(new Vector2(24, Size.Y - 96 + 22), new Vector2(150, 4));
+        var slot = _barSlot!.GetGlobalRect();
+        var bar = new Rect2(slot.Position - GlobalPosition + new Vector2(0, 2), new Vector2(150, 4));
         DrawRect(bar, new Color(1, 1, 1, 0.15f));
         DrawRect(new Rect2(bar.Position, new Vector2(bar.Size.X * _life, bar.Size.Y)), me.Downed || _life < 0.4f ? Danger : Ink);
 
