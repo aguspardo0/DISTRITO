@@ -10,6 +10,9 @@ namespace Distrito.Game.World;
 /// </summary>
 public static class MeshMerge
 {
+    /// <summary>Para comparar en la medición de rendimiento: con DISTRITO_SIN_UNIR=1 no junta nada.</summary>
+    private static readonly bool Disabled = OS.GetEnvironment("DISTRITO_SIN_UNIR") == "1";
+
     private static readonly StandardMaterial3D Painted = new() { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = 0.75f };
 
     /// <summary>Junta los hijos directos de <paramref name="parent"/> que son mallas sueltas (sin hijos propios).</summary>
@@ -52,7 +55,7 @@ public static class MeshMerge
 
     private static void Merge(Node3D root, List<(MeshInstance3D Mesh, Transform3D At)> parts)
     {
-        if (parts.Count < 2)
+        if (parts.Count < 2 || Disabled)
             return;
         var vertices = new List<Vector3>();
         var normals = new List<Vector3>();

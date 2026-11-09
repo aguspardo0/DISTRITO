@@ -145,6 +145,11 @@ jobs:
         run: |
           timeout 300 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path game --rendering-driver opengl3 \
             --resolution 1280x720 -- --benchmark > bench.log 2>&1 || true
+          # Para comparar: lo mismo sin juntar las piezas en una malla.
+          DISTRITO_SIN_UNIR=1 timeout 300 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path game --rendering-driver opengl3 \
+            --resolution 1280x720 -- --benchmark > bench-sin-unir.log 2>&1 || true
+          sed -i 's/ lugar=/ lugar=/' bench.log
+          grep 'BENCH calidad' bench-sin-unir.log | sed 's/lugar=/lugar=sin-unir:/' >> bench.log || true
           if grep -q BENCH_DONE bench.log; then
             {
               echo "### Rendimiento (máquina de CI sin placa de video: sirve para comparar, no como número final)"
