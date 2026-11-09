@@ -1,4 +1,4 @@
-# La ciudad: el Mercado y los barrios de las familias
+# La ciudad: la Calle Principal (antes el Mercado) y los barrios de las familias
 
 Pedido del equipo (2026-11-01): las familias son rivales y no se juntan; cada una tiene su barrio, separado de los otros.
 Los proveedores y comerciantes están en otra zona: el Mercado (el barrio original), que es terreno neutral.
@@ -89,3 +89,42 @@ las horas pico): 6 horas reales de día y 6 de noche.
   la ciudad (`CityLayout.StreetLines`).
 - Se sacó el **galpón de Depósitos Valenti** (las bahías al oeste del Mercado que decían «Bahía libre»). Los depósitos
   de cuadrilla se siguen usando igual, desde el mostrador de la **Oficina Valenti**.
+
+## La Calle Principal y Los Muelles contra el agua (2026-11-09)
+
+Pedido del equipo: rehacer el Mercado «para que cuadre con la ciudad, con los negocios más separados y con una lógica».
+Decisiones (preguntadas): **calle principal** (no plaza ni repartido por rubro), negocios **a una o dos cuadras**, los
+locales de las familias **en la boca de su avenida**, **Los Muelles al borde** contra el agua y el **casino en la calle**.
+
+```
+               Av. Norte (Valenti)
+                     │
+ Av. Oeste ── GALPÓN · BOTICA · OF.VALENTI │ SASTRERÍA · RAMOS · HOTEL · CLUB DE JAZZ ── x=114 ── Avenida del Puerto ── LOS MUELLES │ agua
+ (Moretti)   ════════════════ calzada de 12 m, veredas de 5 m ════════════════════════
+             DINER · TALLER CARUSO │ LA ESQUINA · CASINO · BARBERÍA · FERRETERÍA · CORREO
+                     │
+               Av. Sur (Caruso)
+```
+
+- **La Calle Principal** (`MainStreet` en Server.Core; el código de zona sigue siendo `el-mercado`): 135 m de largo
+  (x de −30 a 105), sobre el eje z = 0. Arranca donde entra la Avenida Oeste y termina en la calle del Centro x = 114.
+  Calzada de 12 m con línea al medio, veredas de 5 m, faroles cada 12 m y sendas peatonales donde cruzan las avenidas.
+- **Cada negocio en su lote** (16 m de fondo) con pasajes de 2 a 4 m entre lotes y un pasaje de servicio detrás.
+  Norte: Galpón Moretti, Botica Ferri, Oficina Valenti, Sastrería Bianchi, Ramos generales, Hotel Roma (fachada) y el
+  Club de jazz (marquesina violeta). Sur: Diner La Estrella, Taller Caruso, La Esquina (plazoleta con el puesto de café de
+  Don Aldo, el kiosco, bancos, un árbol y un reloj), el Casino El Trébol, barbería, ferretería y correo (fachadas).
+- **Las familias, en la boca de su avenida:** el Galpón Moretti donde entra la Avenida Oeste; la Oficina Valenti en la
+  esquina de la Avenida Norte y el Taller Caruso en la de la Avenida Sur (la puerta de estos dos da a su avenida).
+- **Las zonas** siguen igual: Calle del Almacén al oeste (Galpón), Los Talleres y La Oficina donde cruzan las avenidas y
+  La Esquina al este (café, casino y club de jazz).
+- **Avenida del Puerto:** sigue derecho a la Calle Principal (mismo eje) entre las manzanas del Centro hasta Los Muelles.
+  Es calle del Centro (zona `el-centro`); los habitantes la cruzan en cada esquina.
+- **Los Muelles** se mudaron al **borde este** (x de 246 a 300): los mismos galpones, sedes de cuadrilla, Gaetano y el
+  contrabando, corridos 216 m (`CityLayout.DocksShift`). Del otro lado de la pared del borde se ve el agua.
+- **Asaltos:** el camión de los Moretti va del Galpón por la Calle Principal y la Avenida del Puerto hasta Los Muelles;
+  el cobrador de los Valenti da la vuelta por las veredas del centro de la calle (`config/eventos-pve.json`).
+- **Sin tocar la economía:** las coordenadas de la población y de los negocios que usa la demanda (`mercado.json`,
+  `negocios.json`) quedaron como estaban, para no cambiar reglas aprobadas. Si se quiere que la distancia a Los Muelles
+  cuente con la ubicación nueva, hay que aprobarlo aparte.
+- Los bots de prueba que van a un NPC ahora siguen el camino de la grilla de la ciudad (`BotSteering`).
+- Se sacaron del escenario los siete edificios viejos del Mercado y su piso; todo lo arma `MainStreetBuilder`.

@@ -185,13 +185,13 @@ public partial class MapPanel : Control
             var corner = b.Inward.Y > 0 ? new Vector2(rect.Position.X + 4, rect.End.Y - 23) : rect.Position + new Vector2(4, 4);
             Plate(font, corner, b.Area.Name.ToUpperInvariant(), 13, Accent(b).Lightened(0.3f));
         }
-        Plate(font, ToMap(CityLayout.Market.CenterX, CityLayout.Market.MinZ) + new Vector2(-40, 2), "CALLE PRINCIPAL", 11, Brass);
+        Plate(font, ToMap(CityLayout.Market.CenterX, CityLayout.Market.MaxZ) + new Vector2(-40, 3), "CALLE PRINCIPAL", 11, Brass);
         Plate(font, ToMap(CityLayout.PortAvenue.MinX + 30, CityLayout.PortAvenue.MinZ) + new Vector2(0, -18), "AV. DEL PUERTO", 10, Brass);
         Plate(font, ToMap(CityLayout.Downtown.MinX, CityLayout.Downtown.MinZ) + new Vector2(6, 6), "EL CENTRO", 13, Brass);
         // Locales vacíos del Centro: un cuadradito dorado (todavía no se alquilan).
         foreach (var shop in CityLayout.EmptyShops)
             DrawRect(new Rect2(ToMap(shop.X, shop.Z) - new Vector2(2, 2), new Vector2(4, 4)), Brass);
-        Plate(font, ToMap(CityLayout.Docks.MinX, CityLayout.Docks.MaxZ) + new Vector2(2, -17), "LOS MUELLES", 11, new Color(0.95f, 0.55f, 0.4f));
+        Plate(font, ToMap(CityLayout.Docks.MaxX, CityLayout.Docks.MaxZ) + new Vector2(-84, 3), "LOS MUELLES", 11, new Color(0.95f, 0.55f, 0.4f));
 
         // Sedes de cuadrilla en Los Muelles.
         foreach (var b in Distrito.Game.Crews.BaseNetwork.Bases)
