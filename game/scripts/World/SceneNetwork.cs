@@ -311,7 +311,7 @@ public partial class SceneNetwork : Node
                     node.AddChild(crate);
                     break;
                 case "auto" or "camioneta" or "camion" or "policia" or "funebre":
-                    var type = track.Kind == "camion" ? Distrito.Shared.Economy.Vehicles.Truck : Distrito.Shared.Economy.Vehicles.Van;
+                    var type = track.Kind == "camion" ? Distrito.Shared.Economy.Vehicles.Truck : Distrito.Shared.Economy.Vehicles.Pickup;
                     Color? paint = track.Kind switch
                     {
                         "policia" => new Color(0.1f, 0.1f, 0.12f),

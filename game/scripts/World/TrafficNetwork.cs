@@ -29,7 +29,7 @@ public partial class TrafficNetwork : Node
             new(0.55f, 0.12f, 0.1f), new(0.15f, 0.2f, 0.35f), new(0.75f, 0.7f, 0.55f), new(0.2f, 0.3f, 0.22f), new(0.12f, 0.12f, 0.12f),
             new(0.6f, 0.45f, 0.2f), new(0.35f, 0.5f, 0.55f), new(0.45f, 0.18f, 0.3f),
         ];
-        var type = Distrito.Shared.Economy.Vehicles.Van;
+        var type = Distrito.Shared.Economy.Vehicles.Pickup;
         foreach (var car in _sim.Cars)
         {
             // Escondidos y lejos hasta que el servidor los ubica (así no hay colisiones donde no se ven).
