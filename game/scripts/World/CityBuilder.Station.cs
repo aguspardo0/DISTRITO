@@ -78,7 +78,7 @@ public static partial class CityBuilder
         }
         var f = Station.Fountain;
         SolidCylinder(node, "Fountain", 3.2f, 0.7f, new Vector3(f.X, 0.35f, f.Y), Stone);
-        Visual(node, "FountainWater", new Vector3(5.6f, 0.05f, 5.6f), new Vector3(f.X, 0.68f, f.Y), new Color(0.2f, 0.32f, 0.4f));
+        node.AddChild(new MeshInstance3D { Name = "FountainWater", Mesh = new CylinderMesh { TopRadius = 2.9f, BottomRadius = 2.9f, Height = 0.05f }, MaterialOverride = Material(new Color(0.2f, 0.32f, 0.4f)), Position = new Vector3(f.X, 0.71f, f.Y) });
         SolidCylinder(node, "FountainColumn", 0.4f, 2.4f, new Vector3(f.X, 1.2f, f.Y), Stone.Darkened(0.1f));
 
         // Carteles: en la plaza, para el que baja del tren, y donde la avenida llega al Centro.
